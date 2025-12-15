@@ -1,0 +1,29 @@
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+}
+
+a { color: inherit; }
+
+/* Light Mode */
+body {
+  background-color: #f5f5f5;
+  transition: background-color 0.3s ease;
+}
+
+/* Dark Mode */
+body.dark-mode {
+  background-color: #121212 !important;
+}
+
+
+/* ensure paper/card fills well */
+.MuiPaper-root {
+  box-sizing: border-box;
+}
+
+/* small tweak so temporary drawer overlays nicely */
+.mobile-drawer-overlay {
+  z-index: 1300;
+}
