@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   AppBar,
   Toolbar,
@@ -9,45 +9,99 @@ import {
   Menu,
   MenuItem,
   Divider,
-  Avatar
+  Avatar,
+  useTheme
 } from "@mui/material";
-
 import MenuIcon from "@mui/icons-material/Menu";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
-
 import Sidebar from "../components/Sidebar";
 import PageTransition from "../components/PageTransition";
 import { useColorMode } from "../theme/ThemeContext";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
-
-
+import { useNavigate, useLocation } from "react-router-dom";
 import bhagyaLogo from "../assets/bhagya.png";
 
 const expandedWidth = 220;
 const collapsedWidth = 70;
 
-const MainLayout = ({ title, children }) => {
+const MainLayout = ({ children }) => {
   const navigate = useNavigate();
-  const isMobile = useMediaQuery("(max-width: 768px)");
+  const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-
   const { toggleMode } = useColorMode();
   const { user, logout } = useAuth();
-
+  
   const themeMode = localStorage.getItem("themeMode") || "light";
-
+  const isDarkMode = themeMode === "dark";
+  
   const [anchorEl, setAnchorEl] = useState(null);
   const openMenu = Boolean(anchorEl);
+
+  // Get page title from route
+  const getPageTitle = () => {
+    const path = location.pathname;
+    const titleMap = {
+      "/dashboard": "Dashboard",
+      "/reports/production": "Production Report",
+      "/reports/sales": "Sales Report",
+      "/reports/inventory": "Inventory Report",
+      "/management/employees": "Employee Management",
+      "/management/vendors": "Vendor Management",
+      "/settings/profile": "User Profile",
+      "/settings/system": "System Settings",
+    };
+    return titleMap[path] || "Sri Bhagyalakshmi Dashboard";
+  };
+
+  const title = getPageTitle();
+
+  // Override AppBar color for Production page in dark mode
+  useEffect(() => {
+    const appBar = document.querySelector('.MuiAppBar-root');
+    if (!appBar) return;
+
+    if (location.pathname === "/reports/production" && isDarkMode) {
+      appBar.style.backgroundColor = '#121212';
+      appBar.style.backgroundImage = 'none';
+    } else {
+      appBar.style.backgroundColor = '';
+      appBar.style.backgroundImage = '';
+    }
+
+    // Apply font family to entire app
+    document.body.style.fontFamily = "'Inter', 'Roboto', 'Segoe UI', sans-serif";
+    
+    // Load Inter font if not already loaded
+    if (!document.querySelector('#inter-font')) {
+      const link = document.createElement('link');
+      link.id = 'inter-font';
+      link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap';
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
+    }
+
+    return () => {
+      if (appBar && location.pathname === "/reports/production") {
+        appBar.style.backgroundColor = '';
+        appBar.style.backgroundImage = '';
+      }
+    };
+  }, [location.pathname, isDarkMode]);
 
   const handleProfileClick = (e) => setAnchorEl(e.currentTarget);
   const handleProfileClose = () => setAnchorEl(null);
 
   return (
-    <Box sx={{ display: "flex" }}>
+    <Box sx={{ 
+      display: "flex",
+      minHeight: "100vh",
+      fontFamily: "'Inter', 'Roboto', sans-serif"
+    }}>
       <Sidebar
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
@@ -60,7 +114,8 @@ const MainLayout = ({ title, children }) => {
         sx={{
           flexGrow: 1,
           ml: isMobile ? 0 : collapsed ? `${collapsedWidth}px` : `${expandedWidth}px`,
-          transition: "all .3s ease"
+          transition: "all .3s ease",
+          fontFamily: "'Inter', 'Roboto', sans-serif"
         }}
       >
         <AppBar
@@ -71,15 +126,19 @@ const MainLayout = ({ title, children }) => {
               ? "100%"
               : `calc(100% - ${collapsed ? collapsedWidth : expandedWidth}px)`,
             ml: isMobile ? 0 : `${collapsed ? collapsedWidth : expandedWidth}px`,
-            // Custom color applied here
-            backgroundColor: "#0e3978f2 !important",  // your color with transparency
-            backgroundImage: "none",                  // removes default gradient/shadow if any
-            boxShadow: "0px 2px 4px -1px rgba(0,0,0,0.2), 0px 4px 5px 0px rgba(0,0,0,0.14), 0px 1px 10px 0px rgba(0,0,0,0.12)",
+            backgroundColor: isDarkMode ? "#121212" : "#0e3978f2",
+            backgroundImage: "none",
+            boxShadow: theme.shadows[3],
+            fontFamily: "'Inter', 'Roboto', sans-serif"
           }}
         >
-          <Toolbar>
+          <Toolbar sx={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
             {isMobile && (
-              <IconButton color="inherit" onClick={() => setMobileOpen(true)}>
+              <IconButton 
+                color="inherit" 
+                onClick={() => setMobileOpen(true)}
+                sx={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+              >
                 <MenuIcon />
               </IconButton>
             )}
@@ -98,13 +157,26 @@ const MainLayout = ({ title, children }) => {
               }}
             />
 
-            <Typography variant="h6" sx={{ flexGrow: 1 }}>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                flexGrow: 1,
+                fontFamily: "'Inter', sans-serif",
+                fontWeight: 600,
+                textDecoration: 'none'
+              }}
+            >
               {title}
             </Typography>
 
             <Typography
               variant="body1"
-              sx={{ mr: 1.5, fontWeight: 500, display: { xs: "none", sm: "block" } }}
+              sx={{ 
+                mr: 1.5, 
+                fontWeight: 500, 
+                display: { xs: "none", sm: "block" },
+                fontFamily: "'Inter', sans-serif"
+              }}
             >
               {user?.username || "User"}
             </Typography>
@@ -123,8 +195,9 @@ const MainLayout = ({ title, children }) => {
               onClose={handleProfileClose}
               anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
               transformOrigin={{ vertical: "top", horizontal: "right" }}
+              sx={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
             >
-              <MenuItem disabled sx={{ opacity: 0.8 }}>
+              <MenuItem disabled sx={{ opacity: 0.8, fontFamily: "'Inter', sans-serif" }}>
                 {user?.username || "Guest"}
               </MenuItem>
 
@@ -135,25 +208,30 @@ const MainLayout = ({ title, children }) => {
                   toggleMode();
                   handleProfileClose();
                 }}
+                sx={{ fontFamily: "'Inter', sans-serif" }}
               >
                 {themeMode === "light" ? (
-  <>
-    <Brightness4Icon sx={{ mr: 1 }} />
-    Switch to Dark Mode
-  </>
-) : (
-  <>
-    <Brightness7Icon sx={{ mr: 1 }} />
-    Switch to Light Mode
-  </>
-)}
+                  <>
+                    <Brightness4Icon sx={{ mr: 1 }} />
+                    Switch to Dark Mode
+                  </>
+                ) : (
+                  <>
+                    <Brightness7Icon sx={{ mr: 1 }} />
+                    Switch to Light Mode
+                  </>
+                )}
               </MenuItem>
 
               <Divider />
 
               <MenuItem
                 onClick={logout}
-                sx={{ color: "error.main", fontWeight: 600 }}
+                sx={{ 
+                  color: "error.main", 
+                  fontWeight: 600,
+                  fontFamily: "'Inter', sans-serif"
+                }}
               >
                 Logout
               </MenuItem>
@@ -164,7 +242,12 @@ const MainLayout = ({ title, children }) => {
         <Box sx={{ height: "64px" }} />
 
         <PageTransition>
-          <Box sx={{ p: 3 }}>{children}</Box>
+          <Box sx={{ 
+            p: 3,
+            fontFamily: "'Inter', 'Roboto', sans-serif"
+          }}>
+            {children}
+          </Box>
         </PageTransition>
       </Box>
     </Box>

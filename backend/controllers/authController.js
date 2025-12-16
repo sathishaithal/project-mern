@@ -1,6 +1,7 @@
 const User = require("../models/userModel");
 const { getDynamicDB } = require("../config/db");
 const { generateToken } = require("../utils/jwt");
+const axios = require("axios");
 
 exports.login = async (req, res) => {
   
@@ -24,11 +25,24 @@ exports.login = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     // 2. Verify password (same as PHP)
-    if (password !== user.password) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
 
-    // 3. JWT Token
+    // if(!isUserTokenLogin){
+    //   const phpResponse = await axios.get("https://sbl1972.in/erp/verifyPassword.php", {
+    //     params: {
+    //       userdata: JSON.stringify({
+    //         username: username,
+    //         password: password
+    //       })
+    //     }
+    //   });
+
+    //   const data = phpResponse.data;
+    //   if (!data) {
+    //     return res.status(400).json({ message: "Invalid credentials" });
+    //   }
+    // }
+
+    //3. JWT Token
     const token = generateToken({
       username: user.username,
       admin: user.admin,

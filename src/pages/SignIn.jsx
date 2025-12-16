@@ -37,7 +37,6 @@ const SignIn = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [keepLoggedIn, setKeepLoggedIn] = useState(false);
-  const [logoutMessage, setLogoutMessage] = useState("");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -56,20 +55,29 @@ const SignIn = () => {
             const parsed = JSON.parse(logoutMsg);
             messageString = parsed.message || parsed.toString();
           } catch (e) {
-            // If parsing fails, use as string
             messageString = logoutMsg;
           }
         }
         
-        setLogoutMessage(messageString);
         setSnackbarMessage(messageString);
         setSnackbarOpen(true);
-        
         sessionStorage.removeItem("logoutMessage");
       } catch (error) {
         console.error("Error processing logout message:", error);
         sessionStorage.removeItem("logoutMessage");
       }
+    }
+
+    // Apply font family
+    document.body.style.fontFamily = "'Inter', 'Roboto', 'Segoe UI', sans-serif";
+    
+    // Load Inter font if not already loaded
+    if (!document.querySelector('#inter-font')) {
+      const link = document.createElement('link');
+      link.id = 'inter-font';
+      link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap';
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
     }
   }, []);
 
@@ -119,6 +127,7 @@ const SignIn = () => {
         overflow: "hidden",
         py: { xs: 4, md: 6 },
         px: { xs: 2, sm: 3 },
+        fontFamily: "'Inter', 'Roboto', sans-serif",
         "&::before": {
           content: '""',
           position: "absolute",
@@ -131,7 +140,7 @@ const SignIn = () => {
         },
       }}
     >
-      {/* Animated Geometric Background */}
+      {/* Animated Background Elements */}
       <motion.div
         animate={{ rotate: 360 }}
         transition={{ duration: 120, repeat: Infinity, ease: "linear" }}
@@ -148,7 +157,6 @@ const SignIn = () => {
         }}
       />
 
-      {/* Floating Particles */}
       {[1, 2, 3, 4, 5].map((i) => (
         <motion.div
           key={i}
@@ -188,6 +196,7 @@ const SignIn = () => {
           gap: { xs: 6, lg: 10 },
           zIndex: 2,
           position: "relative",
+          fontFamily: "'Inter', 'Roboto', sans-serif"
         }}
       >
         {/* Left Hero Section */}
@@ -196,13 +205,13 @@ const SignIn = () => {
             flex: 1,
             textAlign: { xs: "center", lg: "left" },
             maxWidth: { lg: "600px" },
+            fontFamily: "'Inter', 'Roboto', sans-serif"
           }}
           component={motion.div}
           initial={{ opacity: 0, x: -60 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8 }}
         >
-          {/* Logo with Glow Effect */}
           <motion.div
             animate={{
               y: [0, -15, 0],
@@ -253,7 +262,6 @@ const SignIn = () => {
               />
             </Box>
 
-            {/* Floating Security Badge */}
             <motion.div
               animate={{
                 rotate: [0, 10, 0, -10, 0],
@@ -288,6 +296,7 @@ const SignIn = () => {
               background: `linear-gradient(135deg, ${blueTheme.primary} 0%, ${blueTheme.primaryLight} 100%)`,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
+              fontFamily: "'Inter', sans-serif"
             }}
           >
             Secure Admin Portal
@@ -300,6 +309,7 @@ const SignIn = () => {
               fontWeight: 600,
               mb: 4,
               color: "rgba(14, 57, 120, 0.9)",
+              fontFamily: "'Inter', sans-serif"
             }}
           >
             Premium Dashboard Access
@@ -344,6 +354,7 @@ const SignIn = () => {
                   sx={{
                     fontWeight: 600,
                     color: blueTheme.primaryDark,
+                    fontFamily: "'Inter', sans-serif"
                   }}
                 >
                   {feature.text}
@@ -353,7 +364,7 @@ const SignIn = () => {
           </Box>
         </Box>
 
-        {/* Right - Premium Login Card */}
+        {/* Right - Login Card */}
         <Box
           component={motion.div}
           initial={{ opacity: 0, scale: 0.9 }}
@@ -368,7 +379,6 @@ const SignIn = () => {
             maxWidth: "500px",
           }}
         >
-          {/* Card Glow Effect */}
           <motion.div
             animate={{
               opacity: isHovered ? [0.3, 0.5, 0.3] : 0.2,
@@ -387,7 +397,6 @@ const SignIn = () => {
             }}
           />
 
-          {/* Main Card */}
           <Paper
             elevation={0}
             sx={{
@@ -413,7 +422,6 @@ const SignIn = () => {
               },
             }}
           >
-            {/* Floating Elements Inside Card */}
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
@@ -464,6 +472,7 @@ const SignIn = () => {
                     background: `linear-gradient(90deg, ${blueTheme.primary}, ${blueTheme.primaryLight})`,
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
+                    fontFamily: "'Inter', sans-serif"
                   }}
                 >
                   Welcome Back
@@ -472,13 +481,13 @@ const SignIn = () => {
                   sx={{
                     color: "rgba(14, 57, 120, 0.7)",
                     fontSize: "1.1rem",
+                    fontFamily: "'Inter', sans-serif"
                   }}
                 >
                   Sign in to your secure dashboard
                 </Typography>
               </Box>
 
-              {/* Form Fields with Icons */}
               <Box sx={{ mb: 3 }}>
                 <Typography
                   sx={{
@@ -492,6 +501,7 @@ const SignIn = () => {
                     padding: "10px 15px",
                     borderRadius: "10px",
                     width: "fit-content",
+                    fontFamily: "'Inter', sans-serif"
                   }}
                 >
                   <Person sx={{ fontSize: "20px" }} />
@@ -507,6 +517,7 @@ const SignIn = () => {
                       borderRadius: "15px",
                       background: "rgba(255, 255, 255, 0.9)",
                       border: "none",
+                      fontFamily: "'Inter', sans-serif",
                       "&:hover fieldset": {
                         borderColor: `${blueTheme.primaryLight} !important`,
                         borderWidth: "2px",
@@ -534,6 +545,7 @@ const SignIn = () => {
                     padding: "10px 15px",
                     borderRadius: "10px",
                     width: "fit-content",
+                    fontFamily: "'Inter', sans-serif"
                   }}
                 >
                   <Lock sx={{ fontSize: "20px" }} />
@@ -550,6 +562,7 @@ const SignIn = () => {
                     "& .MuiOutlinedInput-root": {
                       borderRadius: "15px",
                       background: "rgba(255, 255, 255, 0.9)",
+                      fontFamily: "'Inter', sans-serif",
                       "&:hover fieldset": {
                         borderColor: `${blueTheme.primaryLight} !important`,
                         borderWidth: "2px",
@@ -604,6 +617,7 @@ const SignIn = () => {
                       sx={{
                         color: blueTheme.primaryDark,
                         fontWeight: 500,
+                        fontFamily: "'Inter', sans-serif"
                       }}
                     >
                       Keep me logged in
@@ -615,6 +629,7 @@ const SignIn = () => {
                     color: blueTheme.primary,
                     fontWeight: 600,
                     cursor: "pointer",
+                    fontFamily: "'Inter', sans-serif",
                     "&:hover": {
                       textDecoration: "underline",
                     },
@@ -624,7 +639,6 @@ const SignIn = () => {
                 </Typography>
               </Box>
 
-              {/* Animated Login Button */}
               <motion.div
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.98 }}
@@ -643,6 +657,7 @@ const SignIn = () => {
                     color: "white",
                     position: "relative",
                     overflow: "hidden",
+                    fontFamily: "'Inter', sans-serif",
                     "&:hover": {
                       background: `linear-gradient(135deg, ${blueTheme.primaryDark} 0%, ${blueTheme.primary} 100%)`,
                       transform: "translateY(-2px)",
@@ -676,7 +691,6 @@ const SignIn = () => {
 
               <Divider sx={{ my: 4, opacity: 0.3 }} />
 
-              {/* Stats */}
               <Box
                 sx={{
                   display: "flex",
@@ -697,6 +711,7 @@ const SignIn = () => {
                         background: `linear-gradient(90deg, ${blueTheme.primary}, ${blueTheme.primaryLight})`,
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
+                        fontFamily: "'Inter', sans-serif"
                       }}
                     >
                       {stat.value}
@@ -705,6 +720,7 @@ const SignIn = () => {
                       sx={{
                         color: "rgba(14, 57, 120, 0.6)",
                         fontSize: "0.9rem",
+                        fontFamily: "'Inter', sans-serif"
                       }}
                     >
                       {stat.label}
@@ -717,7 +733,6 @@ const SignIn = () => {
         </Box>
       </Box>
 
-      {/* Main Snackbar for Login Feedback */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={4000}
@@ -733,6 +748,7 @@ const SignIn = () => {
             fontSize: "1rem",
             fontWeight: 600,
             borderRadius: "15px",
+            fontFamily: "'Inter', sans-serif",
             background: snackbarMessage.includes("Welcome") || snackbarMessage.includes("successfully")
               ? `linear-gradient(90deg, ${blueTheme.primary}, ${blueTheme.primaryLight})`
               : undefined,
