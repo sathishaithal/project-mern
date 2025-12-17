@@ -61,10 +61,10 @@ const SignIn = () => {
         
         setSnackbarMessage(messageString);
         setSnackbarOpen(true);
-        sessionStorage.removeItem("logoutMessage");
+        localStorage.removeItem("logoutMessage");
       } catch (error) {
         console.error("Error processing logout message:", error);
-        sessionStorage.removeItem("logoutMessage");
+        localStorage.removeItem("logoutMessage");
       }
     }
 

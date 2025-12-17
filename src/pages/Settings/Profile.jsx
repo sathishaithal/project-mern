@@ -243,7 +243,7 @@ const SystemSettings = () => {
                     <TextField
                       fullWidth
                       type="number"
-                      value={settings.sessionTimeout}
+                      value={settings.localStorageTimeout}
                       onChange={(e) => handleChange("sessionTimeout", e.target.value)}
                       size="small"
                       InputProps={{
