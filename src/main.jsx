@@ -71,6 +71,15 @@ root.render(
               }
             />
 
+            <Route
+              path="/reports/Reorts"
+              element={
+                <MainLayout title="Report">
+                  <Production />
+                </MainLayout>
+              }
+            />
+
             {/* ---------- REPORTS → SALES ---------- */}
             <Route
               path="/reports/sales"

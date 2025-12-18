@@ -140,7 +140,16 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
             onMouseEnter={() => handleMouseEnter(menu)}
             onMouseLeave={handleMouseLeave}
           >
-            <ListItemButton onClick={() => !collapsed && toggleMenu(menu)}>
+            <ListItemButton
+                onClick={() => {
+                  if (menu === "reports") {
+                    handleNavigate("/reports");   
+                  }
+                  if (!collapsed) {
+                    toggleMenu(menu);           
+                  }
+                }}
+              >
               <ListItemIcon>
                 {menu === "reports" && <TableChartIcon />}
                 {menu === "management" && <PeopleIcon />}

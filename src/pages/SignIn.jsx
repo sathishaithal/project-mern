@@ -299,8 +299,7 @@ const SignIn = () => {
               fontFamily: "'Inter', sans-serif"
             }}
           >
-            Secure Admin Portal
-          </Typography>
+            Sri Bhagyalakshmi Dashboard          </Typography>
 
           <Typography
             variant="h4"
