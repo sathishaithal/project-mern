@@ -24,6 +24,9 @@ import {
   InputLabel,
   Select,
   MenuItem,
+   Snackbar,
+  Alert,
+  AlertTitle,
 } from "@mui/material";
 import {
   KeyboardArrowDown,
@@ -35,6 +38,7 @@ import {
   CalendarToday,
   TrendingUp,
   ShowChart,
+  Assessment,
 } from "@mui/icons-material";
 import axios from "axios";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
@@ -57,6 +61,8 @@ import {
   AreaChart,
   Area,
 } from "recharts";
+
+
 
 /* ================= ANIMATION ================= */
 const itemVariants = {
@@ -118,6 +124,75 @@ const Production = () => {
   const [metricType, setMetricType] = useState("produced");
   const [chartType, setChartType] = useState("bar");
 
+
+  const [notification, setNotification] = useState({
+  open: false,
+  message: "",
+  severity: "info", 
+  title: ""
+});
+
+
+
+ const brands = React.useMemo(() => {
+    if (!data) return [];
+    return Object.keys(data.finished || {}).filter(
+      (b) => Array.isArray(data.finished[b]) && data.finished[b].length
+    );
+  }, [data]);
+
+  // Now fix calculateGrandTotals to use brands from closure
+  const calculateGrandTotals = () => {
+    if (!data || !brands || brands.length === 0) return { opening: 0, production: 0, total: 0, dispatch: 0, closing: 0 };
+    
+    let grand = { opening: 0, production: 0, total: 0, dispatch: 0, closing: 0 };
+    
+    brands.forEach((cat) => {
+      const items = data.finished[cat] || [];
+      const subtotal = items.reduce((acc, i) => ({
+        opening: acc.opening + (i.opening || 0),
+        production: acc.production + (i["purchased/transfer in"] || 0),
+        total: acc.total + ((i.opening || 0) + (i["purchased/transfer in"] || 0)),
+        dispatch: acc.dispatch + (i.sold || 0),
+        closing: acc.closing + (i.closing || 0),
+      }), { opening: 0, production: 0, total: 0, dispatch: 0, closing: 0 });
+      
+      grand.opening += subtotal.opening;
+      grand.production += subtotal.production;
+      grand.total += subtotal.total;
+      grand.dispatch += subtotal.dispatch;
+      grand.closing += subtotal.closing;
+    });
+    
+    return grand;
+  };
+
+  
+  const showNotification = (title, message, severity = "info") => {
+  setNotification({
+    open: true,
+    message,
+    severity,
+    title
+  });
+};
+
+
+const handleCloseNotification = () => {
+  setNotification(prev => ({ ...prev, open: false }));
+};
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+
   /* ================= TABLE THEMES & STYLES ================= */
   const tableThemes = {
     finished: {
@@ -162,6 +237,8 @@ const Production = () => {
     number: 120,
     percentage: 100,
   };
+
+
 
   /* ================= HELPERS ================= */
   const fmt = (n) => {
@@ -208,127 +285,156 @@ const Production = () => {
     return totalPercentage;
   };
 
-  const calculateGrandTotals = () => {
-    if (!data || !brands.length) return { opening: 0, production: 0, total: 0, dispatch: 0, closing: 0 };
-    
-    let grand = { opening: 0, production: 0, total: 0, dispatch: 0, closing: 0 };
-    
-    brands.forEach((cat) => {
-      const items = data.finished[cat] || [];
-      const subtotal = items.reduce((acc, i) => ({
-        opening: acc.opening + (i.opening || 0),
-        production: acc.production + (i["purchased/transfer in"] || 0),
-        total: acc.total + ((i.opening || 0) + (i["purchased/transfer in"] || 0)),
-        dispatch: acc.dispatch + (i.sold || 0),
-        closing: acc.closing + (i.closing || 0),
-      }), { opening: 0, production: 0, total: 0, dispatch: 0, closing: 0 });
-      
-      grand.opening += subtotal.opening;
-      grand.production += subtotal.production;
-      grand.total += subtotal.total;
-      grand.dispatch += subtotal.dispatch;
-      grand.closing += subtotal.closing;
-    });
-    
-    return grand;
-  };
+ 
 
   const getTableHeaders = () => ["Opening", "Production", "Total", "Dispatch", "Closing"];
 
-  /* ================= FETCH ================= */
-  const fetchReport = async () => {
-    setLoading(true);
-    try {
-      const token =
-        localStorage.getItem("authToken") ||
-        sessionStorage.getItem("authToken");
+const fetchReport = async () => {
+  setLoading(true);
+  showNotification("Loading", "Fetching production report...", "info");
+  
+  try {
+    const token =
+      localStorage.getItem("authToken") ||
+      sessionStorage.getItem("authToken");
 
-      const payload = {
-        fromdate: fromDate.toISOString().slice(0, 10),
-        todate: toDate.toISOString().slice(0, 10),
-        catgroup: "Fried Gram Mill",
-      };
+    const payload = {
+      fromdate: fromDate.toISOString().slice(0, 10),
+      todate: toDate.toISOString().slice(0, 10),
+      catgroup: "Fried Gram Mill",
+    };
 
-      console.log("📤 Request Payload:", payload);
+    console.log("📤 Request Payload:", payload);
 
-      const res = await axios.post(
-        "http://localhost:5000/api/reports/production-report",
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      console.log("Axios Response:", res);
-      console.log("Response Data:", res.data);
-
-      if (!res.data || Object.keys(res.data).length === 0) {
-        console.warn("No data found for selected date range");
-        setData(null);
-        return;
+    const res = await axios.post(
+      "http://localhost:5000/api/reports/production-report",
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       }
+    );
 
-      // setData(res.data);
+    console.log("Axios Response:", res);
+    console.log("Response Data:", res.data);
 
-      // const obj = {};
-      // Object.keys(res.data.finished || {}).forEach((k) => (obj[k] = true));
-      // setCollapsedCats(obj);
-
-      // // Set default brand for chart
-      // if (res.data.finished && Object.keys(res.data.finished).length > 0) {
-      //   const firstBrand = Object.keys(res.data.finished)[0];
-      //   setSelectedBrand(firstBrand);
-      // }
-
-            setData(res.data);
-      const obj = {};
-      Object.keys(res.data.finished || {}).forEach((k) => (obj[k] = true));
-      setCollapsedCats(obj);
-
-      // === FIX: Always set first available brand as default ===
-      if (res.data.finished && Object.keys(res.data.finished).length > 0) {
-        const availableBrands = Object.keys(res.data.finished).filter(
-          (b) => Array.isArray(res.data.finished[b]) && res.data.finished[b].length > 0
-        );
-        if (availableBrands.length > 0) {
-          const firstBrand = availableBrands[0];
-          setSelectedBrand(firstBrand);
-          console.log("✅ Default brand selected:", firstBrand);
-        }
-      }
-      // ======================================================
-
-      console.log("Finished Categories:", obj);
-
-      console.log("Finished Categories:", obj);
-
-    } catch (err) {
-      console.error("Production report error:", err);
-
-      if (err.response) {
-        console.error("Error Response Status:", err.response.status);
-        console.error("Error Response Data:", err.response.data);
-      } else if (err.request) {
-        console.error("No response received:", err.request);
-      } else {
-        console.error("request setup error:", err.message);
-      }
-
+    if (!res.data || Object.keys(res.data).length === 0) {
+      console.warn("No data found for selected date range");
       setData(null);
-    } finally {
-      setLoading(false);
-      console.log("⏹Loading finished");
+      showNotification("No Data", "No production data found for selected date range.", "warning");
+      return;
     }
-  };
 
-  const brands = data
-    ? Object.keys(data.finished || {}).filter(
-        (b) => Array.isArray(data.finished[b]) && data.finished[b].length
-      )
-    : [];
+    setData(res.data);
+    const obj = {};
+    Object.keys(res.data.finished || {}).forEach((k) => (obj[k] = true));
+    setCollapsedCats(obj);
+
+    // Set default brand for chart
+    if (res.data.finished && Object.keys(res.data.finished).length > 0) {
+      const availableBrands = Object.keys(res.data.finished).filter(
+        (b) => Array.isArray(res.data.finished[b]) && res.data.finished[b].length > 0
+      );
+      if (availableBrands.length > 0) {
+        const firstBrand = availableBrands[0];
+        setSelectedBrand(firstBrand);
+        console.log("Default brand selected:", firstBrand);
+      }
+    }
+
+    console.log("Finished Categories:", obj);
+    
+    showNotification(
+      "Success", 
+      // `Production report loaded successfully! Found ${brands.length} brands.`,
+      `Report loaded successfully!`,
+      "success"
+    );
+
+  } catch (err) {
+    console.error("Production report error:", err);
+
+    let errorTitle = "Error";
+    let errorMessage = "Failed to fetch production report";
+    
+    if (err.response) {
+      console.error("Error Response Status:", err.response.status);
+      console.error("Error Response Data:", err.response.data);
+      
+      if (err.response.status === 401) {
+        errorTitle = "Authentication Error";
+        errorMessage = "Your session has expired. Please login again.";
+      } else if (err.response.status === 404) {
+        errorTitle = "Not Found";
+        errorMessage = "Production report endpoint not found.";
+      } else if (err.response.data?.message) {
+        errorMessage = err.response.data.message;
+      } else {
+        errorMessage = `Server error (${err.response.status})`;
+      }
+    } else if (err.request) {
+      console.error("No response received:", err.request);
+      errorTitle = "Connection Error";
+      errorMessage = "No response from server. Please check your connection.";
+    } else {
+      console.error("request setup error:", err.message);
+      errorMessage = err.message;
+    }
+
+    setData(null);
+    showNotification(errorTitle, errorMessage, "error");
+    
+  } finally {
+    setLoading(false);
+    console.log("⏹Loading finished");
+  }
+};
+
+
+const additionalMetrics = React.useMemo(() => {
+  if (!data) return {
+    avgProdPercentage: 0,
+    totalItems: 0,
+    rawMaterialsCount: 0,
+    dispatchPercentage: 0
+  };
+  
+  let totalProdPercentage = 0;
+  let itemCount = 0;
+  
+  // Calculate for finished goods
+  if (data.finished) {
+    Object.values(data.finished).forEach(items => {
+      items.forEach(item => {
+        totalProdPercentage += Number(item.prod_percentage) || 0;
+        itemCount++;
+      });
+    });
+  }
+  
+  // Raw materials count
+  const rawMaterialsCount = data.raw?.["All Raw Materials"]?.length || 0;
+  
+  // Calculate dispatch percentage
+  const grandTotals = calculateGrandTotals();
+  const dispatchPercentage = grandTotals.total > 0 
+    ? (grandTotals.dispatch / grandTotals.total) * 100 
+    : 0;
+  
+  const avgProdPercentage = itemCount > 0 ? totalProdPercentage / itemCount : 0;
+  
+  return {
+    avgProdPercentage,
+    totalItems: itemCount,
+    rawMaterialsCount,
+    dispatchPercentage
+  };
+}, [data]);
+
+
+
 
   /* ================= CHART FUNCTIONS ================= */
   const prepareChartData = () => {
@@ -1701,7 +1807,7 @@ const Production = () => {
   /* ================= UI ================= */
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box
+      {/* <Box
         sx={{
           px: { xs: 1, sm: 2 },
           py: 2,
@@ -1711,101 +1817,539 @@ const Production = () => {
           bgcolor: isDarkMode ? '#121212' : '#f5f5f5',
           minHeight: '100vh'
         }}
-      >
-        {/* Date Selection Card */}
-        <Card sx={{ 
-          mb: 3, 
-          width: "100%", 
-          maxWidth: "100%",
-          bgcolor: isDarkMode ? '#1e1e1e' : '#ffffff',
-          border: isDarkMode ? '1px solid #333' : 'none',
-          boxShadow: isDarkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)',
-        }}>
-          <CardHeader 
-            title="Production Report" 
-            avatar={<CalendarToday sx={{ color: isDarkMode ? '#ffffff' : '#000000' }} />}
-            titleTypographyProps={{ 
-              color: isDarkMode ? '#ffffff' : '#000000',
-              fontWeight: 700 
+      > */}
+     
+
+      <motion.div
+               initial={{ opacity: 0, y: -40 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ duration: 0.6 }}
+             >
+               <Box textAlign="center" mb={isMobile ? 3 : 6}>
+                 <Typography variant="h1" sx={{
+                   fontSize: isMobile ? "1.5rem" : isTablet ? "2rem" : "2.5rem",
+                   fontWeight: 900,
+                   background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryLight})`,
+                   WebkitBackgroundClip: "text",
+                   WebkitTextFillColor:  '#038effff',
+                   mb: isMobile ? 1 : 2
+                 }}>
+                  
+                   {isMobile ? 'Production Report' : 'Fried Gram Production Report'}
+                 </Typography>
+                 <Typography variant="h6" color="textSecondary" sx={{
+                   mb: isMobile ? 2 : 4,
+                   fontSize: isMobile ? '0.8rem' : '1rem'
+                 }}>
+                   {isMobile ? 'Production overview' : 'Comprehensive overview of Production, Finished Goods, Raw Materials, and Packing'}
+                 </Typography>
+                 
+               </Box>
+             </motion.div>
+
+
+
+<motion.div
+  initial={{ opacity: 0, y: -40 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.6, ease: "easeOut" }}
+>
+  <Card
+    sx={{ 
+      mb: 3, 
+      width: "100%", 
+      maxWidth: "100%",
+      bgcolor: isDarkMode ? '#1e1e1e' : '#ffffff',
+      border: isDarkMode ? '1px solid #333' : 'none',
+      boxShadow: isDarkMode
+        ? '0 4px 20px rgba(0,0,0,0.3)'
+        : '0 4px 20px rgba(0,0,0,0.08)',
+    }}
+  >
+    <CardHeader
+      
+      
+      titleTypographyProps={{ 
+        color: isDarkMode ? '#ffffff' : '#000000',
+        fontWeight: 700 
+      }}
+    />
+
+    <CardContent>
+      <Grid container spacing={2}>
+        {/* From Date */}
+        <Grid item xs={12} sm={4}>
+          <DatePicker
+            label="From Date"
+            value={fromDate}
+            format="dd/MM/yyyy"
+            maxDate={toDate}
+            onChange={(newValue) => {
+              setFromDate(newValue);
+              if (toDate && newValue > toDate) {
+                setToDate(newValue);
+              }
+            }}
+            slotProps={{
+              textField: {
+                fullWidth: true,
+                sx: {
+                  height: 56,
+                  '& .MuiInputBase-root': {
+                    height: 56,
+                    color: isDarkMode ? '#ffffff' : '#000000',
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: isDarkMode ? '#b0b0b0' : 'rgba(0, 0, 0, 0.6)',
+                  },
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: isDarkMode ? '#555' : 'rgba(0, 0, 0, 0.23)',
+                  },
+                },
+              },
             }}
           />
-          <CardContent>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={4} sx={{ minWidth: 0 }}>
-                <DatePicker
-                  label="From Date"
-                  value={fromDate}
-                  onChange={setFromDate}
-                  slotProps={{
-                    textField: { 
-                      fullWidth: true, 
-                      sx: { 
-                        minWidth: 0,
-                        '& .MuiInputBase-root': {
-                          color: isDarkMode ? '#ffffff' : '#000000',
-                        },
-                        '& .MuiInputLabel-root': {
-                          color: isDarkMode ? '#b0b0b0' : 'rgba(0, 0, 0, 0.6)',
-                        },
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: isDarkMode ? '#555' : 'rgba(0, 0, 0, 0.23)',
-                        },
-                      } 
-                    },
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={4} sx={{ minWidth: 0 }}>
-                <DatePicker
-                  label="To Date"
-                  value={toDate}
-                  onChange={setToDate}
-                  slotProps={{
-                    textField: { 
-                      fullWidth: true, 
-                      sx: { 
-                        minWidth: 0,
-                        '& .MuiInputBase-root': {
-                          color: isDarkMode ? '#ffffff' : '#000000',
-                        },
-                        '& .MuiInputLabel-root': {
-                          color: isDarkMode ? '#b0b0b0' : 'rgba(0, 0, 0, 0.6)',
-                        },
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: isDarkMode ? '#555' : 'rgba(0, 0, 0, 0.23)',
-                        },
-                      } 
-                    },
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={4} sx={{ minWidth: 0 }}>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  onClick={fetchReport}
-                  startIcon={
-                    loading ? <CircularProgress size={18} sx={{ color: '#ffffff' }} /> : <Refresh />
-                  }
-                  disabled={loading}
-                  sx={{ 
-                    whiteSpace: "nowrap", 
-                    minWidth: 0,
-                    bgcolor: '#5B86E5',
-                    '&:hover': {
-                      bgcolor: '#4570d0',
-                    }
-                  }}
-                >
-                  Generate
-                </Button>
-              </Grid>
+        </Grid>
+
+        {/* To Date */}
+        <Grid item xs={12} sm={4}>
+          <DatePicker
+            label="To Date"
+            value={toDate}
+            format="dd/MM/yyyy"
+            minDate={fromDate}
+            onChange={(newValue) => {
+              setToDate(newValue);
+              if (fromDate && newValue < fromDate) {
+                setFromDate(newValue);
+              }
+            }}
+            slotProps={{
+              textField: {
+                fullWidth: true,
+                sx: {
+                  height: 56,
+                  '& .MuiInputBase-root': {
+                    height: 56,
+                    color: isDarkMode ? '#ffffff' : '#000000',
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: isDarkMode ? '#b0b0b0' : 'rgba(0, 0, 0, 0.6)',
+                  },
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: isDarkMode ? '#555' : 'rgba(0, 0, 0, 0.23)',
+                  },
+                },
+              },
+            }}
+          />
+        </Grid>
+
+        {/* Generate + Notification */}
+        <Grid item xs={12} sm={4}>
+          <Grid container spacing={isMobile ? 1 : 2} alignItems="stretch">
+            {/* Generate Button */}
+            <Grid item xs={12} md={notification.open ? 6 : 12}>
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={fetchReport}
+                startIcon={
+                  loading ? (
+                    <CircularProgress size={18} sx={{ color: '#ffffff' }} />
+                  ) : (
+                    <Refresh />
+                  )
+                }
+                disabled={loading}
+                sx={{
+                  height: 56,
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  bgcolor: '#5B86E5',
+                  '&:hover': { bgcolor: '#4570d0' },
+                }}
+              >
+                Generate
+              </Button>
             </Grid>
-          </CardContent>
-        </Card>
+
+            {/* Notification */}
+            {notification.open && (
+              <Grid item xs={12} md={6}>
+                <Collapse
+                  in={notification.open}
+                  orientation={isMobile ? 'vertical' : 'horizontal'}
+                >
+                  <Alert
+                    onClose={handleCloseNotification}
+                    severity={notification.severity}
+                    variant="filled"
+                    sx={{
+                      width: '100%',
+                      minHeight: 56,
+                      display: 'flex',
+                      alignItems: 'center',
+                      boxShadow: isDarkMode ? 3 : 2,
+                      '& .MuiAlert-icon': { fontSize: 20 },
+                      px: 1.25,
+                    }}
+                  >
+                    <Box display="flex" flexDirection="column">
+                      <Typography fontSize="0.8rem" fontWeight={600}>
+                        {notification.title}
+                      </Typography>
+                      <Typography fontSize="0.75rem" opacity={0.9}>
+                        {notification.message}
+                      </Typography>
+                    </Box>
+                  </Alert>
+                </Collapse>
+              </Grid>
+            )}
+          </Grid>
+        </Grid>
+      </Grid>
+    </CardContent>
+  </Card>
+</motion.div>
+
 
         {/* Show reports only when data exists */}
-        {data && (
+       {/* ================= METRICS SUMMARY ================= */}
+      {data && (
+  <motion.div
+    variants={containerVariants}
+    initial="hidden"
+    animate="visible"
+  >
+    <Grid container spacing={isMobile ? 1 : 2} mb={isMobile ? 3 : 5}>
+      {/* Finished Goods Total */}
+      <Grid item xs={6} sm={4} md={3} lg={2.4}>
+        <motion.div variants={itemVariants}>
+          <Card sx={{
+            background: tableThemes.finished.gradient,
+            color: "white",
+            borderRadius: "12px",
+            height: "100%",
+            minHeight: isMobile ? "90px" : "110px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center"
+          }}>
+            <CardContent sx={{ 
+              p: isMobile ? 1 : 1.5,
+              textAlign: "center",
+              '&:last-child': { pb: isMobile ? 1 : 1.5 }
+            }}>
+              <Typography variant="subtitle2" gutterBottom sx={{
+                fontSize: isMobile ? '0.6rem' : '0.7rem',
+                opacity: 0.9,
+                fontWeight: 500,
+                lineHeight: 1.2
+              }}>
+                Finished Goods Total
+              </Typography>
+              <Typography variant="h5" sx={{
+                fontSize: isMobile ? '0.85rem' : '1rem',
+                fontWeight: 700,
+                lineHeight: 1.2
+              }}>
+                {formatIndianNumber(data.total_prd || 0)} 
+              </Typography>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </Grid>
+
+      {/* Execution Time */}
+      <Grid item xs={6} sm={4} md={3} lg={2.4}>
+        <motion.div variants={itemVariants}>
+          <Card sx={{
+            background: tableThemes.raw.gradient,
+            color: "white",
+            borderRadius: "12px",
+            height: "100%",
+            minHeight: isMobile ? "90px" : "110px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center"
+          }}>
+            <CardContent sx={{ 
+              p: isMobile ? 1 : 1.5,
+              textAlign: "center",
+              '&:last-child': { pb: isMobile ? 1 : 1.5 }
+            }}>
+              <Typography variant="subtitle2" gutterBottom sx={{
+                fontSize: isMobile ? '0.6rem' : '0.7rem',
+                opacity: 0.9,
+                fontWeight: 500,
+                lineHeight: 1.2
+              }}>
+                Execution Time
+              </Typography>
+              <Typography variant="h5" sx={{
+                fontSize: isMobile ? '0.85rem' : '1rem',
+                fontWeight: 700,
+                lineHeight: 1.2
+              }}>
+                {data.execution_time || "N/A"}
+              </Typography>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </Grid>
+
+      {/* Average Production Percentage */}
+      <Grid item xs={6} sm={4} md={3} lg={2.4}>
+        <motion.div variants={itemVariants}>
+          <Card sx={{
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            color: "white",
+            borderRadius: "12px",
+            height: "100%",
+            minHeight: isMobile ? "90px" : "110px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center"
+          }}>
+            <CardContent sx={{ 
+              p: isMobile ? 1 : 1.5,
+              textAlign: "center",
+              '&:last-child': { pb: isMobile ? 1 : 1.5 }
+            }}>
+              <Box display="flex" alignItems="center" justifyContent="center" gap={0.5} mb={0.5}>
+                <TrendingUp sx={{ fontSize: isMobile ? 14 : 16 }} />
+                <Typography variant="subtitle2" sx={{
+                  fontSize: isMobile ? '0.6rem' : '0.7rem',
+                  opacity: 0.9,
+                  fontWeight: 500,
+                  lineHeight: 1.2
+                }}>
+                  Avg Prod %
+                </Typography>
+              </Box>
+              <Typography variant="h5" sx={{
+                fontSize: isMobile ? '0.85rem' : '1rem',
+                fontWeight: 700,
+                lineHeight: 1.2
+              }}>
+                {formatPercentage(additionalMetrics.avgProdPercentage)}
+              </Typography>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </Grid>
+
+      {/* Total Items */}
+      <Grid item xs={6} sm={4} md={3} lg={2.4}>
+        <motion.div variants={itemVariants}>
+          <Card sx={{
+            background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+            color: "white",
+            borderRadius: "12px",
+            height: "100%",
+            minHeight: isMobile ? "90px" : "110px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center"
+          }}>
+            <CardContent sx={{ 
+              p: isMobile ? 1 : 1.5,
+              textAlign: "center",
+              '&:last-child': { pb: isMobile ? 1 : 1.5 }
+            }}>
+              <Box display="flex" alignItems="center" justifyContent="center" gap={0.5} mb={0.5}>
+                <Inventory sx={{ fontSize: isMobile ? 14 : 16 }} />
+                <Typography variant="subtitle2" sx={{
+                  fontSize: isMobile ? '0.6rem' : '0.7rem',
+                  opacity: 0.9,
+                  fontWeight: 500,
+                  lineHeight: 1.2
+                }}>
+                  Total Items
+                </Typography>
+              </Box>
+              <Typography variant="h5" sx={{
+                fontSize: isMobile ? '0.85rem' : '1rem',
+                fontWeight: 700,
+                lineHeight: 1.2
+              }}>
+                {formatIndianNumber(additionalMetrics.totalItems)}
+              </Typography>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </Grid>
+
+      {/* Date Range Card */}
+      <Grid item xs={6} sm={4} md={3} lg={2.4}>
+        <motion.div variants={itemVariants}>
+          <Card sx={{
+            background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+            color: "white",
+            borderRadius: "12px",
+            height: "100%",
+            minHeight: isMobile ? "90px" : "110px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center"
+          }}>
+            <CardContent sx={{ 
+              p: isMobile ? 1 : 1.5,
+              textAlign: "center",
+              '&:last-child': { pb: isMobile ? 1 : 1.5 }
+            }}>
+              <Box display="flex" alignItems="center" justifyContent="center" gap={0.5} mb={0.5}>
+                <CalendarToday sx={{ fontSize: isMobile ? 14 : 16 }} />
+                <Typography variant="subtitle2" sx={{
+                  fontSize: isMobile ? '0.6rem' : '0.7rem',
+                  opacity: 0.9,
+                  fontWeight: 500,
+                  lineHeight: 1.2
+                }}>
+                  Date Range
+                </Typography>
+              </Box>
+              <Typography variant="h6" sx={{
+                fontSize: isMobile ? '0.7rem' : '0.85rem',
+                fontWeight: 600,
+                lineHeight: 1.2
+              }}>
+                {data.fromdate} to {data.todate}
+              </Typography>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </Grid>
+
+      {/* Raw Materials Count */}
+      <Grid item xs={6} sm={4} md={3} lg={2.4}>
+        <motion.div variants={itemVariants}>
+          <Card sx={{
+            background: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+            color: "white",
+            borderRadius: "12px",
+            height: "100%",
+            minHeight: isMobile ? "90px" : "110px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center"
+          }}>
+            <CardContent sx={{ 
+              p: isMobile ? 1 : 1.5,
+              textAlign: "center",
+              '&:last-child': { pb: isMobile ? 1 : 1.5 }
+            }}>
+              <Box display="flex" alignItems="center" justifyContent="center" gap={0.5} mb={0.5}>
+                <Factory sx={{ fontSize: isMobile ? 14 : 16 }} />
+                <Typography variant="subtitle2" sx={{
+                  fontSize: isMobile ? '0.6rem' : '0.7rem',
+                  opacity: 0.9,
+                  fontWeight: 500,
+                  lineHeight: 1.2
+                }}>
+                  Raw Materials
+                </Typography>
+              </Box>
+              <Typography variant="h5" sx={{
+                fontSize: isMobile ? '0.85rem' : '1rem',
+                fontWeight: 700,
+                lineHeight: 1.2
+              }}>
+                {formatIndianNumber(additionalMetrics.rawMaterialsCount)}
+              </Typography>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </Grid>
+
+      {/* Dispatch Percentage */}
+      <Grid item xs={6} sm={4} md={3} lg={2.4}>
+        <motion.div variants={itemVariants}>
+          <Card sx={{
+            background: "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)",
+            color: colors.textPrimary,
+            borderRadius: "12px",
+            height: "100%",
+            minHeight: isMobile ? "90px" : "110px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center"
+          }}>
+            <CardContent sx={{ 
+              p: isMobile ? 1 : 1.5,
+              textAlign: "center",
+              '&:last-child': { pb: isMobile ? 1 : 1.5 }
+            }}>
+              <Box display="flex" alignItems="center" justifyContent="center" gap={0.5} mb={0.5}>
+                <LocalShipping sx={{ fontSize: isMobile ? 14 : 16 }} />
+                <Typography variant="subtitle2" sx={{
+                  fontSize: isMobile ? '0.6rem' : '0.7rem',
+                  fontWeight: 500,
+                  lineHeight: 1.2
+                }}>
+                  Dispatch Rate
+                </Typography>
+              </Box>
+              <Typography variant="h5" sx={{
+                fontSize: isMobile ? '0.85rem' : '1rem',
+                fontWeight: 700,
+                lineHeight: 1.2
+              }}>
+                {formatPercentage(additionalMetrics.dispatchPercentage)}
+              </Typography>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </Grid>
+
+      {/* Total Brands */}
+      <Grid item xs={6} sm={4} md={3} lg={2.4}>
+        <motion.div variants={itemVariants}>
+          <Card sx={{
+            background: "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
+            color: colors.textPrimary,
+            borderRadius: "12px",
+            height: "100%",
+            minHeight: isMobile ? "90px" : "110px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center"
+          }}>
+            <CardContent sx={{ 
+              p: isMobile ? 1 : 1.5,
+              textAlign: "center",
+              '&:last-child': { pb: isMobile ? 1 : 1.5 }
+            }}>
+              <Box display="flex" alignItems="center" justifyContent="center" gap={0.5} mb={0.5}>
+                <Assessment sx={{ fontSize: isMobile ? 14 : 16 }} />
+                <Typography variant="subtitle2" sx={{
+                  fontSize: isMobile ? '0.6rem' : '0.7rem',
+                  fontWeight: 500,
+                  lineHeight: 1.2
+                }}>
+                  Total Categories
+                </Typography>
+              </Box>
+              <Typography variant="h5" sx={{
+                fontSize: isMobile ? '0.85rem' : '1rem',
+                fontWeight: 700,
+                lineHeight: 1.2
+              }}>
+                {formatIndianNumber(brands.length)}
+              </Typography>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </Grid>
+    </Grid>
+  </motion.div>
+)}
+
+      {/* ================= REPORT TABLES ================= */}
+      {data && (
+        
           <>
             {/* 1. Finished Goods Report */}
             <motion.div variants={itemVariants} initial="hidden" animate="visible">
@@ -2173,7 +2717,11 @@ const Production = () => {
             )}
           </>
         )}
-      </Box>
+
+
+
+
+      {/* </Box> */}
     </LocalizationProvider>
   );
 };
