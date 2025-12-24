@@ -28,6 +28,7 @@ import { ColorModeProvider } from "./theme/ThemeContext";
 
 import MainLayout from "./layouts/MainLayout";
 import "./index.css";
+import ScrollToTop from "./components/ScrollToTop";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
@@ -36,6 +37,7 @@ root.render(
     <AuthProvider>
       <ColorModeProvider>
         <BrowserRouter>
+        <ScrollToTop />
           <Routes>
 
             {/* ---------- LOGIN PAGE ---------- */}

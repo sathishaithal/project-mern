@@ -19,6 +19,8 @@ export const AuthProvider = ({ children }) => {
     const username = localStorage.getItem("username");
     const token = localStorage.getItem("token");
 
+
+
     if (!username || !token) {
       // console.log("[AUTH] No token found → User logged out");
       return;
@@ -78,6 +80,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("username", username);
     localStorage.setItem("token", token);
 
+      // console.log("[AUTH] Token:", token);
+
     axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     setUser({ username, token });
   };
@@ -88,7 +92,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("username");
     localStorage.removeItem("token");
     localStorage.removeItem("authToken");
-
+    localStorage.removeItem("themeMode");
     delete axios.defaults.headers.common["Authorization"];
     setUser(null);
 

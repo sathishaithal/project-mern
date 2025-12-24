@@ -790,8 +790,23 @@ const additionalMetrics = React.useMemo(() => {
   /* ================= RENDER FUNCTIONS ================= */
   // 1. Render Finished Goods Table
   const renderFinishedGoodsTable = () => {
-    if (!data || !brands.length) return null;
-    const grandTotals = calculateGrandTotals();
+  if (!data || !brands.length) {
+    return (
+      <Box sx={{ 
+        textAlign: 'center', 
+        py: 4,
+        color: isDarkMode ? '#b0b0b0' : '#666666'
+      }}>
+        <Typography variant="h6">
+          No data available
+        </Typography>
+       
+      </Box>
+    );
+  }
+  
+  const grandTotals = calculateGrandTotals();
+    
     
     /* ========= MOBILE VERSION ========= */
     if (isMobile) {
@@ -1312,8 +1327,20 @@ const additionalMetrics = React.useMemo(() => {
 
   // 2. Render Raw Materials Table
   const renderRawMaterialsTable = () => {
-    if (!data?.raw?.["All Raw Materials"]) return null;
-   
+  if (!data?.raw?.["All Raw Materials"] || data.raw["All Raw Materials"].length === 0) {
+    return (
+      <Box sx={{ 
+        textAlign: 'center', 
+        py: 4,
+        color: isDarkMode ? '#b0b0b0' : '#666666'
+      }}>
+        <Typography variant="h6">
+          No data available
+        </Typography>
+        
+      </Box>
+    );
+  }   
     const rawItems = data.raw["All Raw Materials"] || [];
     const headers = ['Opening', 'Arrival', 'Total', 'Used', 'Closing'];
     const mobileHeaders = ['Open', 'Arr', 'Total', 'Used', 'Close'];
@@ -1443,12 +1470,29 @@ const additionalMetrics = React.useMemo(() => {
 
   // 3. Render Packing Table
   const renderPackingTable = () => {
-    const { friedGram, bengalGram } = {
-      friedGram: data?.finished?.["FRIED GRAM"] || [],
-      bengalGram: data?.finished?.["BENGAL GRAM"] || []
-    };
+     const { friedGram, bengalGram } = {
+    friedGram: data?.finished?.["FRIED GRAM"] || [],
+    bengalGram: data?.finished?.["BENGAL GRAM"] || []
+  };
+  
+  if (friedGram.length === 0 && bengalGram.length === 0) {
+    return (
+      <Box sx={{ 
+        textAlign: 'center', 
+        py: 4,
+        color: isDarkMode ? '#b0b0b0' : '#666666'
+      }}>
+        <Typography variant="h6">
+          No data available
+        </Typography>
+        {/* <Typography variant="body2" sx={{ mt: 1 }}>
+          Try selecting a different date range
+        </Typography> */}
+      </Box>
+    );
+  }
     
-    if (friedGram.length === 0 && bengalGram.length === 0) return null;
+    // if (friedGram.length === 0 && bengalGram.length === 0) return null;
     
     const friedGramTotal = friedGram.reduce((sum, i) => sum + (i["purchased/transfer in"] || 0), 0);
     const bengalGramTotal = bengalGram.reduce((sum, i) => sum + (i["purchased/transfer in"] || 0), 0);
@@ -2351,179 +2395,179 @@ const additionalMetrics = React.useMemo(() => {
       {data && (
         
           <>
-            {/* 1. Finished Goods Report */}
-            <motion.div variants={itemVariants} initial="hidden" animate="visible">
-              <Card sx={{ 
-                mb: 3, 
-                width: "100%", 
-                maxWidth: "100%",
-                borderRadius: "16px",
-                overflow: "hidden",
-                border: `1px solid ${tableThemes.finished.primary}20`,
-                background: isDarkMode ? '#1e1e1e' : '#ffffff',
-                boxShadow: isDarkMode ? "0 4px 20px rgba(0,0,0,0.3)" : "0 4px 20px rgba(0,0,0,0.08)",
-              }}>
-                <CardHeader
-                  title={
-                    <Box display="flex" alignItems="center" justifyContent="space-between">
-                      <Box display="flex" alignItems="center" gap={1.5}>
-                        <Inventory sx={{
-                          color: "white",
-                          fontSize: isMobile ? 20 : 26
-                        }} />
-                        <Typography 
-                          variant="h6"
-                          fontWeight={700}
-                          color="white"
-                          sx={{
-                            fontSize: isMobile ? '0.95rem' : '1.15rem',
-                            lineHeight: 1.2,
-                          }}
-                        >
-                          {isMobile ? 'Fried Gram Report' : 'Finished Goods - Fried Gram'}
-                        </Typography>
-                      </Box>
-                      <IconButton
-                        onClick={() => setFinishedCollapsed(!finishedCollapsed)}
-                        size="small"
-                        sx={{
-                          color: "white",
-                          p: 0.5,
-                          '&:hover': { backgroundColor: "rgba(255,255,255,0.2)" }
-                        }}
-                      >
-                        {finishedCollapsed ? <KeyboardArrowDown fontSize="small" /> : <KeyboardArrowUp fontSize="small" />}
-                      </IconButton>
-                    </Box>
-                  }
+                {/* 1. Finished Goods Report */}
+      <motion.div variants={itemVariants} initial="hidden" animate="visible">
+        <Card sx={{ 
+          mb: 3, 
+          width: "100%", 
+          maxWidth: "100%",
+          borderRadius: "16px",
+          overflow: "hidden",
+          border: `1px solid ${tableThemes.finished.primary}20`,
+          background: isDarkMode ? '#1e1e1e' : '#ffffff',
+          boxShadow: isDarkMode ? "0 4px 20px rgba(0,0,0,0.3)" : "0 4px 20px rgba(0,0,0,0.08)",
+        }}>
+          <CardHeader
+            title={
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box display="flex" alignItems="center" gap={1.5}>
+                  <Inventory sx={{
+                    color: "white",
+                    fontSize: isMobile ? 20 : 26
+                  }} />
+                  <Typography 
+                    variant="h6"
+                    fontWeight={700}
+                    color="white"
+                    sx={{
+                      fontSize: isMobile ? '0.95rem' : '1.15rem',
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {isMobile ? 'Fried Gram Report' : 'Finished Goods - Fried Gram'}
+                  </Typography>
+                </Box>
+                <IconButton
+                  onClick={() => setFinishedCollapsed(!finishedCollapsed)}
+                  size="small"
                   sx={{
-                    background: tableThemes.finished.gradient,
-                    py: isMobile ? 1.8 : 2.5,
-                    px: isMobile ? 2 : 3,
+                    color: "white",
+                    p: 0.5,
+                    '&:hover': { backgroundColor: "rgba(255,255,255,0.2)" }
                   }}
-                />
-                <Collapse in={!finishedCollapsed}>
-                  <CardContent sx={{ p: isMobile ? 1 : 2 }}>
-                    {renderFinishedGoodsTable()}
-                  </CardContent>
-                </Collapse>
-              </Card>
-            </motion.div>
+                >
+                  {finishedCollapsed ? <KeyboardArrowDown fontSize="small" /> : <KeyboardArrowUp fontSize="small" />}
+                </IconButton>
+              </Box>
+            }
+            sx={{
+              background: tableThemes.finished.gradient,
+              py: isMobile ? 1.8 : 2.5,
+              px: isMobile ? 2 : 3,
+            }}
+          />
+          <Collapse in={!finishedCollapsed}>
+            <CardContent sx={{ p: isMobile ? 1 : 2 }}>
+              {renderFinishedGoodsTable()}
+            </CardContent>
+          </Collapse>
+        </Card>
+      </motion.div>
 
-            {/* 2. Raw Materials Usage */}
-            <motion.div variants={itemVariants}>
-              <Card sx={{
-                mb: 3,
-                borderRadius: "16px",
-                overflow: "hidden",
-                border: `1px solid ${tableThemes.raw.primary}20`,
-                background: isDarkMode ? '#1e1e1e' : '#ffffff',
-                boxShadow: isDarkMode ? "0 4px 20px rgba(0,0,0,0.3)" : "0 4px 20px rgba(0,0,0,0.08)",
-              }}>
-                <CardHeader
-                  title={
-                    <Box display="flex" alignItems="center" justifyContent="space-between">
-                      <Box display="flex" alignItems="center" gap={1.5}>
-                        <Factory sx={{
-                          color: "white",
-                          fontSize: isMobile ? 20 : 26
-                        }} />
-                        <Typography 
-                          variant="h6"
-                          fontWeight={700}
-                          color="white"
-                          sx={{
-                            fontSize: isMobile ? '0.95rem' : '1.15rem',
-                            lineHeight: 1.2,
-                          }}
-                        >
-                          {isMobile ? 'Raw Materials' : 'Raw Materials Usage'}
-                        </Typography>
-                      </Box>
-                      <IconButton
-                        onClick={() => setRawCollapsed(!rawCollapsed)}
-                        size="small"
-                        sx={{
-                          color: "white",
-                          p: 0.5,
-                          '&:hover': { backgroundColor: "rgba(255,255,255,0.2)" }
-                        }}
-                      >
-                        {rawCollapsed ? <KeyboardArrowDown fontSize="small" /> : <KeyboardArrowUp fontSize="small" />}
-                      </IconButton>
-                    </Box>
-                  }
+      {/* 2. Raw Materials Usage */}
+      <motion.div variants={itemVariants}>
+        <Card sx={{
+          mb: 3,
+          borderRadius: "16px",
+          overflow: "hidden",
+          border: `1px solid ${tableThemes.raw.primary}20`,
+          background: isDarkMode ? '#1e1e1e' : '#ffffff',
+          boxShadow: isDarkMode ? "0 4px 20px rgba(0,0,0,0.3)" : "0 4px 20px rgba(0,0,0,0.08)",
+        }}>
+          <CardHeader
+            title={
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box display="flex" alignItems="center" gap={1.5}>
+                  <Factory sx={{
+                    color: "white",
+                    fontSize: isMobile ? 20 : 26
+                  }} />
+                  <Typography 
+                    variant="h6"
+                    fontWeight={700}
+                    color="white"
+                    sx={{
+                      fontSize: isMobile ? '0.95rem' : '1.15rem',
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {isMobile ? 'Raw Materials' : 'Raw Materials Usage'}
+                  </Typography>
+                </Box>
+                <IconButton
+                  onClick={() => setRawCollapsed(!rawCollapsed)}
+                  size="small"
                   sx={{
-                    background: tableThemes.raw.gradient,
-                    py: isMobile ? 1.8 : 2.5,
-                    px: isMobile ? 2 : 3,
+                    color: "white",
+                    p: 0.5,
+                    '&:hover': { backgroundColor: "rgba(255,255,255,0.2)" }
                   }}
-                />
-                <Collapse in={!rawCollapsed}>
-                  <CardContent sx={{ p: isMobile ? 1 : 2 }}>
-                    {renderRawMaterialsTable()}
-                  </CardContent>
-                </Collapse>
-              </Card>
-            </motion.div>
+                >
+                  {rawCollapsed ? <KeyboardArrowDown fontSize="small" /> : <KeyboardArrowUp fontSize="small" />}
+                </IconButton>
+              </Box>
+            }
+            sx={{
+              background: tableThemes.raw.gradient,
+              py: isMobile ? 1.8 : 2.5,
+              px: isMobile ? 2 : 3,
+            }}
+          />
+          <Collapse in={!rawCollapsed}>
+            <CardContent sx={{ p: isMobile ? 1 : 2 }}>
+              {renderRawMaterialsTable()}
+            </CardContent>
+          </Collapse>
+        </Card>
+      </motion.div>
 
-            {/* 3. Packing Bengal Gram & Packing Fried Gram */}
-            <motion.div variants={itemVariants}>
-              <Card sx={{
-                mb: 3,
-                borderRadius: "16px",
-                overflow: "hidden",
-                border: `1px solid ${tableThemes.packing.primary}20`,
-                background: isDarkMode ? '#1e1e1e' : '#ffffff',
-                boxShadow: isDarkMode ? "0 4px 20px rgba(0,0,0,0.3)" : "0 4px 20px rgba(0,0,0,0.08)",
-              }}>
-                <CardHeader
-                  title={
-                    <Box display="flex" alignItems="center" justifyContent="space-between">
-                      <Box display="flex" alignItems="center" gap={1.5}>
-                        <LocalShipping sx={{
-                          color: "white",
-                          fontSize: isMobile ? 20 : 26
-                        }} />
-                        <Typography 
-                          variant="h6"
-                          fontWeight={700}
-                          color="white"
-                          sx={{
-                            fontSize: isMobile ? '0.95rem' : '1.15rem',
-                            lineHeight: 1.2,
-                            wordBreak: "break-word",
-                          }}
-                        >
-                          {isMobile ? 'Packing Report' : 'Packing Bengal Gram & Packing Fried Gram'}
-                        </Typography>
-                      </Box>
-                      <IconButton
-                        onClick={() => setPackingCollapsed(!packingCollapsed)}
-                        size="small"
-                        sx={{
-                          color: "white",
-                          p: 0.5,
-                          '&:hover': { backgroundColor: "rgba(255,255,255,0.2)" }
-                        }}
-                      >
-                        {packingCollapsed ? <KeyboardArrowDown fontSize="small" /> : <KeyboardArrowUp fontSize="small" />}
-                      </IconButton>
-                    </Box>
-                  }
+      {/* 3. Packing Bengal Gram & Packing Fried Gram */}
+      <motion.div variants={itemVariants}>
+        <Card sx={{
+          mb: 3,
+          borderRadius: "16px",
+          overflow: "hidden",
+          border: `1px solid ${tableThemes.packing.primary}20`,
+          background: isDarkMode ? '#1e1e1e' : '#ffffff',
+          boxShadow: isDarkMode ? "0 4px 20px rgba(0,0,0,0.3)" : "0 4px 20px rgba(0,0,0,0.08)",
+        }}>
+          <CardHeader
+            title={
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box display="flex" alignItems="center" gap={1.5}>
+                  <LocalShipping sx={{
+                    color: "white",
+                    fontSize: isMobile ? 20 : 26
+                  }} />
+                  <Typography 
+                    variant="h6"
+                    fontWeight={700}
+                    color="white"
+                    sx={{
+                      fontSize: isMobile ? '0.95rem' : '1.15rem',
+                      lineHeight: 1.2,
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {isMobile ? 'Packing Report' : 'Packing Bengal Gram & Packing Fried Gram'}
+                  </Typography>
+                </Box>
+                <IconButton
+                  onClick={() => setPackingCollapsed(!packingCollapsed)}
+                  size="small"
                   sx={{
-                    background: tableThemes.packing.gradient,
-                    py: isMobile ? 1.8 : 2.5,
-                    px: isMobile ? 2 : 3,
+                    color: "white",
+                    p: 0.5,
+                    '&:hover': { backgroundColor: "rgba(255,255,255,0.2)" }
                   }}
-                />
-                <Collapse in={!packingCollapsed}>
-                  <CardContent sx={{ p: isMobile ? 1 : 2 }}>
-                    {renderPackingTable()}
-                  </CardContent>
-                </Collapse>
-              </Card>
-            </motion.div>
+                >
+                  {packingCollapsed ? <KeyboardArrowDown fontSize="small" /> : <KeyboardArrowUp fontSize="small" />}
+                </IconButton>
+              </Box>
+            }
+            sx={{
+              background: tableThemes.packing.gradient,
+              py: isMobile ? 1.8 : 2.5,
+              px: isMobile ? 2 : 3,
+            }}
+          />
+          <Collapse in={!packingCollapsed}>
+            <CardContent sx={{ p: isMobile ? 1 : 2 }}>
+              {renderPackingTable()}
+            </CardContent>
+          </Collapse>
+        </Card>
+      </motion.div>
 
             {/* Enhanced Chart Section */}
             {brands.length > 0 && (
