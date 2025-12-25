@@ -1,11 +1,12 @@
 const stockService = require("./stock.service");
 const recipeModel = require("../models/recipe.model");
 const itemModel = require("../models/item.model");
+const { raw } = require("mysql2");
 
-exports.getDataForFriedGramReport = async ({ fromdate, todate, warehouse, nstock, cond1, req }) => {
+exports.getDataForFriedGramReport = async ({ fromdate, todate, warehouse, nstock, cond1, req }) => { 
 
   // 1️⃣ Fetch valid categories ONCE
-  const [categories] = await itemModel.getItemsFriedGram(req.user.dbase);
+  const categories = await itemModel.getItemsFriedGram(req.user.dbase);
 
   // Keep only FRIED GRAM & BENGAL GRAM
   const validCats = categories
@@ -17,30 +18,45 @@ exports.getDataForFriedGramReport = async ({ fromdate, todate, warehouse, nstock
   }
 
   // 2️⃣ Fetch all producttype codes once (instead of inside loop)
-  const [validProducts] = await itemModel.getValidProducts(validCats, req.user.dbase);
+  const validProducts = await itemModel.getValidProducts(validCats, req.user.dbase);
 
   // 3️⃣ Fetch producttypes that match cond1 (replacement for sqlcheck)
-  const [condMatchedRows] = await itemModel.getcondMatchedRows(cond1, req.user.dbase);
+  const condMatchedRows = await itemModel.getcondMatchedRows(cond1, req.user.dbase);
 
   const condMatchedCodes = new Set(condMatchedRows.map(r => r.producttype));
 
   let result = [];
 
+  const stockCache = new Map();
+  let rawStockCache = new Map();
+  const productCodes = [...new Set(validProducts.map(r => r.code))];
+  
+  // Preload raw stock cache
+  rawStockCache = await stockService.getAllCalculatedStock(productCodes, fromdate, todate, warehouse, true, req.user.dbase); 
+
   // 4️⃣ Loop through products but NO DB QUERY inside loop
-  for (const prod of validProducts) {
+  for (const prod of validProducts) { 
     const { code, description, type, cat } = prod;
 
     // Skip if this code did not match cond1 query
     if (!condMatchedCodes.has(code)) continue;
 
-    // 5️⃣ Get calculated stock for this code
-    const details = await getCalculatedStock(
-      code,
-      fromdate,
-      todate,
-      warehouse,
-      true
-    );
+
+    // Stock (cached)
+    if (!stockCache.has(code)) {
+      stockCache.set(code, rawStockCache[code]);
+      // 5️⃣ Get calculated stock for this code
+      // const details = await getCalculatedStock(
+      //   code,
+      //   fromdate,
+      //   todate,
+      //   warehouse,
+      //   true
+      // );
+    }
+    
+
+    const details = stockCache.get(code);
 
     // Apply PHP filters
     if (((nstock === 0) || (nstock === 1 && details.closing < 0)) &&
@@ -66,6 +82,7 @@ exports.getDataForFriedGramReport = async ({ fromdate, todate, warehouse, nstock
 
 exports.getDataForReport = async ({ fromdate, todate, warehouse, nstock, catgroup, req }) => {   
   const finishedData = {};
+  finishedData['RAW MATERIALS PCK SECTION'] = [];
   const rawData = {};
   const allRaw = [];
   
@@ -94,7 +111,7 @@ exports.getDataForReport = async ({ fromdate, todate, warehouse, nstock, catgrou
 
   // Preload raw stock cache
   rawStockCache = await stockService.getAllCalculatedStock(productCodes, fromdate, todate, warehouse, true, req.user.dbase);
-// return { finished: rawStockCache, raw: 'd', total_prd: 'd' };
+  // return { finished: rawStockCache, raw: 'd', total_prd: 'd' };
   // 3) Loop products
   for (const row of finishedRows) {
 

@@ -7,6 +7,7 @@ const auth = require("../middlewares/authMiddleware");
 router.post("/login", authController.login);
 router.get("/", auth, authController.logActivity);
 router.post("/",auth,  authController.logActivity);
+router.post("/logout",auth,  authController.logout);
 
 // Example of protected route
 router.get("/profile", auth, (req, res) => {

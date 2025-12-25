@@ -16,41 +16,29 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const username = localStorage.getItem("username");
-    const token = localStorage.getItem("token");
+    const username = sessionStorage.getItem("username");
+    const token = sessionStorage.getItem("token");
 
-
-
-    if (!username || !token) {
-      // console.log("[AUTH] No token found → User logged out");
-      return;
-    }
+    if (!username || !token) return;
 
     const payload = decodeToken(token);
     if (!payload || !payload.exp) {
-      // console.log("[AUTH] Invalid token → Logging out");
       logout("Invalid session");
       return;
     }
 
     const expiresIn = payload.exp * 1000 - Date.now();
-
     if (expiresIn <= 0) {
-      // console.log("[AUTH] Token already expired → Logging out");
       logout("Session expired");
       return;
     }
-
-    // console.log(
-    //   `[AUTH] Token valid → Expires in ${Math.floor(expiresIn / 1000)}s`
-    // );
 
     setUser({ username, token });
     axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) return;
 
     const payload = decodeToken(token);
@@ -58,16 +46,9 @@ export const AuthProvider = ({ children }) => {
 
     const interval = setInterval(() => {
       const remainingMs = payload.exp * 1000 - Date.now();
-      const remainingSec = Math.floor(remainingMs / 1000);
-
-      if (remainingSec <= 0) {
-        console.log("[AUTH] Token expired → Logging out");
+      if (remainingMs <= 0) {
         clearInterval(interval);
         logout("Token expired");
-      } else {
-        // console.log(
-        //   `[AUTH] Token valid → Remaining ${remainingSec}s`
-        // );
       }
     }, 1000);
 
@@ -75,31 +56,49 @@ export const AuthProvider = ({ children }) => {
   }, [user]);
 
   const login = (username, token) => {
-    console.log("[AUTH] Login success");
-
-    localStorage.setItem("username", username);
-    localStorage.setItem("token", token);
-
-      // console.log("[AUTH] Token:", token);
+    sessionStorage.setItem("username", username);
+    sessionStorage.setItem("token", token);
 
     axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     setUser({ username, token });
   };
 
-  const logout = (message = "You have been logged out") => {
-    console.log(`[AUTH] Logout → ${message}`);
+const logout = async (message = "You have been logged out") => {
+  const token = sessionStorage.getItem("token");
 
-    localStorage.removeItem("username");
-    localStorage.removeItem("token");
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("themeMode");
-    delete axios.defaults.headers.common["Authorization"];
-    setUser(null);
+  try {
+    if (token) {
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/auth/logout`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+    }
+  } catch (err) {}
 
-    localStorage.setItem("logoutMessage", message);
+  const safeMessage =
+    typeof message === "string"
+      ? message
+      : message?.message ||
+        message?.error ||
+        "You have been logged out";
 
-    window.location.href = "/";
-  };
+  sessionStorage.removeItem("username");
+  sessionStorage.removeItem("token");
+  sessionStorage.removeItem("authToken");
+  sessionStorage.removeItem("themeMode");
+  delete axios.defaults.headers.common["Authorization"];
+
+  setUser(null);
+  sessionStorage.setItem("logoutMessage", safeMessage);
+
+  window.location.href = "/";
+};
+
 
   return (
     <AuthContext.Provider value={{ user, login, logout }}>

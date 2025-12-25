@@ -45,41 +45,28 @@ const SignIn = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  useEffect(() => {
-    const logoutMsg = sessionStorage.getItem("logoutMessage");
-    if (logoutMsg) {
-      try {
-        let messageString = logoutMsg;
-        if (logoutMsg.startsWith("{") || logoutMsg.startsWith("[")) {
-          try {
-            const parsed = JSON.parse(logoutMsg);
-            messageString = parsed.message || parsed.toString();
-          } catch (e) {
-            messageString = logoutMsg;
-          }
-        }
-        
-        setSnackbarMessage(messageString);
-        setSnackbarOpen(true);
-        localStorage.removeItem("logoutMessage");
-      } catch (error) {
-        console.error("Error processing logout message:", error);
-        localStorage.removeItem("logoutMessage");
-      }
-    }
+useEffect(() => {
+  const logoutMsg = sessionStorage.getItem("logoutMessage");
 
-    // Apply font family
-    document.body.style.fontFamily = "'Inter', 'Roboto', 'Segoe UI', sans-serif";
-    
-    // Load Inter font if not already loaded
-    if (!document.querySelector('#inter-font')) {
-      const link = document.createElement('link');
-      link.id = 'inter-font';
-      link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap';
-      link.rel = 'stylesheet';
-      document.head.appendChild(link);
-    }
-  }, []);
+  if (logoutMsg) {
+    setSnackbarMessage(logoutMsg);
+    setSnackbarOpen(true);
+    sessionStorage.removeItem("logoutMessage");
+  }
+
+  document.body.style.fontFamily =
+    "'Inter', 'Roboto', 'Segoe UI', sans-serif";
+
+  if (!document.querySelector("#inter-font")) {
+    const link = document.createElement("link");
+    link.id = "inter-font";
+    link.href =
+      "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap";
+    link.rel = "stylesheet";
+    document.head.appendChild(link);
+  }
+}, []);
+
 
   const handleLogin = async () => {
     if (!username || !password) {
@@ -90,10 +77,11 @@ const SignIn = () => {
 
     setIsLoading(true);
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/login", {
-        username,
-        password,
-      });
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/auth/login`,
+        { username, password }
+      );
+
 
       const { token, username: uname } = res.data;
 

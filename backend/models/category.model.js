@@ -27,3 +27,11 @@ exports.getCategories = async (dbase) => {
         throw err; // send to controller
     }
 };
+
+exports.getAllCategories = async (dbase) => {
+  const pool = getDynamicDB(dbase); 
+  const [categories] = await pool.query(`
+      SELECT catgroup, type FROM ims_itemtypes WHERE catgroup != '' AND type != ''
+    `);
+  return categories;
+}

@@ -304,10 +304,12 @@ const fetchReport = async () => {
       catgroup: "Fried Gram Mill",
     };
 
+
+
     console.log("📤 Request Payload:", payload);
 
     const res = await axios.post(
-      "http://localhost:5000/api/reports/production-report",
+      `${import.meta.env.VITE_API_URL}/Report/production-report`,
       payload,
       {
         headers: {
@@ -317,8 +319,10 @@ const fetchReport = async () => {
       }
     );
 
-    console.log("Axios Response:", res);
-    console.log("Response Data:", res.data);
+// console.log("🔐 JWT Token:", token);
+
+//     console.log("Axios Response:", res);
+//     console.log("Response Data:", res.data);
 
     if (!res.data || Object.keys(res.data).length === 0) {
       console.warn("No data found for selected date range");
@@ -344,7 +348,7 @@ const fetchReport = async () => {
       }
     }
 
-    console.log("Finished Categories:", obj);
+    // console.log("Finished Categories:", obj);
     
     showNotification(
       "Success", 
@@ -388,7 +392,7 @@ const fetchReport = async () => {
     
   } finally {
     setLoading(false);
-    console.log("⏹Loading finished");
+    console.log("Loading finished");
   }
 };
 
