@@ -22,6 +22,6 @@ exports.getIngredientsForProducts = async (productCodes,dbase) => {
     `,
     productCodes
   );
-
+  
   return rows;
 };

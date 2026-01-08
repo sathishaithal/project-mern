@@ -14,7 +14,7 @@ exports.login = async (req, res) => {
     if(isUserTokenLogin){
       let users = await User.findByToken(user_token,crm_user);
 
-      if (!users) return res.status(404).json({ message: "User not found or Invalid credentials" });
+      if (!users) return res.status(404).json({ message: "Username not found or Invalid credentials" });
 
       user = await User.findByEmail(users.username);
       username = user.username;
@@ -27,7 +27,7 @@ exports.login = async (req, res) => {
       
     }
 
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: "Username not found" });
 
     // 2. Verify password (same as PHP)
 
@@ -50,7 +50,7 @@ exports.login = async (req, res) => {
 
     let hash = user.password;
     if (!await checkPassword(password, hash)) {
-      return res.status(404).json({ message: "Invalid credentials" });
+      return res.status(404).json({ message: "Password is incorrect" });
     }
 
     //3. JWT Token

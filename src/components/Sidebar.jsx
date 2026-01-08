@@ -12,6 +12,7 @@ import {
   Collapse,
   Typography,
   IconButton,
+    Avatar,
   Paper,
 } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
@@ -29,8 +30,11 @@ import MenuIcon from "@mui/icons-material/Menu";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
+
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import bhagyaLogo from "../assets/bhagya.png";
 
 const expandedWidth = 220;
 const collapsedWidth = 70;
@@ -110,12 +114,51 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
 
   const drawerContent = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <Toolbar sx={{ justifyContent: collapsed ? "center" : "space-between" }}>
-        {!collapsed && (
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            Sri Bhagyalakshmi
-          </Typography>
-        )}
+<Toolbar
+  sx={{
+    minHeight: collapsed ? 64 : 90,
+    px: collapsed ? 0 : 2,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: collapsed ? "center" : "space-between",
+  }}
+>
+
+     {!collapsed && (
+  <Box
+    onClick={() => navigate("/dashboard")}
+    sx={{
+      width: "100%",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      cursor: "pointer",
+    }}
+  >
+    <Avatar
+      sx={{
+        width: 44,
+        height: 44,
+        bgcolor: "rgba(255,255,255,0.15)",
+        transition: "all 0.25s ease",
+        "&:hover": {
+          bgcolor: "rgba(255,255,255,0.25)",
+          transform: "scale(1.08)",
+        },
+      }}
+    >
+      <HomeOutlinedIcon
+        sx={{
+          color: "white",
+          fontSize: 26,
+        }}
+      />
+    </Avatar>
+  </Box>
+)}
+
+
+
         <IconButton 
           onClick={() => setCollapsed(!collapsed)}
           sx={{ color: "white" }}

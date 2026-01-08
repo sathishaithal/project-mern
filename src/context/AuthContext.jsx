@@ -91,6 +91,7 @@ const logout = async (message = "You have been logged out") => {
   sessionStorage.removeItem("token");
   sessionStorage.removeItem("authToken");
   sessionStorage.removeItem("themeMode");
+  localStorage.removeItem("themeMode");
   delete axios.defaults.headers.common["Authorization"];
 
   setUser(null);

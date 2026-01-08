@@ -107,6 +107,7 @@ const Production = () => {
   const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
   const isDarkMode = theme.palette.mode === "dark";
 
+  const [catGroup, setCatGroup] = useState("Fried Gram Mill");
   const [fromDate, setFromDate] = useState(new Date());
   const [toDate, setToDate] = useState(new Date());
   const [loading, setLoading] = useState(false);
@@ -321,8 +322,8 @@ const fetchReport = async () => {
 
 // console.log("🔐 JWT Token:", token);
 
-//     console.log("Axios Response:", res);
-//     console.log("Response Data:", res.data);
+    console.log("Axios Response:", res);
+    console.log("Response Data:", res.data);
 
     if (!res.data || Object.keys(res.data).length === 0) {
       console.warn("No data found for selected date range");
@@ -348,7 +349,7 @@ const fetchReport = async () => {
       }
     }
 
-    // console.log("Finished Categories:", obj);
+    console.log("Finished Categories:", obj);
     
     showNotification(
       "Success", 
@@ -556,10 +557,23 @@ const additionalMetrics = React.useMemo(() => {
     // For single metric display
     const isSingleMetric = ["finished", "raw"].includes(selectedCategory) && metricType;
     
-    const commonProps = {
-      data: chartData,
-      margin: { top: 20, right: 30, left: 20, bottom: 70 }
-    };
+    const maxValue = Math.max(...chartData.flatMap(d => 
+  Object.values(d).filter(v => typeof v === 'number')
+));
+
+const dynamicLeftMargin = maxValue > 10000000 
+  ? (isMobile ? 80 : 100) 
+  : (isMobile ? 60 : 80);
+
+const commonProps = {
+  data: chartData,
+  margin: { 
+    top: 20, 
+    right: 30, 
+    left: dynamicLeftMargin,
+    bottom: 70 
+  }
+};
 
     const CustomTooltip = ({ active, payload, label }) => {
       if (active && payload && payload.length) {
@@ -1114,19 +1128,15 @@ const additionalMetrics = React.useMemo(() => {
                       py: isMobile ? 0.5 : 1,
                       fontSize: isMobile ? '0.7rem' : '0.875rem'
                     }}>
-                      <Chip
-                        label={formatPercentage(subtotalPercentage)}
-                        size="small"
-                        sx={{
-                          background: subtotalPercentage > 80 ? "#4caf50" :
-                                    subtotalPercentage > 60 ? "#ff9800" : "#f44336",
-                          color: "white",
-                          fontWeight: 600,
-                          fontSize: isMobile ? '0.6rem' : '0.75rem',
-                          height: isMobile ? 18 : 20,
-                          minWidth: isMobile ? 40 : 50
-                        }}
-                      />
+                     <Typography align="right" sx={{
+                        width: columnWidths.percentage,
+                        py: isMobile ? 0.5 : 1,
+                        fontSize: isMobile ? '0.7rem' : '0.875rem',
+                        fontWeight: 600,
+                        color: isDarkMode ? '#ffffff' : '#000000'
+                      }}>
+                        {formatPercentage(subtotalPercentage)}
+                      </Typography>
                     </TableCell>
                   </TableRow>
                  
@@ -1190,19 +1200,15 @@ const additionalMetrics = React.useMemo(() => {
                         py: isMobile ? 0.5 : 1,
                         fontSize: isMobile ? '0.7rem' : '0.875rem'
                       }}>
-                        <Chip
-                          label={formatPercentage(item.prod_percentage)}
-                          size="small"
-                          sx={{
-                            background: item.prod_percentage > 80 ? "#4caf50" :
-                                      item.prod_percentage > 60 ? "#ff9800" : "#f44336",
-                            color: "white",
-                            fontWeight: 600,
-                            fontSize: isMobile ? '0.6rem' : '0.75rem',
-                            height: isMobile ? 18 : 20,
-                            minWidth: isMobile ? 40 : 50
-                          }}
-                        />
+                       <Typography align="right" sx={{
+                          width: columnWidths.percentage,
+                          py: isMobile ? 0.5 : 1,
+                          fontSize: isMobile ? '0.7rem' : '0.875rem',
+                          color: isDarkMode ? '#e0e0e0' : 'text.primary',
+                          fontWeight: 600
+                        }}>
+                          {formatPercentage(item.prod_percentage)}
+                        </Typography>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1309,18 +1315,18 @@ const additionalMetrics = React.useMemo(() => {
                   py: isMobile ? 1 : 1.5,
                 }}
               >
-                <Chip
-                  label="100%"
-                  size="small"
+               <Typography
+                  align="right"
                   sx={{
-                    background: '#ffffff',
-                    color: '#0e3978',
+                    width: columnWidths.percentage,
+                    py: isMobile ? 1 : 1.5,
+                    fontSize: isMobile ? '0.7rem' : '0.875rem',
                     fontWeight: 700,
-                    fontSize: isMobile ? '0.6rem' : '0.75rem',
-                    height: isMobile ? 18 : 20,
-                    minWidth: isMobile ? 40 : 50,
+                    color: '#ffffff'
                   }}
-                />
+                >
+                  {formatPercentage(calcProdPercentage(brands.flatMap(cat => data.finished[cat] || [])))}
+                </Typography>
               </TableCell>
             </TableRow>
           </TableBody>
@@ -1873,23 +1879,23 @@ const additionalMetrics = React.useMemo(() => {
                animate={{ opacity: 1, y: 0 }}
                transition={{ duration: 0.6 }}
              >
-               <Box textAlign="center" mb={isMobile ? 3 : 6}>
+               <Box  mb={isMobile ? 3 : 6}>
                  <Typography variant="h1" sx={{
                    fontSize: isMobile ? "1.5rem" : isTablet ? "2rem" : "2.5rem",
                    fontWeight: 900,
-                   background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryLight})`,
+                  //  background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryLight})`,
                    WebkitBackgroundClip: "text",
-                   WebkitTextFillColor:  '#038effff',
+                  //  WebkitTextFillColor:  '#038effff',
                    mb: isMobile ? 1 : 2
                  }}>
                   
-                   {isMobile ? 'Production Report' : 'Fried Gram Production Report'}
+                   {isMobile ? 'Fried Gram Production Report' : 'Fried Gram Production Report'}
                  </Typography>
                  <Typography variant="h6" color="textSecondary" sx={{
                    mb: isMobile ? 2 : 4,
                    fontSize: isMobile ? '0.8rem' : '1rem'
                  }}>
-                   {isMobile ? 'Production overview' : 'Comprehensive overview of Production, Finished Goods, Raw Materials, and Packing'}
+                   {isMobile ? 'Production overview' : 'Real-time insights on finished goods, raw material consumption, and packing efficiency'}
                  </Typography>
                  
                </Box>
@@ -1897,173 +1903,118 @@ const additionalMetrics = React.useMemo(() => {
 
 
 
-<motion.div
-  initial={{ opacity: 0, y: -40 }}
-  animate={{ opacity: 1, y: 0 }}
-  transition={{ duration: 0.6, ease: "easeOut" }}
->
-  <Card
-    sx={{ 
-      mb: 3, 
-      width: "100%", 
-      maxWidth: "100%",
-      bgcolor: isDarkMode ? '#1e1e1e' : '#ffffff',
-      border: isDarkMode ? '1px solid #333' : 'none',
-      boxShadow: isDarkMode
-        ? '0 4px 20px rgba(0,0,0,0.3)'
-        : '0 4px 20px rgba(0,0,0,0.08)',
-    }}
-  >
-    <CardHeader
-      
-      
-      titleTypographyProps={{ 
-        color: isDarkMode ? '#ffffff' : '#000000',
-        fontWeight: 700 
-      }}
-    />
-
-    <CardContent>
-      <Grid container spacing={2}>
-        {/* From Date */}
-        <Grid item xs={12} sm={4}>
-          <DatePicker
-            label="From Date"
-            value={fromDate}
-            format="dd/MM/yyyy"
-            maxDate={toDate}
-            onChange={(newValue) => {
-              setFromDate(newValue);
-              if (toDate && newValue > toDate) {
-                setToDate(newValue);
-              }
+        <motion.div
+          initial={{ opacity: 0, y: -40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        >
+          <Card
+            sx={{ 
+              mb: 3, 
+              width: "100%", 
+              maxWidth: "100%",
+              bgcolor: isDarkMode ? '#1e1e1e' : '#ffffff',
+              border: isDarkMode ? '1px solid #333' : 'none',
+              boxShadow: isDarkMode
+                ? '0 4px 20px rgba(0,0,0,0.3)'
+                : '0 4px 20px rgba(0,0,0,0.08)',
             }}
-            slotProps={{
-              textField: {
-                fullWidth: true,
-                sx: {
-                  height: 56,
-                  '& .MuiInputBase-root': {
-                    height: 56,
-                    color: isDarkMode ? '#ffffff' : '#000000',
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: isDarkMode ? '#b0b0b0' : 'rgba(0, 0, 0, 0.6)',
-                  },
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: isDarkMode ? '#555' : 'rgba(0, 0, 0, 0.23)',
-                  },
-                },
-              },
-            }}
-          />
-        </Grid>
+          >
+            <CardHeader
+              
+              
+              titleTypographyProps={{ 
+                color: isDarkMode ? '#ffffff' : '#000000',
+                fontWeight: 700 
+              }}
+            />
 
-        {/* To Date */}
-        <Grid item xs={12} sm={4}>
-          <DatePicker
-            label="To Date"
-            value={toDate}
-            format="dd/MM/yyyy"
-            minDate={fromDate}
-            onChange={(newValue) => {
-              setToDate(newValue);
-              if (fromDate && newValue < fromDate) {
-                setFromDate(newValue);
-              }
-            }}
-            slotProps={{
-              textField: {
-                fullWidth: true,
-                sx: {
-                  height: 56,
-                  '& .MuiInputBase-root': {
-                    height: 56,
-                    color: isDarkMode ? '#ffffff' : '#000000',
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: isDarkMode ? '#b0b0b0' : 'rgba(0, 0, 0, 0.6)',
-                  },
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: isDarkMode ? '#555' : 'rgba(0, 0, 0, 0.23)',
-                  },
-                },
-              },
-            }}
-          />
-        </Grid>
+            <CardContent>
+              <Grid container spacing={2} alignItems="stretch">
 
-        {/* Generate + Notification */}
-        <Grid item xs={12} sm={4}>
-          <Grid container spacing={isMobile ? 1 : 2} alignItems="stretch">
-            {/* Generate Button */}
-            <Grid item xs={12} md={notification.open ? 6 : 12}>
-              <Button
-                fullWidth
-                variant="contained"
-                onClick={fetchReport}
-                startIcon={
-                  loading ? (
-                    <CircularProgress size={18} sx={{ color: '#ffffff' }} />
-                  ) : (
-                    <Refresh />
-                  )
-                }
-                disabled={loading}
-                sx={{
-                  height: 56,
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  bgcolor: '#5B86E5',
-                  '&:hover': { bgcolor: '#4570d0' },
-                }}
-              >
-                Generate
-              </Button>
-            </Grid>
+                {/* Category Group */}
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <FormControl fullWidth>
+                    <InputLabel>Category Group</InputLabel>
+                    <Select
+                      value={catGroup}
+                      label="Category Group"
+                      onChange={(e) => setCatGroup(e.target.value)}
+                      sx={{ height: 56 }}
+                    >
+                      <MenuItem value="Fried Gram Mill">Fried Gram Mill</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
 
-            {/* Notification */}
-            {notification.open && (
-              <Grid item xs={12} md={6}>
-                <Collapse
-                  in={notification.open}
-                  orientation={isMobile ? 'vertical' : 'horizontal'}
-                >
-                  <Alert
-                    onClose={handleCloseNotification}
-                    severity={notification.severity}
-                    variant="filled"
-                    sx={{
-                      width: '100%',
-                      minHeight: 56,
-                      display: 'flex',
-                      alignItems: 'center',
-                      boxShadow: isDarkMode ? 3 : 2,
-                      '& .MuiAlert-icon': { fontSize: 20 },
-                      px: 1.25,
-                    }}
+                {/* From Date */}
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <DatePicker
+                    label="From Date"
+                    value={fromDate}
+                    maxDate={toDate}
+                    onChange={setFromDate}
+                    slotProps={{ textField: { fullWidth: true } }}
+                  />
+                </Grid>
+
+                {/* To Date */}
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <DatePicker
+                    label="To Date"
+                    value={toDate}
+                    minDate={fromDate}
+                    onChange={setToDate}
+                    slotProps={{ textField: { fullWidth: true } }}
+                  />
+                </Grid>
+
+                {/* Generate Button */}
+                <Grid size={{ xs: 12, md: notification.open ? 2 : 3 }}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={fetchReport}
+                    disabled={loading}
+                    startIcon={
+                      loading ? <CircularProgress size={18} sx={{ color: "#fff" }} /> : <Refresh />
+                    }
+                    sx={{ height: 56, fontWeight: 600 }}
                   >
-                    <Box display="flex" flexDirection="column">
-                      <Typography fontSize="0.8rem" fontWeight={600}>
-                        {notification.title}
-                      </Typography>
-                      <Typography fontSize="0.75rem" opacity={0.9}>
+                    Generate
+                  </Button>
+                </Grid>
+
+                {/* Notification (appears after Generate) */}
+                {notification.open && (
+                  <Grid size={{ xs: 12, md: 3 }}>
+                    <Collapse in={notification.open}>
+                      <Alert
+                        onClose={handleCloseNotification}
+                        severity={notification.severity}
+                        variant="filled"
+                        sx={{
+                          height: 56,
+                          display: "flex",
+                          alignItems: "center",
+                          fontSize: "0.8rem",
+                          fontWeight: 600,
+                        }}
+                      >
                         {notification.message}
-                      </Typography>
-                    </Box>
-                  </Alert>
-                </Collapse>
+                      </Alert>
+                    </Collapse>
+                  </Grid>
+                )}
+
               </Grid>
-            )}
-          </Grid>
-        </Grid>
-      </Grid>
-    </CardContent>
-  </Card>
-</motion.div>
+            </CardContent>
+
+          </Card>
+        </motion.div>
 
 
-        {/* Show reports only when data exists */}
+      
        {/* ================= METRICS SUMMARY ================= */}
       {data && (
   <motion.div
@@ -2073,7 +2024,7 @@ const additionalMetrics = React.useMemo(() => {
   >
     <Grid container spacing={isMobile ? 1 : 2} mb={isMobile ? 3 : 5}>
       {/* Finished Goods Total */}
-      <Grid item xs={6} sm={4} md={3} lg={2.4}>
+      {/* <Grid size={{ xs: 6, sm: 4, md: 3, lg: 2.4 }}>
         <motion.div variants={itemVariants}>
           <Card sx={{
             background: tableThemes.finished.gradient,
@@ -2108,10 +2059,10 @@ const additionalMetrics = React.useMemo(() => {
             </CardContent>
           </Card>
         </motion.div>
-      </Grid>
+      </Grid> */}
 
       {/* Execution Time */}
-      <Grid item xs={6} sm={4} md={3} lg={2.4}>
+      {/* <Grid size={{ xs: 6, sm: 4, md: 3, lg: 2.4 }}>
         <motion.div variants={itemVariants}>
           <Card sx={{
             background: tableThemes.raw.gradient,
@@ -2146,10 +2097,10 @@ const additionalMetrics = React.useMemo(() => {
             </CardContent>
           </Card>
         </motion.div>
-      </Grid>
+      </Grid> */}
 
       {/* Average Production Percentage */}
-      <Grid item xs={6} sm={4} md={3} lg={2.4}>
+      {/* <Grid size={{ xs: 6, sm: 4, md: 3, lg: 2.4 }}>
         <motion.div variants={itemVariants}>
           <Card sx={{
             background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
@@ -2187,10 +2138,10 @@ const additionalMetrics = React.useMemo(() => {
             </CardContent>
           </Card>
         </motion.div>
-      </Grid>
+      </Grid> */}
 
       {/* Total Items */}
-      <Grid item xs={6} sm={4} md={3} lg={2.4}>
+      {/* <Grid size={{ xs: 6, sm: 4, md: 3, lg: 2.4 }}>
         <motion.div variants={itemVariants}>
           <Card sx={{
             background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
@@ -2228,10 +2179,10 @@ const additionalMetrics = React.useMemo(() => {
             </CardContent>
           </Card>
         </motion.div>
-      </Grid>
+      </Grid> */}
 
       {/* Date Range Card */}
-      <Grid item xs={6} sm={4} md={3} lg={2.4}>
+      {/* <Grid size={{ xs: 6, sm: 4, md: 3, lg: 2.4 }}>
         <motion.div variants={itemVariants}>
           <Card sx={{
             background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
@@ -2269,10 +2220,10 @@ const additionalMetrics = React.useMemo(() => {
             </CardContent>
           </Card>
         </motion.div>
-      </Grid>
+      </Grid> */}
 
       {/* Raw Materials Count */}
-      <Grid item xs={6} sm={4} md={3} lg={2.4}>
+      {/* <Grid size={{ xs: 6, sm: 4, md: 3, lg: 2.4 }}>
         <motion.div variants={itemVariants}>
           <Card sx={{
             background: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
@@ -2310,10 +2261,10 @@ const additionalMetrics = React.useMemo(() => {
             </CardContent>
           </Card>
         </motion.div>
-      </Grid>
+      </Grid> */}
 
       {/* Dispatch Percentage */}
-      <Grid item xs={6} sm={4} md={3} lg={2.4}>
+      {/* <Grid size={{ xs: 6, sm: 4, md: 3, lg: 2.4 }}>
         <motion.div variants={itemVariants}>
           <Card sx={{
             background: "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)",
@@ -2350,10 +2301,10 @@ const additionalMetrics = React.useMemo(() => {
             </CardContent>
           </Card>
         </motion.div>
-      </Grid>
+      </Grid> */}
 
       {/* Total Brands */}
-      <Grid item xs={6} sm={4} md={3} lg={2.4}>
+      {/* <Grid size={{ xs: 6, sm: 4, md: 3, lg: 2.4 }}>
         <motion.div variants={itemVariants}>
           <Card sx={{
             background: "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
@@ -2390,7 +2341,7 @@ const additionalMetrics = React.useMemo(() => {
             </CardContent>
           </Card>
         </motion.div>
-      </Grid>
+      </Grid> */}
     </Grid>
   </motion.div>
 )}
@@ -2595,7 +2546,7 @@ const additionalMetrics = React.useMemo(() => {
                             fontSize: isMobile ? '0.9rem' : isTablet ? '1.1rem' : '1.25rem',
                             fontWeight: 600
                           }}>
-                            {isMobile ? 'Charts' : 'Visualization'}
+                            {isMobile ? 'Visualization' : 'Visualization'}
                           </Typography>
                         </Box>
                         <IconButton
@@ -2616,8 +2567,7 @@ const additionalMetrics = React.useMemo(() => {
                   />
                   <Collapse in={!chartCollapsed}>
                     <Grid container spacing={isMobile ? 1 : 2} mb={isMobile ? 2 : 4}>
-                      <Grid item xs={12} sm={6} md={3}>
-                        <FormControl fullWidth size={isMobile ? "small" : "medium"}>
+                      <Grid size={{ xs: 12, sm: 6, md: 3 }}>                        <FormControl fullWidth size={isMobile ? "small" : "medium"}>
                           <InputLabel sx={{ color: isDarkMode ? '#b0b0b0' : 'inherit' }}>Category</InputLabel>
                           <Select
                             value={selectedCategory}
@@ -2642,7 +2592,7 @@ const additionalMetrics = React.useMemo(() => {
                             <MenuItem value="finished">
                               <Box display="flex" alignItems="center" gap={1}>
                                 <Inventory fontSize="small" />
-                                {isMobile ? 'Finished' : 'Finished Goods'}
+                                {isMobile ? 'Finished' : 'Finished Goods - Fried Gram'}
                               </Box>
                             </MenuItem>
                             <MenuItem value="raw">
@@ -2662,13 +2612,12 @@ const additionalMetrics = React.useMemo(() => {
                       </Grid>
                      
                       {selectedCategory === "finished" && (
-                        <Grid item xs={12} sm={6} md={3}>
-                          <FormControl fullWidth size={isMobile ? "small" : "medium"}>
-                            <InputLabel sx={{ color: isDarkMode ? '#b0b0b0' : 'inherit' }}>Brand</InputLabel>
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>                          <FormControl fullWidth size={isMobile ? "small" : "medium"}>
+                            <InputLabel sx={{ color: isDarkMode ? '#b0b0b0' : 'inherit' }}>Cat</InputLabel>
                             <Select
                               value={selectedBrand}
                               onChange={e => setSelectedBrand(e.target.value)}
-                              label="Brand"
+                              label="Cat"
                               sx={{
                                 color: isDarkMode ? '#ffffff' : '#000000',
                                 '& .MuiOutlinedInput-notchedOutline': {
@@ -2687,8 +2636,7 @@ const additionalMetrics = React.useMemo(() => {
                       )}
                      
                       {selectedCategory !== "packing" && (
-                        <Grid item xs={12} sm={6} md={3}>
-                          <FormControl fullWidth size={isMobile ? "small" : "medium"}>
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>                          <FormControl fullWidth size={isMobile ? "small" : "medium"}>
                             <InputLabel sx={{ color: isDarkMode ? '#b0b0b0' : 'inherit' }}>Metric</InputLabel>
                             <Select
                               value={metricType}
@@ -2721,8 +2669,9 @@ const additionalMetrics = React.useMemo(() => {
                         </Grid>
                       )}
                      
-                      <Grid item xs={12} sm={6} md={3}>
-                        <FormControl fullWidth size={isMobile ? "small" : "medium"}>
+
+                      <Grid size={{ xs: 12, sm: 6, md: 3 }}>       
+                                         <FormControl fullWidth size={isMobile ? "small" : "medium"}>
                           <InputLabel sx={{ color: isDarkMode ? '#b0b0b0' : 'inherit' }}>Chart Type</InputLabel>
                           <Select
                             value={chartType}
@@ -2766,11 +2715,102 @@ const additionalMetrics = React.useMemo(() => {
           </>
         )}
 
+        {/* Full Page Loading Overlay */}
+          {loading && (
+            <Box
+              sx={{
+                position: "fixed",
+                inset: 0,
+
+                /* 🔴 NO BLUR HERE */
+                backgroundColor: isDarkMode
+                  ? "rgba(0,0,0,0.35)"
+                  : "rgba(255,255,255,0.35)",
+
+                zIndex: 9999,
+
+                /* 🔒 Disable clicks behind */
+                pointerEvents: "all",
+
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {/* 🔳 Loader Box */}
+              <Box
+                sx={{
+                  width: 260,
+                  padding: "28px 24px",
+                  borderRadius: "16px",
+                  backgroundColor: isDarkMode ? "#1f2937" : "#ffffff",
+                  boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                {/* 🔵 Single rotating conic-gradient loader */}
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{
+                    repeat: Infinity,
+                    duration: 2.5,
+                    ease: "linear",
+                  }}
+                  style={{
+                    width: 90,
+                    height: 90,
+                    borderRadius: "50%",
+                    background: `conic-gradient(${colors.primary}, transparent 65%)`,
+                    filter: "blur(5px)",
+                    opacity: 0.7,
+                  }}
+                />
+
+                {/* Text */}
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    fontSize: "1rem",
+                    color: isDarkMode ? "#ffffff" : "#1e3a8a",
+                    userSelect: "none",
+                  }}
+                >
+                  Generating Report
+                </Typography>
+
+                {/* 🔘 Three dots */}
+                <Box sx={{ display: "flex", gap: 0.8 }}>
+                  {[0, 1, 2].map((i) => (
+                    <motion.span
+                      key={i}
+                      animate={{ opacity: [0.3, 1, 0.3] }}
+                      transition={{
+                        duration: 1.2,
+                        repeat: Infinity,
+                        delay: i * 0.2,
+                      }}
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        backgroundColor: colors.primary,
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            </Box>
+          )}
 
 
 
       {/* </Box> */}
     </LocalizationProvider>
+
+    
   );
 };
 

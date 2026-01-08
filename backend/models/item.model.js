@@ -61,26 +61,17 @@ exports.getFinishedItems = async (catgroup, dbase) => {
     FROM product_productionunit b
     INNER JOIN ims_itemcodes a ON a.code = b.producttype
     WHERE b.date >= '2017-01-01'
-      AND a.cat NOT IN ('RAW MATERIALS PCK SECTION')
+      
       ${millFilter}
     ORDER BY a.cat DESC, a.code ASC
     `,
     params
   );
-
-  console.log(`SELECT DISTINCT
-      a.code, a.description, a.type, a.sunits,
-      a.cat AS category, a.catgroup
-    FROM product_productionunit b
-    INNER JOIN ims_itemcodes a ON a.code = b.producttype
-    WHERE b.date >= '2017-01-01'
-      AND a.cat NOT IN ('RAW MATERIALS PCK SECTION')
-      ${millFilter}
-    ORDER BY a.cat DESC, a.code ASC`);console.log(params);
+  //AND a.cat NOT IN ('RAW MATERIALS PCK SECTION')
  
   return rows;
+  
 };
-
 
 exports.getItemWeightAndType = async (code, dbase) => {
   const pool = getDynamicDB(dbase);

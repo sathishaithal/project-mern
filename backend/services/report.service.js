@@ -80,7 +80,7 @@ exports.getDataForFriedGramReport = async ({ fromdate, todate, warehouse, nstock
   return result;
 }
 
-exports.getDataForReport = async ({ fromdate, todate, warehouse, nstock, catgroup, req }) => {   
+exports.getDataForReport = async ({ fromdate, todate, warehouse, nstock, catgroup, req }) => { 
   const finishedData = {};
   finishedData['RAW MATERIALS PCK SECTION'] = [];
   const rawData = {};
@@ -93,100 +93,151 @@ exports.getDataForReport = async ({ fromdate, todate, warehouse, nstock, catgrou
   const ingredientMap = new Map();
   const processedRM = new Set();
 
+
   // 1) Fetch all finished products
-  const finishedRows = await itemModel.getFinishedItems(catgroup,req.user.dbase);
+  const finishedRows = await itemModel.getFinishedItems(catgroup,req.user.dbase); 
+
 
   // 2) Load ingredients in one shot
-  const productCodes = [...new Set(finishedRows.map(r => r.code))];
-  const ingredients = await recipeModel.getIngredientsForProducts(productCodes,req.user.dbase);
+  const productCodes = [
+    ...new Set(
+      finishedRows
+        .map(r => r.code)
+    )
+  ];
 
-  // Build ingredient map
+  const ingredients = await recipeModel.getIngredientsForProducts(productCodes,req.user.dbase);
+  
+  const productCodes1 =[
+    ...new Set(
+      ingredients
+        .map(r => r.ingredient)
+    )
+  ];
+
   for (const ing of ingredients) {
-    if (!ingredientMap.has(ing.producttype))
-      ingredientMap.set(ing.producttype, []); 
-    ingredientMap.get(ing.producttype).push(ing);
+    
+    if (!ing.producttype) continue; // safety check
+
+    if (!ingredientMap.has(ing.producttype)) {
+      ingredientMap.set(ing.producttype, []);
+      
+    }
+
+    ingredientMap.get(ing.producttype).push(ing); 
   }
 
-  
-
   // Preload raw stock cache
-  rawStockCache = await stockService.getAllCalculatedStock(productCodes, fromdate, todate, warehouse, true, req.user.dbase);
-  // return { finished: rawStockCache, raw: 'd', total_prd: 'd' };
+  const rawStockCache_temp = await stockService.getAllCalculatedStock(productCodes, fromdate, todate, warehouse, true, req.user.dbase);
+  const rawStockCache_dum = await stockService.getAllCalculatedStock(productCodes1, fromdate, todate, warehouse, false, req.user.dbase);
+
+
+  rawStockCache = {
+    ...rawStockCache_temp,
+    ...rawStockCache_dum
+  };
+
   // 3) Loop products
   for (const row of finishedRows) {
 
     const code = row.code;
     const category = row.category;
 
-    if (!finishedData[category]) finishedData[category] = [];
+    if(category != 'RAW MATERIALS PCK SECTION'){
+      if (!finishedData[category]) finishedData[category] = [];
 
-    // Stock (cached)
-    if (!stockCache.has(code)) {
-      stockCache.set(code, rawStockCache[code]);
-      //stockCache.set(code, await stockService.getCalculatedStock(code, fromdate, todate, warehouse, true, req.user.dbase));
-    }
+      // Stock (cached)
+      if (!stockCache.has(code) && rawStockCache[code]) {
+        stockCache.set(code, rawStockCache[code]);
+      }
 
-    const s = stockCache.get(code);
+    
+      if(rawStockCache[code]){
 
-    // Total production logic
-    if (catgroup === "Fried Gram Mill") {
-      if (row.catgroup === "FRIED GRAM") totalProduction += s.purchased_transferin;
-    } else {
-      totalProduction += s.purchased_transferin;
-    }
+        const s = stockCache.get(code);
+      
+        // Total production logic
+        if (catgroup === "Fried Gram Mill") {
+          if (row.catgroup === "FRIED GRAM") totalProduction += s.purchased_transferin;
+        } else {
+          totalProduction += s.purchased_transferin;
+        }
 
-    // matching logic
-    const include =
-      ((nstock === 0) || (nstock === 1 && s.closing < 0)) &&
-      s.purchased_transferin > 0;
+        // matching logic
+      
+        const include =
+          ((nstock === 0) || (nstock === 1 && s.closing < 0)) &&
+          s.purchased_transferin > 0;
 
-    if (include) {
-      finishedData[category].push({
-        category,
-        catgroup: row.catgroup,
-        type: row.type,
-        description: row.description,
-        opening: s.opening,
-        "purchased/transfer in": s.purchased_transferin,
-        "consumed/transfer out": s.consumed_transferout,
-        sold: s.sales,
-        returned: s.salesreturn,
-        closing: s.closing,
-        prod_percentage: 0
-      });
+        if (include) {
+          finishedData[category].push({
+            category,
+            catgroup: row.catgroup,
+            type: row.type,
+            description: row.description,
+            opening: s.opening,
+            "purchased/transfer in": s.purchased_transferin,
+            "consumed/transfer out": s.consumed_transferout,
+            sold: s.sales,
+            returned: s.salesreturn,
+            closing: s.closing,
+            prod_percentage: 0
+          });
+        }
+
+      }
     }
 
     // RAW MATERIALS
-    for (const ing of (ingredientMap.get(code) || [])) {
+    for (const ing of (ingredientMap.get(code) || [])) { 
+
+     
+
+
       if (processedRM.has(ing.description)) continue;
 
-      const ingCode = ing.ingredient;
+      const ingCode = ing.ingredient; 
 
       // stock cache
-      if (!stockCache.has(ingCode)) {
-        stockCache.set(
-          ingCode,
-          //await stockService.getCalculatedStock(ingCode, fromdate, todate, warehouse, false, req.user.dbase)
-          stockCache.set(ingCode, rawStockCache[ingCode])
-        );
-      }
-      const rm = stockCache.get(ingCode);
+      if (!stockCache.has(ingCode)) { 
 
-      if (((nstock === 0) || (nstock === 1 && rm.closing < 0)) && rm.opening >= 0.5) {
-        allRaw.push({
-          category: "All Raw Materials",
-          type: "RAW MATERIAL",
-          description: ing.description,
-          opening: rm.opening,
-          "purchased/transfer in": rm.purchased_transferin,
-          "consumed/transfer out": rm.consumed_transferout,
-          sold: rm.sales,
-          returned: rm.salesreturn,
-          closing: rm.closing,
-          prod_percentage: 0
-        });
-        processedRM.add(ing.description);
+        const stockData = rawStockCache[ingCode] ?? {
+          opening: 0,
+          purchased_transferin: 0,
+          consumed_transferout: 0,
+          sales: 0,
+          salesreturn: 0,
+          closing: 0
+        };
+        stockCache.set(ingCode, stockData);
       }
+
+      const rm = stockCache.get(ingCode);
+    
+      
+
+      if (
+          (
+            (nstock === 0) || 
+            (nstock === 1 && rm.closing < 0)
+          )
+          && 
+          rm.opening >= 0.5
+        ){ 
+          allRaw.push({
+            category: "All Raw Materials",
+            type: "RAW MATERIAL",
+            description: ing.description,
+            opening: rm.opening,
+            "purchased/transfer in": rm.purchased_transferin,
+            "consumed/transfer out": rm.consumed_transferout,
+            sold: rm.sales,
+            returned: rm.salesreturn,
+            closing: rm.closing,
+            prod_percentage: 0
+          });
+          processedRM.add(ing.description);
+        }
     }
   }
 

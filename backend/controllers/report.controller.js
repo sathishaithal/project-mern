@@ -102,6 +102,21 @@ exports.getProductionReport = async (req, res) => {
 
       
 
+    const cond1 = (catgroup === "" || catgroup === "--All--")
+    ? "1"
+    : `mill = '${catgroup}'`;
+
+    const fried_gram_reportData = await reportService.getDataForFriedGramReport({
+      fromdate,
+      todate,
+      warehouse: "",
+      nstock,
+      cond1,
+      req
+    }); 
+
+      
+
     const categories = await categoryService.getAllCategories(req);
 
 
@@ -110,6 +125,7 @@ exports.getProductionReport = async (req, res) => {
     return res.json({
       finished: reportData.finished,
       raw: reportData.raw,
+      fried_gram_production: fried_gram_reportData,
       categories,
       selected_catgroup: catgroup,
       fromdate,
