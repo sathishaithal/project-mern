@@ -61,6 +61,7 @@ import {
   AreaChart,
   Area,
 } from "recharts";
+import { enGB } from "date-fns/locale";
 
 
 
@@ -515,6 +516,7 @@ const additionalMetrics = React.useMemo(() => {
     const metricMap = {
       produced: "Production",
       opening: "Opening",
+      arrival: "Arrival",
       total: "Total",
       dispatch: "Dispatch",
       closing: "Closing",
@@ -1860,7 +1862,7 @@ const commonProps = {
 
   /* ================= UI ================= */
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
+    <LocalizationProvider  dateAdapter={AdapterDateFns} adapterLocale={enGB}  > 
       {/* <Box
         sx={{
           px: { xs: 1, sm: 2 },
@@ -1874,32 +1876,37 @@ const commonProps = {
       > */}
      
 
-      <motion.div
-               initial={{ opacity: 0, y: -40 }}
-               animate={{ opacity: 1, y: 0 }}
-               transition={{ duration: 0.6 }}
-             >
-               <Box  mb={isMobile ? 3 : 6}>
-                 <Typography variant="h1" sx={{
-                   fontSize: isMobile ? "1.5rem" : isTablet ? "2rem" : "2.5rem",
-                   fontWeight: 900,
-                  //  background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryLight})`,
-                   WebkitBackgroundClip: "text",
-                  //  WebkitTextFillColor:  '#038effff',
-                   mb: isMobile ? 1 : 2
-                 }}>
-                  
-                   {isMobile ? 'Fried Gram Production Report' : 'Fried Gram Production Report'}
-                 </Typography>
-                 <Typography variant="h6" color="textSecondary" sx={{
-                   mb: isMobile ? 2 : 4,
-                   fontSize: isMobile ? '0.8rem' : '1rem'
-                 }}>
-                   {isMobile ? 'Production overview' : 'Real-time insights on finished goods, raw material consumption, and packing efficiency'}
-                 </Typography>
-                 
-               </Box>
-             </motion.div>
+  <motion.div
+  initial={{ opacity: 0, y: -40 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.6 }}
+>
+  <Box mb={isMobile ? 3 : 6}>
+    <Typography
+      variant="h4"
+      sx={{
+        fontWeight: 700,
+        mb: isMobile ? 1 : 2,
+      }}
+    >
+      Fried Gram Production Report
+    </Typography>
+
+    <Typography
+      variant="body2"
+      color="textSecondary"
+      sx={{
+        mb: isMobile ? 2 : 4,
+        fontSize: isMobile ? "0.75rem" : "0.9rem",
+      }}
+    >
+      {isMobile
+        ? "Production overview"
+        : "Real-time insights on finished goods, raw material consumption, and packing efficiency"}
+    </Typography>
+  </Box>
+</motion.div>
+
 
 
 
@@ -1964,6 +1971,7 @@ const commonProps = {
                     label="To Date"
                     value={toDate}
                     minDate={fromDate}
+                    disableFuture
                     onChange={setToDate}
                     slotProps={{ textField: { fullWidth: true } }}
                   />
@@ -2652,13 +2660,14 @@ const commonProps = {
                               {[
                                 { value: "produced", label: "Produced" },
                                 { value: "opening", label: "Opening" },
+                                { value: "arrival", label: "Arrival" },
                                 { value: "total", label: "Total" },
                                 { value: "dispatch", label: "Dispatch" },
                                 { value: "closing", label: "Closing" },
                                 { value: "prod_percentage", label: "Production %" },
                               ].filter(metric =>
                                 selectedCategory === "finished" ||
-                                (selectedCategory === "raw" && ["opening", "total", "dispatch", "closing"].includes(metric.value))
+                                (selectedCategory === "raw" && ["opening", "arrival", "total", "dispatch", "closing"].includes(metric.value))
                               ).map(metric => (
                                 <MenuItem key={metric.value} value={metric.value}>
                                   {isMobile ? metric.label.slice(0, 8) : metric.label}

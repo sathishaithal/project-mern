@@ -81,17 +81,23 @@ const MainLayout = ({ children }) => {
         }}
       >
         {/* HEADER */}
-        <AppBar
-          position="fixed"
-          sx={{
-            width: isMobile
-              ? "100%"
-              : `calc(100% - ${collapsed ? collapsedWidth : expandedWidth}px)`,
-            ml: isMobile ? 0 : `${collapsed ? collapsedWidth : expandedWidth}px`,
-            backgroundColor: isDarkMode ? "#121212" : "#0e3978f2",
-            boxShadow: theme.shadows[3],
-          }}
-        >
+       <AppBar
+        position="fixed"
+        elevation={0}  
+        sx={{
+          width: isMobile
+            ? "100%"
+            : `calc(100% - ${collapsed ? collapsedWidth : expandedWidth}px)`,
+          ml: isMobile ? 0 : `${collapsed ? collapsedWidth : expandedWidth}px`,
+
+          backgroundColor: "#0e3978f2",
+          backgroundImage: "none",   
+          color: "#fff",
+
+          boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+        }}
+      >
+
           <Toolbar>
             {isMobile && (
               <IconButton color="inherit" onClick={() => setMobileOpen(true)}>
@@ -113,30 +119,39 @@ const MainLayout = ({ children }) => {
                        />
 
             {/* COMPANY NAME + CONTEXT */}
-            <Box sx={{ flexGrow: 1 }}>
-
-
-
-              
+        <Box
+              sx={{
+                flexGrow: 1,
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+                minWidth: 0,
+              }}
+            >
               <Typography
                 variant="h3"
-                sx={{ fontWeight: 700, lineHeight: 1.3 }}
+                sx={{
+                  fontWeight: 700,
+                  lineHeight: 1.2,
+                  whiteSpace: "nowrap",
+                }}
               >
                 Sri Bhagyalakshmi Group
               </Typography>
-             <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: [0, 1, 1, 0], y: [-4, 0, 0, -4] }}
+
+              <motion.div
+                initial={{ opacity: 0, x: -6 }}
+                animate={{ opacity: [0, 1, 1, 0], x: [-6, 0, 0, -6] }}
                 transition={{
                   duration: 4,
                   repeat: Infinity,
                   ease: "easeInOut",
                 }}
               >
-                {/* <Typography
+                <Typography
                   variant="caption"
                   sx={{
-                    fontSize: "0.75rem",
+                    fontSize: "0.65rem",
                     letterSpacing: "1px",
                     fontWeight: 600,
                     color: "rgba(255,255,255,0.85)",
@@ -145,10 +160,10 @@ const MainLayout = ({ children }) => {
                   }}
                 >
                   TESTED. TASTED. TRUSTED.
-                </Typography> */}
+                </Typography>
               </motion.div>
-
             </Box>
+
 
             {/* USER */}
             <Typography
