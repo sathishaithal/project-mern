@@ -120,7 +120,7 @@ npm install
 2. Configure frontend `.env`
 
 ```env
-VITE_API_URL=http://localhost:5000
+VITE_API_URL=https://***************:5000
 ```
 
 Current configured value in this project:
