@@ -126,7 +126,7 @@ VITE_API_URL=http://localhost:5000
 Current configured value in this project:
 
 ```env
-VITE_API_URL=http://103.117.236.163:5000
+VITE_API_URL=https://***************:5000
 ```
 
 3. Start frontend
