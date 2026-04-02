@@ -20,9 +20,9 @@ exports.getValidProducts = async (validCats, dbase) => {
       JOIN product_productionunit b ON a.code = b.producttype
       WHERE a.cat IN (?)
       AND b.mill = 'Packing Section'
-      AND b.date >= '2017-01-01'
+      
       ORDER BY a.code ASC
-    `, [validCats]);
+    `, [validCats]);//AND b.date >= '2017-01-01'
 
     return validProducts;
 };
@@ -30,12 +30,18 @@ exports.getValidProducts = async (validCats, dbase) => {
 exports.getcondMatchedRows = async (cond1, dbase) => {
   const pool = getDynamicDB(dbase);
   const [categories] = await pool.query(`
-      SELECT DISTINCT a.producttype
-      FROM product_productionunit a
-      JOIN ims_itemcodes b ON a.producttype = b.code
-      WHERE a.date >= '2017-01-01'
-      AND ${cond1}
+      SELECT  producttype
+      FROM product_productionunit WHERE date >= '2017-01-01'
+      AND mill = 'Packing Section'
     `);
+
+    // SELECT DISTINCT a.producttype, b.code
+      // FROM product_productionunit a
+      // JOIN ims_itemcodes b ON a.producttype = b.code
+      // WHERE a.date >= '2017-01-01'
+      // AND ${cond1}
+
+   
     return categories;
 };
 
@@ -61,6 +67,16 @@ exports.getFinishedItems = async (catgroup, dbase) => {
     `,
     params
   );
+
+  console.log(`SELECT DISTINCT
+      a.code, a.description, a.type, a.sunits,
+      a.cat AS category, a.catgroup
+    FROM product_productionunit b
+    INNER JOIN ims_itemcodes a ON a.code = b.producttype
+    WHERE b.date >= '2017-01-01'
+      AND a.cat NOT IN ('RAW MATERIALS PCK SECTION')
+      ${millFilter}
+    ORDER BY a.cat DESC, a.code ASC`);console.log(params);
  
   return rows;
 };

@@ -1,6 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+
+// Import Bootstrap CSS and Icons
+import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 import SignIn from "./pages/SignIn";
 import Dashboard from "./pages/Dashboard";
@@ -29,6 +33,22 @@ import { ColorModeProvider } from "./theme/ThemeContext";
 import MainLayout from "./layouts/MainLayout";
 import "./index.css";
 import ScrollToTop from "./components/ScrollToTop";
+import { useAuth } from "./context/AuthContext";
+
+const ProtectedRoute = ({ children }) => {
+  const { authReady, isAuthenticated } = useAuth();
+  const location = useLocation();
+
+  if (!authReady) {
+    return null;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace state={{ from: location }} />;
+  }
+
+  return children;
+};
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
@@ -37,9 +57,8 @@ root.render(
     <AuthProvider>
       <ColorModeProvider>
         <BrowserRouter>
-        <ScrollToTop />
+          <ScrollToTop />
           <Routes>
-
             {/* ---------- LOGIN PAGE ---------- */}
             <Route path="/" element={<SignIn />} />
 
@@ -47,9 +66,11 @@ root.render(
             <Route
               path="/dashboard"
               element={
-                <MainLayout title="Dashboard">
-                  <Dashboard />
-                </MainLayout>
+                  <ProtectedRoute>
+                  <MainLayout title="Dashboard">
+                    <Dashboard />
+                  </MainLayout>
+                   </ProtectedRoute>
               }
             />
 
@@ -57,9 +78,11 @@ root.render(
             <Route
               path="/reports"
               element={
-                <MainLayout title="Reports">
-                  <Reports />
-                </MainLayout>
+                  <ProtectedRoute>
+                  <MainLayout title="Reports">
+                    <Reports />
+                  </MainLayout>
+                   </ProtectedRoute>
               }
             />
 
@@ -67,18 +90,22 @@ root.render(
             <Route
               path="/reports/production"
               element={
-                <MainLayout title="Production Report">
-                  <Production />
-                </MainLayout>
+                  <ProtectedRoute>
+                  <MainLayout >
+                    <Production />
+                  </MainLayout>
+                   </ProtectedRoute>
               }
             />
 
             <Route
               path="/reports/Reorts"
               element={
-                <MainLayout title="Report">
-                  <Production />
-                </MainLayout>
+                  <ProtectedRoute>
+                  <MainLayout title="Report">
+                    <Production />
+                  </MainLayout>
+                   </ProtectedRoute>
               }
             />
 
@@ -86,9 +113,11 @@ root.render(
             <Route
               path="/reports/sales"
               element={
-                <MainLayout title="Sales Report">
-                  <Sales />
-                </MainLayout>
+                  <ProtectedRoute>
+                  <MainLayout title="Sales Report">
+                    <Sales />
+                  </MainLayout>
+                   </ProtectedRoute>
               }
             />
 
@@ -96,9 +125,11 @@ root.render(
             <Route
               path="/reports/inventory"
               element={
-                <MainLayout title="Inventory Report">
-                  <Inventory />
-                </MainLayout>
+                  <ProtectedRoute>
+                  <MainLayout title="Inventory Report">
+                    <Inventory />
+                  </MainLayout>
+                   </ProtectedRoute>
               }
             />
 
@@ -106,9 +137,11 @@ root.render(
             <Route
               path="/management/employees"
               element={
-                <MainLayout title="Employee Management">
-                  <Employees />
-                </MainLayout>
+                  <ProtectedRoute>
+                  <MainLayout title="Employee Management">
+                    <Employees />
+                  </MainLayout>
+                   </ProtectedRoute>
               }
             />
 
@@ -116,9 +149,11 @@ root.render(
             <Route
               path="/management/vendors"
               element={
-                <MainLayout title="Vendor Management">
-                  <Vendors />
-                </MainLayout>
+                  <ProtectedRoute>
+                  <MainLayout title="Vendor Management">
+                    <Vendors />
+                  </MainLayout>
+                   </ProtectedRoute>
               }
             />
 
@@ -126,9 +161,11 @@ root.render(
             <Route
               path="/settings/profile"
               element={
-                <MainLayout title="User Profile">
-                  <Profile />
-                </MainLayout>
+                  <ProtectedRoute>
+                  <MainLayout title="User Profile">
+                    <Profile />
+                  </MainLayout>
+                   </ProtectedRoute>
               }
             />
 
@@ -136,14 +173,13 @@ root.render(
             <Route
               path="/settings/system"
               element={
-                <MainLayout title="System Settings">
-                  <SystemSettings />
-                </MainLayout>
+                  <ProtectedRoute>
+                  <MainLayout title="System Settings">
+                    <SystemSettings />
+                  </MainLayout>
+                   </ProtectedRoute>
               }
             />
-
-          
-
           </Routes>
         </BrowserRouter>
       </ColorModeProvider>

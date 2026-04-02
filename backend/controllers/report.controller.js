@@ -14,6 +14,8 @@ exports.getFriedGramReport = async (req, res) => {
       jsonData = req.body;
     }
 
+    
+
     const today = new Date();
     const format = (d) => d.toISOString().slice(0, 10);
 
@@ -26,15 +28,14 @@ exports.getFriedGramReport = async (req, res) => {
     const todate   = jsonData.todate   ? format(safeDate(jsonData.todate))   : format(today);
 
 
-    //const catgroup = jsonData.catgroup || "Fried Gram Mill";
+    const catgroup = jsonData.catgroup || "Fried Gram Mill";
     const cond1 = (catgroup === "" || catgroup === "--All--")
     ? "1"
     : `mill = '${catgroup}'`;
 
     const nstock   = Number(jsonData.nstock || 0);
-    const dbase    = jsonData.dbase || "default";
 
-    const reportData = await reportService.getDataForReport({
+    const reportData = await reportService.getDataForFriedGramReport({
       fromdate,
       todate,
       warehouse: "",
@@ -43,10 +44,13 @@ exports.getFriedGramReport = async (req, res) => {
       req
     }); 
 
-    
+    const category_list = await categoryService.getAllCategories(req); 
+
 
     return res.json({
       fried_gram_production: reportData,
+      categories : category_list,
+      selected_catgroup : catgroup,
       fromdate,
       todate,
       nstock
@@ -94,11 +98,11 @@ exports.getProductionReport = async (req, res) => {
         nstock,
         catgroup,
         req
-      });  
+      }); 
 
       
 
-    const [categories] = await categoryService.getCategories(req);
+    const categories = await categoryService.getAllCategories(req);
 
 
     const execution_time = ((Date.now() - start) / 1000).toFixed(2) + " seconds";

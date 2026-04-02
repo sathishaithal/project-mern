@@ -1,36 +1,9 @@
 import React, { useState, useRef } from "react";
-import {
-  Drawer,
-  List,
-  ListItemButton,
-  ListItemText,
-  Toolbar,
-  Box,
-  Divider,
-  Button,
-  ListItemIcon,
-  Collapse,
-  Typography,
-  IconButton,
-  Paper,
-} from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
-import DashboardIcon from "@mui/icons-material/Dashboard";
-import TableChartIcon from "@mui/icons-material/TableChart";
-import EngineeringIcon from "@mui/icons-material/Engineering";
-import InventoryIcon from "@mui/icons-material/Inventory";
-import PeopleIcon from "@mui/icons-material/People";
-import BusinessIcon from "@mui/icons-material/Business";
-import SettingsIcon from "@mui/icons-material/Settings";
-import BuildIcon from "@mui/icons-material/Build";
-import LogoutIcon from "@mui/icons-material/Logout";
-import MenuOpenIcon from "@mui/icons-material/MenuOpen";
-import MenuIcon from "@mui/icons-material/Menu";
-import ExpandLess from "@mui/icons-material/ExpandLess";
-import ExpandMore from "@mui/icons-material/ExpandMore";
-import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useColorMode } from "../theme/ThemeContext";
+import styles from "./Sidebar.module.css";
 
 const expandedWidth = 220;
 const collapsedWidth = 70;
@@ -38,14 +11,13 @@ const collapsedWidth = 70;
 const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { isDarkMode } = useColorMode();
 
   const [openMenu, setOpenMenu] = useState({
     reports: false,
     management: false,
     settings: false,
-    tools: false,
   });
-
   const [hoverMenu, setHoverMenu] = useState(null);
   const hoverTimeout = useRef(null);
 
@@ -63,7 +35,7 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
     if (!collapsed) return;
     hoverTimeout.current = setTimeout(() => {
       setHoverMenu(null);
-    }, 250); // Delay so user can move to submenu
+    }, 250);
   };
 
   const handlePanelMouseEnter = () => {
@@ -84,148 +56,149 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
 
   const menuMap = {
     reports: [
-      { text: "Production", icon: <EngineeringIcon />, link: "/reports/production" },
-      { text: "Sales", icon: <TableChartIcon />, link: "/reports/sales" },
-      { text: "Inventory", icon: <InventoryIcon />, link: "/reports/inventory" },
+      { text: "Production", icon: <i className="bi bi-gear"></i>, link: "/reports/production" },
+      { text: "Sales", icon: <i className="bi bi-graph-up"></i>, link: "/reports/sales" },
+      { text: "Inventory", icon: <i className="bi bi-box-seam"></i>, link: "/reports/inventory" },
     ],
     management: [
-      { text: "Employees", icon: <PeopleIcon />, link: "/management/employees" },
-      { text: "Vendors", icon: <BusinessIcon />, link: "/management/vendors" },
+      { text: "Employees", icon: <i className="bi bi-people"></i>, link: "/management/employees" },
+      { text: "Vendors", icon: <i className="bi bi-building"></i>, link: "/management/vendors" },
     ],
     settings: [
-      { text: "Profile", icon: <AccountCircleIcon />, link: "/settings/profile" },
-      { text: "System Settings", icon: <SettingsIcon />, link: "/settings/system" },
+      { text: "Profile", icon: <i className="bi bi-person-circle"></i>, link: "/settings/profile" },
+      { text: "System Settings", icon: <i className="bi bi-gear-wide-connected"></i>, link: "/settings/system" },
     ],
-
-  };
-
-  const drawerStyles = {
-    width: collapsed ? collapsedWidth : expandedWidth,
-    transition: "width 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
-    overflowX: "hidden",
-    backgroundColor: "#0e3978f2",
-    color: "white",
-    "& .MuiListItemIcon-root": { color: "white" }
   };
 
   const drawerContent = (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <Toolbar sx={{ justifyContent: collapsed ? "center" : "space-between" }}>
+    <div
+      className={`${styles.sidebarContainer} ${isDarkMode ? styles.sidebarDark : ""}`}
+      style={{ width: collapsed ? collapsedWidth : expandedWidth }}
+    >
+      {/* Header */}
+      <div className={styles.sidebarHeader} style={{ minHeight: collapsed ? 64 : 90 }}>
         {!collapsed && (
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            Sri Bhagyalakshmi
-          </Typography>
+          <motion.div
+            className={styles.homeIconWrapper}
+            onClick={() => navigate("/dashboard")}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className={styles.homeIcon}>
+              <i className="bi bi-house-door-fill" style={{ fontSize: "1.5rem", color: "white" }}></i>
+            </div>
+          </motion.div>
         )}
-        <IconButton 
+        <motion.button
+          className={styles.collapseBtn}
           onClick={() => setCollapsed(!collapsed)}
-          sx={{ color: "white" }}
+          whileHover={{ rotate: collapsed ? 0 : -10, scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
-          {collapsed ? <MenuIcon /> : <MenuOpenIcon />}
-        </IconButton>
-      </Toolbar>
+          <i className={`bi ${collapsed ? "bi-list" : "bi-layout-sidebar"}`} style={{ fontSize: "1.2rem" }}></i>
+        </motion.button>
+      </div>
 
-      <Divider />
+      <hr className={styles.divider} />
 
-      <List sx={{ flexGrow: 1 }}>
-        <ListItemButton onClick={() => handleNavigate("/dashboard")}>
-          <ListItemIcon>
-            <DashboardIcon />
-          </ListItemIcon>
-          {!collapsed && <ListItemText primary="Dashboard" />}
-        </ListItemButton>
+      {/* Navigation */}
+      <div className={styles.navList}>
+        {/* Dashboard */}
+        <div className={styles.navItem} onClick={() => handleNavigate("/dashboard")}>
+          <div className={styles.navIcon}>
+            <i className="bi bi-speedometer2"></i>
+          </div>
+          {!collapsed && <span className={styles.navText}>Dashboard</span>}
+        </div>
 
+        {/* Menu Items */}
         {["reports", "management", "settings"].map((menu) => (
-          <Box
+          <div
             key={menu}
+            className={styles.menuWrapper}
             onMouseEnter={() => handleMouseEnter(menu)}
             onMouseLeave={handleMouseLeave}
           >
-            <ListItemButton
-                onClick={() => {
-                  if (menu === "reports") {
-                    handleNavigate("/reports");   
-                  }
-                  if (!collapsed) {
-                    toggleMenu(menu);           
-                  }
-                }}
-              >
-              <ListItemIcon>
-                {menu === "reports" && <TableChartIcon />}
-                {menu === "management" && <PeopleIcon />}
-                {menu === "settings" && <SettingsIcon />}
-                {/* {menu === "tools" && <BuildIcon />} */}
-              </ListItemIcon>
+            <div
+              className={styles.navItem}
+              onClick={() => {
+                if (menu === "reports") {
+                  handleNavigate("/reports");
+                }
+                if (!collapsed) {
+                  toggleMenu(menu);
+                }
+              }}
+            >
+              <div className={styles.navIcon}>
+                {menu === "reports" && <i className="bi bi-table"></i>}
+                {menu === "management" && <i className="bi bi-people"></i>}
+                {menu === "settings" && <i className="bi bi-gear"></i>}
+              </div>
               {!collapsed && (
-                <ListItemText
-                  primary={menu.charAt(0).toUpperCase() + menu.slice(1)}
-                />
+                <>
+                  <span className={styles.navText}>
+                    {menu.charAt(0).toUpperCase() + menu.slice(1)}
+                  </span>
+                  {openMenu[menu] ? (
+                    <i className="bi bi-chevron-up ms-auto"></i>
+                  ) : (
+                    <i className="bi bi-chevron-down ms-auto"></i>
+                  )}
+                </>
               )}
-              {!collapsed && (openMenu[menu] ? <ExpandLess /> : <ExpandMore />)}
-            </ListItemButton>
+            </div>
 
-            {!collapsed && (
-              <Collapse in={openMenu[menu]} timeout="auto" unmountOnExit>
-                <List disablePadding>
-                  {menuMap[menu].map((item, idx) => (
-                    <ListItemButton
-                      key={idx}
-                      sx={{ pl: 6 }}
-                      onClick={() => handleNavigate(item.link)}
-                    >
-                      <ListItemIcon>{item.icon}</ListItemIcon>
-                      <ListItemText primary={item.text} />
-                    </ListItemButton>
-                  ))}
-                </List>
-              </Collapse>
+            {!collapsed && openMenu[menu] && (
+              <div className={styles.subMenu}>
+                {menuMap[menu].map((item, idx) => (
+                  <div
+                    key={idx}
+                    className={styles.subMenuItem}
+                    onClick={() => handleNavigate(item.link)}
+                  >
+                    <div className={styles.subMenuIcon}>{item.icon}</div>
+                    <span className={styles.subMenuText}>{item.text}</span>
+                  </div>
+                ))}
+              </div>
             )}
-          </Box>
+          </div>
         ))}
-      </List>
 
-      <Box sx={{ p: 2, mt: "auto" }}>
-        <Divider sx={{ mb: 2 }} />
-        <Button
-          variant="contained"
-          fullWidth={!collapsed}
-          startIcon={<LogoutIcon />}
-          onClick={logout}
-          sx={{
-            background: "linear-gradient(45deg, #d32f2f 0%, #c62828 100%)",
-            color: "white",
-            fontWeight: 600,
-            py: 1.5,
-            borderRadius: 2,
-            boxShadow: "0 4px 15px rgba(211, 47, 47, 0.3)",
-            "&:hover": {
-              background: "linear-gradient(45deg, #b71c1c 0%, #d32f2f 100%)",
-              transform: "translateY(-2px)",
-              boxShadow: "0 6px 20px rgba(211, 47, 47, 0.4)",
-            },
-            transition: "all 0.3s ease",
-          }}
-        >
-          {!collapsed && "Logout"}
-        </Button>
-      </Box>
-    </Box>
+      </div>
+
+      {/* Footer - Logout Button */}
+      <div className={styles.sidebarFooter}>
+        <hr className={styles.divider} />
+        <button className={styles.logoutBtn} onClick={logout}>
+          <i className="bi bi-box-arrow-right"></i>
+          {!collapsed && <span>Logout</span>}
+        </button>
+      </div>
+    </div>
   );
 
+  // Mobile Drawer
+  if (isMobile) {
+    return (
+      <>
+        <div className={`${styles.mobileOverlay} ${mobileOpen ? styles.show : ''}`} onClick={onClose}></div>
+        <div className={`${styles.mobileDrawer} ${mobileOpen ? styles.open : ''}`}>
+          {drawerContent}
+        </div>
+      </>
+    );
+  }
+
+  // Desktop Sidebar
   return (
     <>
-      <Drawer
-        variant={isMobile ? "temporary" : "permanent"}
-        open={mobileOpen || !isMobile}
-        onClose={onClose}
-        ModalProps={{ keepMounted: true }}
-        sx={{
-          "& .MuiDrawer-paper": drawerStyles,
-        }}
-      >
+      <div className={`${styles.desktopSidebar} ${collapsed ? styles.collapsed : ''}`}>
         {drawerContent}
-      </Drawer>
+      </div>
 
+      {/* Hover Menu for Collapsed State */}
       <AnimatePresence>
         {collapsed && hoverMenu && (
           <motion.div
@@ -233,30 +206,29 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
+            className={styles.hoverMenu}
             style={{
-              position: "fixed",
               top: 120 + Object.keys(menuMap).indexOf(hoverMenu) * 56,
               left: collapsedWidth + 8,
-              zIndex: 2000,
             }}
             onMouseEnter={handlePanelMouseEnter}
             onMouseLeave={handlePanelMouseLeave}
           >
-            <Paper elevation={8} sx={{ minWidth: 210, py: 1 }}>
+            <div className={styles.hoverMenuPaper}>
               {menuMap[hoverMenu].map((item, idx) => (
-                <ListItemButton
+                <div
                   key={idx}
+                  className={styles.hoverMenuItem}
                   onClick={() => {
                     handleNavigate(item.link);
                     setHoverMenu(null);
                   }}
-                  sx={{ py: 1.2 }}
                 >
-                  <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.text} />
-                </ListItemButton>
+                  <div className={styles.hoverMenuIcon}>{item.icon}</div>
+                  <span>{item.text}</span>
+                </div>
               ))}
-            </Paper>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

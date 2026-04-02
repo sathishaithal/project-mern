@@ -2,6 +2,7 @@ const User = require("../models/userModel");
 const { getDynamicDB } = require("../config/db");
 const { generateToken } = require("../utils/jwt");
 const axios = require("axios");
+const blacklistedTokens = require("../utils/tokenBlacklist");
 
 exports.login = async (req, res) => {
   
@@ -17,30 +18,40 @@ exports.login = async (req, res) => {
 
       user = await User.findByEmail(users.username);
       username = user.username;
-      password = user.password;
     }
-    else
+    else{
       user = await User.findByEmail(username);
+      const protocol = req.protocol;              // http or https
+      const host = req.get("host");               // domain + port
+      const baseUrl = `${protocol}://${host}`;
+      
+    }
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
     // 2. Verify password (same as PHP)
 
-    // if(!isUserTokenLogin){
-    //   const phpResponse = await axios.get("https://sbl1972.in/erp/verifyPassword.php", {
-    //     params: {
-    //       userdata: JSON.stringify({
-    //         username: username,
-    //         password: password
-    //       })
-    //     }
-    //   });
+    const bcrypt = require('bcrypt');
 
-    //   const data = phpResponse.data;
-    //   if (!data) {
-    //     return res.status(400).json({ message: "Invalid credentials" });
-    //   }
-    // }
+    const plainPassword = password;
+    let dbHash = user.password; 
+
+
+    function normalizeBcryptHash(hash) {
+      return hash.startsWith('$2y$')
+        ? hash.replace('$2y$', '$2b$')
+        : hash;
+    }
+
+    async function checkPassword(plainPassword, dbHash) {
+      const normalizedHash = normalizeBcryptHash(dbHash);
+      return await bcrypt.compare(plainPassword, normalizedHash);
+    }
+
+    let hash = user.password;
+    if (!await checkPassword(password, hash)) {
+      return res.status(404).json({ message: "Invalid credentials" });
+    }
 
     //3. JWT Token
     const token = generateToken({
@@ -345,5 +356,21 @@ exports.logActivity = async (req, res) => {
           status: "error",
           message: err.message
       });
+  }
+};
+
+exports.logout = async (req, res) => {
+  try {
+    const token = req.headers["authorization"]?.split(" ")[1];
+    if (token) {
+      blacklistedTokens.add(token);
+      return res.json({ status: "success" });
+    }
+    else{
+      return res.status(400).json({ message: "Missing Token" });
+    }
+  }
+  catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
