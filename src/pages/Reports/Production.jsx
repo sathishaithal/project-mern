@@ -243,6 +243,8 @@ const Production = () => {
         }
       );
 
+      console.log("API Response:", res.data);
+
       if (!res.data || Object.keys(res.data).length === 0) {
         setData(null);
         setIsReportFullscreen(false);
@@ -355,8 +357,12 @@ const Production = () => {
     }
     else if (selectedCategory === "packing") {
       const packingData = [];
+
+       const source = data?.fried_gram_production || [];
+
       
-      const friedGram = data.finished?.["FRIED GRAM"] || [];
+      // const friedGram = data.finished?.["FRIED GRAM"] || [];
+       const friedGram = source.filter(item => item.category === "FRIED GRAM");
       friedGram.forEach(item => {
         packingData.push({
           name: `FG: ${item.description || "Unknown"}`,
@@ -365,7 +371,9 @@ const Production = () => {
         });
       });
       
-      const bengalGram = data.finished?.["BENGAL GRAM"] || [];
+      // const bengalGram = data.finished?.["BENGAL GRAM"] || [];
+        const bengalGram = source.filter(item => item.category === "BENGAL GRAM");
+
       bengalGram.forEach(item => {
         packingData.push({
           name: `BG: ${item.description || "Unknown"}`,
@@ -539,10 +547,29 @@ const Production = () => {
                 data={pieChartData}
                 cx="50%"
                 cy="50%"
-                labelLine={true}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={isMobile ? 80 : 100}
-                fill="#8884d8"
+                labelLine={false}
+                label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                  const RADIAN = Math.PI / 180;
+                  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+                  return percent > 0.03 ? ( 
+                    <text
+                      x={x}
+                      y={y}
+                      fill="#fff"
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontSize={12}
+                      fontWeight="600"
+                    >
+                      {(percent * 100).toFixed(0)}%
+                    </text>
+                  ) : null;
+                }}
+                outerRadius={isMobile ? 80 : 130}
+                innerRadius={0} 
                 dataKey={pieMetricKey}
               >
                 {pieChartData.map((entry, index) => (
@@ -875,8 +902,20 @@ const Production = () => {
   // Render Packing Table (keep your existing working version)
   const renderPackingTable = () => {
     const isMobile = window.innerWidth < 768;
-    const friedGram = data?.finished?.["FRIED GRAM"] || [];
-    const bengalGram = data?.finished?.["BENGAL GRAM"] || [];
+
+    const packingData = data?.fried_gram_production || [];
+
+    const friedGram = packingData.filter(
+      item => item.category === "FRIED GRAM"
+    );
+
+    const bengalGram = packingData.filter(
+      item => item.category === "BENGAL GRAM"
+    );
+
+
+    // const friedGram = data?.finished?.["FRIED GRAM"] || [];
+    // const bengalGram = data?.finished?.["BENGAL GRAM"] || [];
     
     if (friedGram.length === 0 && bengalGram.length === 0) {
       return (
