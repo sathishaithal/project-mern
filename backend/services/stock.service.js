@@ -14,38 +14,41 @@ exports.getCalculatedStock = async (code, fromdate, todate, warehouse, multiplyW
   }
 
   return {
-    opening: Number((stock.opening * weight).toFixed(2)),
-    purchased_transferin: Number((stock.purchased_transferin * weight).toFixed(2)),
-    consumed_transferout: Number((stock.consumed_transferout * weight).toFixed(2)),
-    sales: Number((stock.sales * weight).toFixed(2)),
-    salesreturn: Number((stock.salesreturn * weight).toFixed(2)),
-    closing: Number(
+    opening: stock.opening * weight,
+    purchased_transferin: stock.purchased_transferin * weight,
+    consumed_transferout: stock.consumed_transferout * weight,
+    sales: stock.sales * weight,
+    salesreturn: stock.salesreturn * weight,
+    closing: 
       (stock.opening * weight +
         stock.purchased_transferin * weight -
         stock.consumed_transferout * weight -
         stock.sales * weight +
-        stock.salesreturn * weight).toFixed(2)
-    )
+        stock.salesreturn * weight)
+    
   };
 };
 
 exports.getAllCalculatedStock = async (codes, fromdate, todate, warehouse, multiplyWeight = true, dbase) => {
   try {
     // Ensure codes is array
-    codes = Array.isArray(codes) ? codes : [codes];
+    codes = Array.isArray(codes) ? codes : [codes]; 
 
     // Fetch all data
     const openingArr = await stockModel.getOpeningForCodes(codes, fromdate, todate, warehouse, dbase);
-    const purchaseArr = await stockModel.getPurchaseTransferInForCodes(codes, fromdate, todate, warehouse, dbase);
+    const purchaseArr = await stockModel.getPurchaseTransferInForCodes(codes, fromdate, todate, warehouse, dbase); 
     const consumedArr = await stockModel.getConsumedTransferOutForCodes(codes, fromdate, todate, warehouse, dbase);
     const salesArr = await stockModel.getSalesAndReturnedForCodes(codes, fromdate, todate, warehouse, dbase);
 
     // Weight lookup
     let weightMap = {};
     if (multiplyWeight) {
-      const weightData = await itemModel.getItemWeightAndTypeForCodes(codes, dbase); //console.log(' weight ');console.log(Object.values(weightData)); 
+      const weightData = await itemModel.getItemWeightAndTypeForCodes(codes, dbase);
       Object.values(weightData).forEach(item => {
-        weightMap[item.code] = item.weight ?? 1;
+        if(item.type == 'Finished Goods')
+          weightMap[item.code] = item.weight ?? 1;
+        else 
+           weightMap[item.code] = 1;
       });
     } else {
       codes.forEach(c => (weightMap[c] = 1));
@@ -67,10 +70,15 @@ exports.getAllCalculatedStock = async (codes, fromdate, todate, warehouse, multi
     // FINAL RESULT
     const result = {};
 
+     
+
     codes.forEach(code => {
+
+      
       const weight = weightMap[code] ?? 1;
 
       const opening = (openingMap[code] ?? 0) * weight;
+      
       const purchased_transferin = (purchaseMap[code] ?? 0) * weight;
       const consumed_transferout = (consumedMap[code] ?? 0) * weight;
       const sales = (salesMap[code] ?? 0) * weight;
@@ -81,12 +89,12 @@ exports.getAllCalculatedStock = async (codes, fromdate, todate, warehouse, multi
 
       // store per code
       result[code] = {
-        opening: Number(opening.toFixed(2)),
-        purchased_transferin: Number(purchased_transferin.toFixed(2)),
-        consumed_transferout: Number(consumed_transferout.toFixed(2)),
-        sales: Number(sales.toFixed(2)),
-        salesreturn: Number(salesreturn.toFixed(2)),
-        closing: Number(closing.toFixed(2))
+        opening: opening,
+        purchased_transferin: purchased_transferin,
+        consumed_transferout: consumed_transferout,
+        sales: sales,
+        salesreturn: salesreturn,
+        closing: closing
       };
     });
 

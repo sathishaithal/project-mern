@@ -45,6 +45,7 @@ const Production = () => {
   const [selectedBrand, setSelectedBrand] = useState("all");
   const [metricType, setMetricType] = useState("opening");
   const [chartType, setChartType] = useState("bar");
+  const [dataView, setDataView] = useState("produced");
 
   // Toast notification state
   const [toast, setToast] = useState({
@@ -140,25 +141,83 @@ const Production = () => {
     setMobileFiltersOpen(nextValue ? false : !isMobileScreen);
   };
 
+  const mergeGroupedData = (primary = {}, secondary = {}) => {
+    const merged = {};
+    [...Object.keys(primary || {}), ...Object.keys(secondary || {})].forEach((key) => {
+      merged[key] = [
+        ...((primary && primary[key]) || []),
+        ...((secondary && secondary[key]) || []),
+      ];
+    });
+    return merged;
+  };
+
+  const finishedData = useMemo(() => {
+    if (!data) return {};
+    if (dataView === "unproduced") return data.finished2 || {};
+    if (dataView === "all") return mergeGroupedData(data.finished, data.finished2);
+    return data.finished || {};
+  }, [data, dataView]);
+
+  const rawData = useMemo(() => {
+    if (!data) return {};
+    if (dataView === "unproduced") return data.raw2 || {};
+    if (dataView === "all") return mergeGroupedData(data.raw, data.raw2);
+    return data.raw || {};
+  }, [data, dataView]);
+
+  const derivePackingProduction = (sourceFinished = {}) => [
+    ...((sourceFinished && sourceFinished["FRIED GRAM"]) || []).map((item) => ({
+      ...item,
+      category: "FRIED GRAM",
+    })),
+    ...((sourceFinished && sourceFinished["BENGAL GRAM"]) || []).map((item) => ({
+      ...item,
+      category: "BENGAL GRAM",
+    })),
+  ];
+
+  const packingProductionData = useMemo(() => {
+    if (!data) return [];
+    const producedPacking = data.fried_gram_production || derivePackingProduction(data.finished);
+    const unproducedPacking = data.fried_gram_production2 || derivePackingProduction(data.finished2);
+    if (dataView === "unproduced") return unproducedPacking;
+    if (dataView === "all") return [...producedPacking, ...unproducedPacking];
+    return producedPacking;
+  }, [data, dataView]);
+
+  const dataViewLabel = {
+    produced: "Produced Items",
+    unproduced: "Unproduced Items",
+    all: "All Items",
+  }[dataView];
+
   const brands = useMemo(() => {
     if (!data) return [];
-    return Object.keys(data.finished || {}).filter(
-      (b) => Array.isArray(data.finished[b]) && data.finished[b].length
+    return Object.keys(finishedData || {}).filter(
+      (b) => Array.isArray(finishedData[b]) && finishedData[b].length
     );
-  }, [data]);
+  }, [data, finishedData]);
+
+  useEffect(() => {
+    if (selectedBrand !== "all" && !brands.includes(selectedBrand)) {
+      setSelectedBrand("all");
+    }
+  }, [brands, selectedBrand]);
 
   const calculateGrandTotals = () => {
-    if (!data || !brands || brands.length === 0) return { opening: 0, production: 0, total: 0, dispatch: 0, closing: 0 };
+    if (!data || !brands || brands.length === 0) return { opening: 0, production: 0, total: 0, dispatch: 0, returned: 0, closing: 0 };
     
-    let grand = { opening: 0, production: 0, total: 0, dispatch: 0, closing: 0 };
+    let grand = { opening: 0, production: 0, total: 0, dispatch: 0, returned: 0, closing: 0 };
     
     brands.forEach((cat) => {
-      const items = data.finished[cat] || [];
+      const items = finishedData[cat] || [];
       items.forEach(i => {
         grand.opening += i.opening || 0;
         grand.production += i["purchased/transfer in"] || 0;
         grand.total += (i.opening || 0) + (i["purchased/transfer in"] || 0);
         grand.dispatch += i.sold || 0;
+        grand.returned += i.returned || 0;
         grand.closing += i.closing || 0;
       });
     });
@@ -190,15 +249,55 @@ const Production = () => {
     return `${Math.round(num)}%`;
   };
 
+  // const fgTotals = data?.finished_grand_total || {};
+  const fgTotals =
+  dataView === "produced"
+    ? data?.finished_grand_total || {}
+    : dataView === "unproduced"
+    ? data?.finished_grand_total2 || {}
+    : {
+        totalOpening:
+          (data?.finished_grand_total?.totalOpening || 0) +
+          (data?.finished_grand_total2?.totalOpening || 0),
+
+        totalProduction:
+          (data?.finished_grand_total?.totalProduction || 0) +
+          (data?.finished_grand_total2?.totalProduction || 0),
+
+        totalDispatch:
+          (data?.finished_grand_total?.totalDispatch || 0) +
+          (data?.finished_grand_total2?.totalDispatch || 0),
+
+        totalReturn:
+          (data?.finished_grand_total?.totalReturn || 0) +
+          (data?.finished_grand_total2?.totalReturn || 0),
+
+        totalClosing:
+          (data?.finished_grand_total?.totalClosing || 0) +
+          (data?.finished_grand_total2?.totalClosing || 0),
+      };
+
+const fgOpening = fgTotals.totalOpening || 0;
+const fgProduction = fgTotals.totalProduction || 0;
+const fgDispatch = fgTotals.totalDispatch || 0;
+const fgReturned = fgTotals.totalReturn || 0;
+const fgClosing = fgTotals.totalClosing || 0;
+
+const fgTotal = fgOpening + fgProduction;
+
+let fgProdPercentage = 0;
+  
+
   const calcTotals = (items) =>
     items.reduce(
       (a, i) => ({
         o: a.o + (i.opening || 0),
         p: a.p + (i["purchased/transfer in"] || 0),
         d: a.d + (i.sold || 0),
+        r: a.r + (i.returned || 0),
         c: a.c + (i.closing || 0),
       }),
-      { o: 0, p: 0, d: 0, c: 0 }
+      { o: 0, p: 0, d: 0, r: 0, c: 0 }
     );
 
   const calcProdPercentage = (items) => {
@@ -218,6 +317,8 @@ const Production = () => {
     });
     return totalPercentage;
   };
+
+  fgProdPercentage = calcRoundedProdPercentage(brands.flatMap(cat => finishedData[cat] || []));
 
   const fetchReport = async () => {
     setLoading(true);
@@ -254,7 +355,7 @@ const Production = () => {
 
       setData(res.data);
       const obj = {};
-      Object.keys(res.data.finished || {}).forEach((k) => (obj[k] = true));
+      [...Object.keys(res.data.finished || {}), ...Object.keys(res.data.finished2 || {})].forEach((k) => (obj[k] = true));
       setCollapsedCats(obj);
 
       if (res.data.finished && Object.keys(res.data.finished).length > 0) {
@@ -306,7 +407,7 @@ const Production = () => {
     if (selectedCategory === "finished") {
       if (selectedBrand === "all") {
         return brands.map((brand) => {
-          const items = data.finished[brand] || [];
+          const items = finishedData[brand] || [];
 
           return items.reduce(
             (acc, item) => ({
@@ -317,6 +418,7 @@ const Production = () => {
                 acc.Total +
                 ((item.opening || 0) + (item["purchased/transfer in"] || 0)),
               Dispatch: acc.Dispatch + (item.sold || 0),
+              Returned: acc.Returned + (item.returned || 0),
               Closing: acc.Closing + (item.closing || 0),
             }),
             {
@@ -325,14 +427,15 @@ const Production = () => {
               Production: 0,
               Total: 0,
               Dispatch: 0,
+              Returned: 0,
               Closing: 0,
             }
           );
         });
       }
 
-      if (!selectedBrand || !data.finished[selectedBrand]) return [];
-      const items = data.finished[selectedBrand];
+      if (!selectedBrand || !finishedData[selectedBrand]) return [];
+      const items = finishedData[selectedBrand];
       
       return items.map(item => ({
         name: item.description || "Unknown",
@@ -340,11 +443,12 @@ const Production = () => {
         Production: item["purchased/transfer in"] || 0,
         Total: (item.opening || 0) + (item["purchased/transfer in"] || 0),
         Dispatch: item.sold || 0,
+        Returned: item.returned || 0,
         Closing: item.closing || 0,
       }));
     } 
     else if (selectedCategory === "raw") {
-      const rawItems = data.raw?.["All Raw Materials"] || [];
+      const rawItems = rawData?.["All Raw Materials"] || [];
       
       return rawItems.map(item => ({
         name: item.description || "Unknown",
@@ -352,13 +456,14 @@ const Production = () => {
         Arrival: item["purchased/transfer in"] || 0,
         Total: (item.opening || 0) + (item["purchased/transfer in"] || 0),
         Used: item["consumed/transfer out"] || 0,
+        Returned: item.returned || 0,
         Closing: item.closing || 0,
       }));
     }
     else if (selectedCategory === "packing") {
       const packingData = [];
 
-       const source = data?.fried_gram_production || [];
+       const source = packingProductionData || [];
 
       
       // const friedGram = data.finished?.["FRIED GRAM"] || [];
@@ -395,6 +500,7 @@ const Production = () => {
         arrival: "Arrival",
         total: "Total",
         used: "Used",
+        returned: "Returned",
         closing: "Closing",
       };
       return rawMap[metricType] || "Opening";
@@ -406,6 +512,7 @@ const Production = () => {
       arrival: "Arrival",
       total: "Total",
       dispatch: "Dispatch",
+      returned: "Returned",
       closing: "Closing",
     };
     return finishedMap[metricType] || "Production";
@@ -659,18 +766,19 @@ const Production = () => {
     const grandTotals = calculateGrandTotals();
     
     if (isMobile) {
-      let grand = { o: 0, p: 0, d: 0, c: 0 };
+      let grand = { o: 0, p: 0, d: 0, r: 0, c: 0 };
       
       return (
         <div className={styles.mobileTableContainer}>
           {brands.map((cat) => {
-            const items = data.finished[cat];
+            const items = finishedData[cat] || [];
             const sub = calcTotals(items);
             const pct = calcRoundedProdPercentage(items);
             
             grand.o += sub.o;
             grand.p += sub.p;
             grand.d += sub.d;
+            grand.r += sub.r;
             grand.c += sub.c;
             
             return (
@@ -689,6 +797,7 @@ const Production = () => {
                         <MobileRow label="Production" value={fmt(i["purchased/transfer in"])} />
                         <MobileRow label="Total" value={fmt(i.opening + i["purchased/transfer in"])} />
                         <MobileRow label="Dispatch" value={fmt(i.sold)} />
+                        <MobileRow label="Returned" value={fmt(i.returned)} />
                         <MobileRow label="Closing" value={fmt(i.closing)} highlight />
                         <MobileRow label="Prod %" value={`${i.prod_percentage || 0}%`} />
                       </div>
@@ -702,6 +811,7 @@ const Production = () => {
                   <MobileRow label="Production" value={fmt(sub.p)} />
                   <MobileRow label="Total" value={fmt(sub.o + sub.p)} />
                   <MobileRow label="Dispatch" value={fmt(sub.d)} />
+                  <MobileRow label="Returned" value={fmt(sub.r)} />
                   <MobileRow label="Closing" value={fmt(sub.c)} highlight />
                   <MobileRow label="Prod %" value={`${pct}%`} />
                 </div>
@@ -716,8 +826,9 @@ const Production = () => {
               <MobileRow label="Production" value={fmt(grand.p)} />
               <MobileRow label="Total" value={fmt(grand.o + grand.p)} />
               <MobileRow label="Dispatch" value={fmt(grand.d)} />
+              <MobileRow label="Returned" value={fmt(grand.r)} />
               <MobileRow label="Closing" value={fmt(grand.c)} highlight />
-              <MobileRow label="Prod %" value="100%" />
+              <MobileRow label="Prod %" value={formatPercentage(fgProdPercentage)} />
             </div>
           </div>
         </div>
@@ -736,20 +847,22 @@ const Production = () => {
               <th className={styles.tableCellNumber}>Production</th>
               <th className={styles.tableCellNumber}>Total</th>
               <th className={styles.tableCellNumber}>Dispatch</th>
+              <th className={styles.tableCellNumber}>Returned</th>
               <th className={styles.tableCellNumber}>Closing</th>
               <th className={styles.tableCellPercentage}>Prod %</th>
               </tr>
             </thead>
           <tbody>
             {brands.map((cat, brandIndex) => {
-              const items = data.finished[cat] || [];
+              const items = finishedData[cat] || [];
               const subtotal = items.reduce((acc, i) => ({
                 opening: acc.opening + (i.opening || 0),
                 produced: acc.produced + (i["purchased/transfer in"] || 0),
                 total: acc.total + ((i.opening || 0) + (i["purchased/transfer in"] || 0)),
                 dispatch: acc.dispatch + (i.sold || 0),
+                returned: acc.returned + (i.returned || 0),
                 closing: acc.closing + (i.closing || 0),
-              }), { opening: 0, produced: 0, total: 0, dispatch: 0, closing: 0 });
+              }), { opening: 0, produced: 0, total: 0, dispatch: 0, returned: 0, closing: 0 });
               
               const subtotalPercentage = calcRoundedProdPercentage(items);
               
@@ -769,6 +882,7 @@ const Production = () => {
                     <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.produced)}</td>
                     <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.total)}</td>
                     <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.dispatch)}</td>
+                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.returned)}</td>
                     <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.closing)}</td>
                     <td className={styles.tableCellPercentage}>{formatPercentage(subtotalPercentage)}</td>
                   </tr>
@@ -786,6 +900,7 @@ const Production = () => {
                       <td className={styles.tableCellNumber}>{formatIndianNumber(item["purchased/transfer in"] || 0)}</td>
                       <td className={styles.tableCellNumber}>{formatIndianNumber((item.opening || 0) + (item["purchased/transfer in"] || 0))}</td>
                       <td className={styles.tableCellNumber}>{formatIndianNumber(item.sold || 0)}</td>
+                      <td className={styles.tableCellNumber}>{formatIndianNumber(item.returned || 0)}</td>
                       <td className={styles.tableCellNumber}>{formatIndianNumber(item.closing || 0)}</td>
                       <td className={styles.tableCellPercentage}>{formatPercentage(item.prod_percentage)}</td>
                     </tr>
@@ -800,8 +915,9 @@ const Production = () => {
               <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.production)}</td>
               <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.total)}</td>
               <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.dispatch)}</td>
+              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.returned)}</td>
               <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.closing)}</td>
-              <td className={styles.tableCellPercentage}>{formatPercentage(calcRoundedProdPercentage(brands.flatMap(cat => data.finished[cat] || [])))}</td>
+              <td className={styles.tableCellPercentage}>{formatPercentage(calcRoundedProdPercentage(brands.flatMap(cat => finishedData[cat] || [])))}</td>
             </tr>
           </tbody>
         </table>
@@ -813,7 +929,7 @@ const Production = () => {
   const renderRawMaterialsTable = () => {
     const isMobile = window.innerWidth < 768;
     
-    if (!data?.raw?.["All Raw Materials"] || data.raw["All Raw Materials"].length === 0) {
+    if (!rawData?.["All Raw Materials"] || rawData["All Raw Materials"].length === 0) {
       return (
         <div className={styles.noDataMessage}>
           <i className="bi bi-database"></i>
@@ -822,13 +938,14 @@ const Production = () => {
       );
     }
     
-    const rawItems = data.raw["All Raw Materials"] || [];
+    const rawItems = rawData["All Raw Materials"] || [];
     const rawTotals = rawItems.reduce((acc, item) => ({
       opening: acc.opening + (item.opening || 0),
       arrival: acc.arrival + (item["purchased/transfer in"] || 0),
       used: acc.used + (item["consumed/transfer out"] || 0),
+      returned: acc.returned + (item.returned || 0),
       closing: acc.closing + (item.closing || 0),
-    }), { opening: 0, arrival: 0, used: 0, closing: 0 });
+    }), { opening: 0, arrival: 0, used: 0, returned: 0, closing: 0 });
     rawTotals.total = rawTotals.opening + rawTotals.arrival;
     
     if (isMobile) {
@@ -841,6 +958,7 @@ const Production = () => {
               <MobileRow label="Arrival" value={fmt(item["purchased/transfer in"] || 0)} />
               <MobileRow label="Total" value={fmt((item.opening || 0) + (item["purchased/transfer in"] || 0))} />
               <MobileRow label="Used" value={fmt(item["consumed/transfer out"] || 0)} />
+              <MobileRow label="Returned" value={fmt(item.returned || 0)} />
               <MobileRow label="Closing" value={fmt(item.closing || 0)} highlight />
             </div>
           ))}
@@ -852,6 +970,7 @@ const Production = () => {
               <MobileRow label="Arrival" value={fmt(rawTotals.arrival)} />
               <MobileRow label="Total" value={fmt(rawTotals.total)} />
               <MobileRow label="Used" value={fmt(rawTotals.used)} />
+              <MobileRow label="Returned" value={fmt(rawTotals.returned)} />
               <MobileRow label="Closing" value={fmt(rawTotals.closing)} />
             </div>
           </div>
@@ -870,6 +989,7 @@ const Production = () => {
               <th className={styles.tableCellNumber}>Arrival</th>
               <th className={styles.tableCellNumber}>Total</th>
               <th className={styles.tableCellNumber}>Used</th>
+              <th className={styles.tableCellNumber}>Returned</th>
               <th className={styles.tableCellNumber}>Closing</th>
             </tr>
           </thead>
@@ -882,6 +1002,7 @@ const Production = () => {
                 <td className={styles.tableCellNumber}>{formatIndianNumber(item["purchased/transfer in"] || 0)}</td>
                 <td className={styles.tableCellNumber}>{formatIndianNumber((item.opening || 0) + (item["purchased/transfer in"] || 0))}</td>
                 <td className={styles.tableCellNumber}>{formatIndianNumber(item["consumed/transfer out"] || 0)}</td>
+                <td className={styles.tableCellNumber}>{formatIndianNumber(item.returned || 0)}</td>
                 <td className={styles.tableCellNumber}>{formatIndianNumber(item.closing || 0)}</td>
               </tr>
             ))}
@@ -891,6 +1012,7 @@ const Production = () => {
               <td className={styles.tableCellNumber}>{formatIndianNumber(rawTotals.arrival)}</td>
               <td className={styles.tableCellNumber}>{formatIndianNumber(rawTotals.total)}</td>
               <td className={styles.tableCellNumber}>{formatIndianNumber(rawTotals.used)}</td>
+              <td className={styles.tableCellNumber}>{formatIndianNumber(rawTotals.returned)}</td>
               <td className={styles.tableCellNumber}>{formatIndianNumber(rawTotals.closing)}</td>
             </tr>
           </tbody>
@@ -903,7 +1025,7 @@ const Production = () => {
   const renderPackingTable = () => {
     const isMobile = window.innerWidth < 768;
 
-    const packingData = data?.fried_gram_production || [];
+    const packingData = packingProductionData || [];
 
     const friedGram = packingData.filter(
       item => item.category === "FRIED GRAM"
@@ -1114,6 +1236,30 @@ const Production = () => {
             </div>
           </motion.div>
 
+          {/* Data View */}
+          <motion.div
+            className={styles.filterItem}
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.08 }}
+            whileHover={{ y: -2 }}
+          >
+            <label className={styles.filterLabel}>
+              <i className="bi bi-layers"></i> Data View
+            </label>
+            <div className={styles.selectWrapper}>
+              <select
+                className={styles.filterSelect}
+                value={dataView}
+                onChange={(e) => setDataView(e.target.value)}
+              >
+                <option value="produced">Produced Items</option>
+                <option value="unproduced">Unproduced Items</option>
+                <option value="all">All Items</option>
+              </select>
+              <i className={`bi bi-chevron-down ${styles.selectIcon}`}></i>
+            </div>
+          </motion.div>
           {/* From Date */}
           <motion.div
             className={styles.filterItem}
@@ -1216,6 +1362,45 @@ const Production = () => {
             )}
           </div>
 
+
+          <div className={styles.totalCardWrapper}>
+            <div className={styles.totalCard}>
+              <div className={styles.totalCardContent}>
+                <div className={styles.totalCardHeader}>
+                  <div className={styles.totalCardLabel}>Finished Goods Summary</div>
+                  <div className={styles.totalCardSubLabel}>{dataViewLabel}</div>
+                </div>
+                <div className={styles.totalCardItem}>
+                  <div className={styles.totalCardItemLabel}>Opening</div>
+                  <div className={styles.totalCardItemValue}>{formatIndianNumber(fgOpening)}</div>
+                </div>
+                <div className={styles.totalCardItem}>
+                  <div className={styles.totalCardItemLabel}>Production</div>
+                  <div className={styles.totalCardItemValue}>{formatIndianNumber(fgProduction)}</div>
+                </div>
+                <div className={styles.totalCardItem}>
+                  <div className={styles.totalCardItemLabel}>Total</div>
+                  <div className={styles.totalCardItemValue}>{formatIndianNumber(fgTotal)}</div>
+                </div>
+                <div className={styles.totalCardItem}>
+                  <div className={styles.totalCardItemLabel}>Dispatch</div>
+                  <div className={styles.totalCardItemValue}>{formatIndianNumber(fgDispatch)}</div>
+                </div>
+                <div className={styles.totalCardItem}>
+                  <div className={styles.totalCardItemLabel}>Returned</div>
+                  <div className={styles.totalCardItemValue}>{formatIndianNumber(fgReturned)}</div>
+                </div>
+                <div className={styles.totalCardItem}>
+                  <div className={styles.totalCardItemLabel}>Closing</div>
+                  <div className={styles.totalCardItemValue}>{formatIndianNumber(fgClosing)}</div>
+                </div>
+                <div className={styles.totalCardItem}>
+                  <div className={styles.totalCardItemLabel}>Prod %</div>
+                  <div className={styles.totalCardItemValue}>{formatPercentage(fgProdPercentage)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
           {/* 2. Raw Materials Usage */}
           <div className={styles.reportCard}>
             <div 
@@ -1254,20 +1439,10 @@ const Production = () => {
             )}
           </div>
 
-          <div className={styles.totalCardWrapper}>
-            <div className={styles.totalCard}>
-              <div className={styles.totalCardContent}>
-                <div className={styles.totalCardLabel}>
-                  <i className="bi bi-box-seam"></i>
-                  <span>Finished Goods Total</span>
-                </div>
-                <div className={styles.totalCardValue}>{formatIndianNumber(data?.total_prd || 0)}</div>
-              </div>
-            </div>
-          </div>
+          
 
           {/* Chart Section */}
-          {data && data.finished && brands.length > 0 && (
+          {data && brands.length > 0 && (
             <div className={styles.reportCard}>
               <div 
                 className={`${styles.reportCardHeader} ${styles.chartHeader}`}
@@ -1335,6 +1510,7 @@ const Production = () => {
                               <option value="produced">Production</option>
                               <option value="total">Total</option>
                               <option value="dispatch">Dispatch</option>
+                              <option value="returned">Returned</option>
                               <option value="closing">Closing</option>
                             </>
                           ) : (
@@ -1343,6 +1519,7 @@ const Production = () => {
                               <option value="arrival">Arrival</option>
                               <option value="total">Total</option>
                               <option value="used">Used</option>
+                              <option value="returned">Returned</option>
                               <option value="closing">Closing</option>
                             </>
                           )}

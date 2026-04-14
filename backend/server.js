@@ -43,7 +43,6 @@ app.use("/Report", reportRoutes);
 // ===== Serve React (Vite build) =====
 app.use(express.static(path.join(__dirname, "../dist")));
 
-// ✅ SAFE FALLBACK (NO '*')
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, "../dist/index.html"));
 });

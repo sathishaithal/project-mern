@@ -1,4 +1,5 @@
 const { getDynamicDB } = require("../config/db");
+const { param } = require("../routes/authRoutes");
 
 exports.getStockSummary = async (code, fromdate, todate, warehouse, dbase) => {
   const pool = getDynamicDB(dbase);
@@ -135,6 +136,9 @@ exports.getOpeningForCodes = async (codes, fromdate, todate, warehouse, dbase) =
     const params = warehouse
       ? [...codes, fromdate, warehouse]
       : [...codes, fromdate];
+
+      
+
 
     const rows = await runQuery(sql, params);
     rows.forEach(r => {
@@ -495,6 +499,9 @@ exports.getOpeningForCodes = async (codes, fromdate, todate, warehouse, dbase) =
       ? [...codes, fromdate, warehouse]
       : [...codes, fromdate];
 
+      
+
+
     const rows = await runQuery(sql, params);
     rows.forEach(r => {
       if (stats[r.code]) {
@@ -514,11 +521,13 @@ exports.getOpeningForCodes = async (codes, fromdate, todate, warehouse, dbase) =
       WHERE opcode IN (${inPlaceholders})
         AND date < ?
         ${whLocation}
-      GROUP BY opcode
+      GROUP BY tid
     `;
     const params = warehouse
       ? [...codes, fromdate, warehouse]
       : [...codes, fromdate];
+
+
 
     const rows = await runQuery(sql, params);
     rows.forEach(r => {
@@ -548,9 +557,14 @@ exports.getOpeningForCodes = async (codes, fromdate, todate, warehouse, dbase) =
         )
       GROUP BY ingredient
     `;
+
+
+   
     const params = warehouse
       ? [...codes, fromdate, warehouse, fromdate, warehouse]
       : [...codes, fromdate, fromdate];
+
+        
 
     const rows = await runQuery(sql, params);
     rows.forEach(r => {
@@ -603,24 +617,26 @@ exports.getOpeningForCodes = async (codes, fromdate, todate, warehouse, dbase) =
     const s = stats[code];
 
     const opening =
-      round2(s.firstopening) +
-      round2(s.purchasedop) +
-      round2(s.irecop) +
-      round2(s.staadd) +
-      round2(s.grop) +
-      round2(s.stockto) -
+      s.firstopening +
+      s.purchasedop +
+      s.irecop +
+      s.staadd +
+      s.grop +
+      s.stockto -
       (
-        round2(s.consumedop) +
-        round2(s.salesop) +
-        round2(s.iiscop) +
-        round2(s.staded) +
-        round2(s.stockfrom) +
-        round2(s.preturn)
+        s.consumedop +
+        s.salesop +
+        s.iiscop +
+        s.staded +
+        s.stockfrom +
+        s.preturn
       ) +
-      round2(s.salesreturnop) +
-      round2(s.prod);
+      s.salesreturnop +
+      s.prod;
 
-    openings[code] = round2(opening);
+    openings[code] = opening;
+
+   
 
   });
 
@@ -636,7 +652,7 @@ exports.getPurchaseTransferInForCodes = async (
   warehouse,
   dbase
 ) => {
-  codes = (codes || []).map(c => c.trim()).filter(Boolean);
+  codes = (codes || []).map(c => c.trim()).filter(Boolean); 
   if (!codes.length) return {};
 
   const pool = getDynamicDB(dbase);
@@ -671,6 +687,7 @@ exports.getPurchaseTransferInForCodes = async (
         ${whWarehouse}
       GROUP BY code
     `;
+
     const params = warehouse
       ? [...codes, fromdate, todate, warehouse]
       : [...codes, fromdate, todate];
@@ -682,6 +699,8 @@ exports.getPurchaseTransferInForCodes = async (
       }
     });
   }
+
+
 
   // 2) STOCK ADJUSTMENT (Add) FROM ims_stockadjustment
   {
@@ -785,15 +804,14 @@ exports.getPurchaseTransferInForCodes = async (
       SELECT producttype AS code, SUM(production) AS quantity
       FROM product_productionunit
       WHERE producttype IN (${inPlaceholders})
-        AND date >= ?
-        AND date <= ?
+       AND date >= ? AND date <= ?
         ${whWarehouse}
       GROUP BY producttype
     `;
     const params = warehouse
       ? [...codes, fromdate, todate, warehouse]
       : [...codes, fromdate, todate];
-
+      
     const rows = await runQuery(sql, params);
     rows.forEach(r => {
       if (stats[r.code]) {
@@ -861,9 +879,9 @@ exports.getPurchaseTransferInForCodes = async (
   const result = {};
   codes.forEach(code => {
     const val = Number(stats[code]?.purchased || 0);
-    result[code] = Math.round(val * 100) / 100; // 2 decimals like PHP round
+    result[code] = val * 100 / 100; // 2 decimals like PHP round
   });
-
+ 
   return result;
 };
 
@@ -1052,7 +1070,7 @@ exports.getConsumedTransferOutForCodes = async (codes, fromdate, todate, warehou
   // ---------------------------------------------------------------------------
   const result = {};
   codes.forEach(code => {
-    result[code] = Math.round(stats[code].consumed * 100) / 100; // round 2 decimals
+    result[code] = stats[code].consumed * 100 / 100; // round 2 decimals
   });
 
   return result;
@@ -1167,8 +1185,8 @@ exports.getSalesAndReturnedForCodes = async (codes, fromdate, todate, warehouse,
   const result = {};
   codes.forEach(code => {
     result[code] = {
-      sales: Number(stats[code].sales.toFixed(2)),
-      salesreturn: Number(stats[code].salesreturn.toFixed(2))
+      sales: Number(stats[code].sales),
+      salesreturn: Number(stats[code].salesreturn)
     };
   });
 

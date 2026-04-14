@@ -9,13 +9,14 @@ exports.findByEmail = async (username) => {
       [username]
     );
 
-    console.log("📊 Query result:", rows);
-
+    console.log("📊 Query result:", rows[0]);
+  
     return rows[0] || null;
   } catch (err) {
     console.error("❌ Query Error:", err);
     throw err;
   }
+  
 };
 
 exports.findByToken = async (user_token, crm_user) => {

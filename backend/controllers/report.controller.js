@@ -44,6 +44,8 @@ exports.getFriedGramReport = async (req, res) => {
       req
     }); 
 
+  
+
     const category_list = await categoryService.getAllCategories(req); 
 
 
@@ -102,6 +104,21 @@ exports.getProductionReport = async (req, res) => {
 
       
 
+    const cond1 = (catgroup === "" || catgroup === "--All--")
+    ? "1"
+    : `mill = '${catgroup}'`;
+
+    const fried_gram_reportData = await reportService.getDataForFriedGramReport({
+      fromdate,
+      todate,
+      warehouse: "",
+      nstock,
+      cond1,
+      req
+    }); 
+
+      
+
     const categories = await categoryService.getAllCategories(req);
 
 
@@ -110,12 +127,17 @@ exports.getProductionReport = async (req, res) => {
     return res.json({
       finished: reportData.finished,
       raw: reportData.raw,
+      finished2: reportData.finished2,
+      raw2: reportData.raw2,
+      fried_gram_production: fried_gram_reportData.result,
+      fried_gram_production2: fried_gram_reportData.result2,
       categories,
       selected_catgroup: catgroup,
       fromdate,
       todate,
       nstock,
-      total_prd: reportData.total_prd,
+      finished_grand_total: reportData.finished_grand_total,
+      finished_grand_total2: reportData.finished_grand_total2,
       execution_time
     });
 

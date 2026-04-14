@@ -352,6 +352,11 @@
   margin-bottom: 28px;
 }
 
+.summaryRowWhite {
+  color: white;
+  font-weight: 600;
+}
+
 .totalCard {
   background: linear-gradient(135deg, var(--production-accent, #3b82f6), var(--production-accent-strong, #2563eb));
   border-radius: 20px;
@@ -366,30 +371,57 @@
 }
 
 .totalCardContent {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) repeat(7, minmax(120px, 1fr));
+  gap: 14px;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+}
+
+
+
+.totalCardHeader {
+  grid-column: 1 / 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .totalCardLabel {
-  font-size: 0.88rem;
+  font-size: 0.95rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: rgba(255, 255, 255, 0.85);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  justify-content: flex-start;
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 700;
   margin: 0;
 }
 
-.totalCardValue {
-  font-size: 1.75rem;
+.totalCardSubLabel {
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.totalCardItem {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.totalCardItemLabel {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.75);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.totalCardItemValue {
+  font-size: 1.4rem;
   font-weight: 700;
   color: white;
-  text-align: right;
-  line-height: 1.2;
+  line-height: 1.1;
 }
 
 /* Report Cards */
@@ -1251,12 +1283,13 @@
   }
   
   .totalCardContent {
-    flex-direction: column;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .totalCardValue {
-    font-size: 1.4rem;
+    font-size: 1.25rem;
     text-align: left;
   }
   
