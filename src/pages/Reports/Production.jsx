@@ -246,7 +246,7 @@ const Production = () => {
 
   const formatPercentage = (value) => {
     const num = Number(value) || 0;
-    return `${Math.round(num)}%`;
+    return `${num.toFixed(2)}%`;
   };
 
   // const fgTotals = data?.finished_grand_total || {};
@@ -311,11 +311,10 @@ let fgProdPercentage = 0;
 
   const calcRoundedProdPercentage = (items) => {
     if (!items || items.length === 0) return 0;
-    let totalPercentage = 0;
-    items.forEach((item) => {
-      totalPercentage += Math.round(Number(item.prod_percentage) || 0);
-    });
-    return totalPercentage;
+    return items.reduce(
+      (total, item) => total + (Number(item.prod_percentage) || 0),
+      0
+    );
   };
 
   fgProdPercentage = calcRoundedProdPercentage(brands.flatMap(cat => finishedData[cat] || []));
@@ -799,7 +798,7 @@ let fgProdPercentage = 0;
                         <MobileRow label="Dispatch" value={fmt(i.sold)} />
                         <MobileRow label="Returned" value={fmt(i.returned)} />
                         <MobileRow label="Closing" value={fmt(i.closing)} highlight />
-                        <MobileRow label="Prod %" value={`${i.prod_percentage || 0}%`} />
+                        <MobileRow label="Prod %" value={formatPercentage(i.prod_percentage)} />
                       </div>
                     ))}
                   </div>
@@ -813,7 +812,7 @@ let fgProdPercentage = 0;
                   <MobileRow label="Dispatch" value={fmt(sub.d)} />
                   <MobileRow label="Returned" value={fmt(sub.r)} />
                   <MobileRow label="Closing" value={fmt(sub.c)} highlight />
-                  <MobileRow label="Prod %" value={`${pct}%`} />
+                  <MobileRow label="Prod %" value={formatPercentage(pct)} />
                 </div>
               </div>
             );
@@ -821,7 +820,7 @@ let fgProdPercentage = 0;
           
           <div className={`${styles.mobileCard} ${styles.grandTotalCard}`}>
             <div className={styles.mobileCardBody}>
-              <div className={styles.mobileCardFooterTitle}>Grand Total - Fried Gram</div>
+              <div className={styles.mobileCardFooterTitle}>Grand Total - Finished Goods</div>
               <MobileRow label="Opening" value={fmt(grand.o)} />
               <MobileRow label="Production" value={fmt(grand.p)} />
               <MobileRow label="Total" value={fmt(grand.o + grand.p)} />
@@ -910,7 +909,7 @@ let fgProdPercentage = 0;
             })}
             
             <tr className={styles.tableGrandTotal}>
-              <td colSpan="2" className={styles.tableCellDescription}>Grand Total - Fried Gram</td>
+              <td colSpan="2" className={styles.tableCellDescription}>Grand Total - Finished Goods</td>
               <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.opening)}</td>
               <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.production)}</td>
               <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.total)}</td>
@@ -1351,7 +1350,7 @@ let fgProdPercentage = 0;
             >
               <div className={styles.reportCardTitle}>
                 <i className="bi bi-box-seam"></i>
-                <span>Finished Goods - Fried Gram</span>
+                <span>Finished Goods</span>
               </div>
               <i className={`bi ${finishedCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
             </div>
@@ -1367,7 +1366,7 @@ let fgProdPercentage = 0;
             <div className={styles.totalCard}>
               <div className={styles.totalCardContent}>
                 <div className={styles.totalCardHeader}>
-                  <div className={styles.totalCardLabel}>Finished Goods Summary</div>
+                  <div className={styles.totalCardLabel}>Finished Goods - Fried Gram</div>
                   <div className={styles.totalCardSubLabel}>{dataViewLabel}</div>
                 </div>
                 <div className={styles.totalCardItem}>
