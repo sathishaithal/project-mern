@@ -472,7 +472,7 @@
 }
 
 :global(body.production-report-fullscreen) .mainContent {
-  margin-left: 70px;
+  margin-left: 0;
 }
 
 :global(body.production-report-fullscreen) .header,

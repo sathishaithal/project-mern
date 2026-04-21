@@ -332,46 +332,12 @@
   transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-:global(body.production-report-fullscreen) .desktopSidebar {
-  display: block;
-  width: 70px;
-}
-
-:global(body.production-report-fullscreen) .sidebarContainer {
-  width: 70px !important;
-}
-
-:global(body.production-report-fullscreen) .sidebarHeader {
-  min-height: 64px !important;
-  justify-content: center;
-  padding: 0 8px;
-}
-
-:global(body.production-report-fullscreen) .homeIconWrapper,
-:global(body.production-report-fullscreen) .navText,
-:global(body.production-report-fullscreen) .subMenu,
-:global(body.production-report-fullscreen) .subMenuText,
-:global(body.production-report-fullscreen) .sidebarFooter span {
-  display: none;
-}
-
-:global(body.production-report-fullscreen) .navItem,
-:global(body.production-report-fullscreen) .subMenuItem {
-  justify-content: center;
-  padding-left: 10px;
-  padding-right: 10px;
-}
-
-:global(body.production-report-fullscreen) .sidebarFooter {
-  padding-left: 10px;
-  padding-right: 10px;
-}
-
+:global(body.production-report-fullscreen) .desktopSidebar,
 :global(body.production-report-fullscreen) .mobileDrawer,
-:global(body.production-report-fullscreen) .mobileOverlay {
-  display: none;
+:global(body.production-report-fullscreen) .mobileOverlay,
+:global(body.production-report-fullscreen) .hoverMenu {
+  display: none !important;
 }
-
 .desktopSidebar.collapsed {
   width: 70px;
 }

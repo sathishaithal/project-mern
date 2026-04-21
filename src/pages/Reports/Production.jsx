@@ -213,12 +213,13 @@ const Production = () => {
     brands.forEach((cat) => {
       const items = finishedData[cat] || [];
       items.forEach(i => {
-        grand.opening += i.opening || 0;
-        grand.production += i["purchased/transfer in"] || 0;
-        grand.total += (i.opening || 0) + (i["purchased/transfer in"] || 0);
-        grand.dispatch += i.sold || 0;
-        grand.returned += i.returned || 0;
-        grand.closing += i.closing || 0;
+        const metrics = getFinishedItemMetrics(i);
+        grand.opening += metrics.opening;
+        grand.production += metrics.production;
+        grand.total += metrics.total;
+        grand.dispatch += metrics.dispatch;
+        grand.returned += metrics.returned;
+        grand.closing += metrics.closing;
       });
     });
     
@@ -286,38 +287,64 @@ const fgClosing = fgTotals.totalClosing || 0;
 const fgTotal = fgOpening + fgProduction;
 
 let fgProdPercentage = 0;
-  
+
+  const toNumber = (value) => Number(value) || 0;
+
+  const getFinishedItemMetrics = (item = {}) => {
+    const opening = toNumber(item.opening);
+    const production = toNumber(item["purchased/transfer in"]);
+
+    return {
+      opening,
+      production,
+      total: opening + production,
+      dispatch: toNumber(item.sold),
+      returned: toNumber(item.returned ?? item.return ?? item["sales return"]),
+      closing: toNumber(item.closing),
+      prodPercentage: toNumber(item.prod_percentage),
+    };
+  };
+
+  const getRawItemMetrics = (item = {}) => {
+    const opening = toNumber(item.opening);
+    const arrival = toNumber(item["purchased/transfer in"]);
+
+    return {
+      opening,
+      arrival,
+      total: opening + arrival,
+      used: toNumber(item["consumed/transfer out"]),
+      returned: toNumber(item.returned ?? item.return),
+      closing: toNumber(item.closing),
+    };
+  };
 
   const calcTotals = (items) =>
     items.reduce(
-      (a, i) => ({
-        o: a.o + (i.opening || 0),
-        p: a.p + (i["purchased/transfer in"] || 0),
-        d: a.d + (i.sold || 0),
-        r: a.r + (i.returned || 0),
-        c: a.c + (i.closing || 0),
-      }),
+      (a, item) => {
+        const metrics = getFinishedItemMetrics(item);
+        return {
+          o: a.o + metrics.opening,
+          p: a.p + metrics.production,
+          d: a.d + metrics.dispatch,
+          r: a.r + metrics.returned,
+          c: a.c + metrics.closing,
+        };
+      },
       { o: 0, p: 0, d: 0, r: 0, c: 0 }
     );
 
   const calcProdPercentage = (items) => {
     if (!items || items.length === 0) return 0;
-    let totalPercentage = 0;
-    items.forEach(item => {
-      totalPercentage += Number(item.prod_percentage) || 0;
-    });
-    return totalPercentage;
-  };
-
-  const calcRoundedProdPercentage = (items) => {
-    if (!items || items.length === 0) return 0;
     return items.reduce(
-      (total, item) => total + (Number(item.prod_percentage) || 0),
+      (total, item) => total + getFinishedItemMetrics(item).prodPercentage,
       0
     );
   };
 
-  fgProdPercentage = calcRoundedProdPercentage(brands.flatMap(cat => finishedData[cat] || []));
+  const calcRoundedProdPercentage = calcProdPercentage;
+
+  fgProdPercentage = calcProdPercentage(brands.flatMap(cat => finishedData[cat] || []));
 
   const fetchReport = async () => {
     setLoading(true);
@@ -409,17 +436,18 @@ let fgProdPercentage = 0;
           const items = finishedData[brand] || [];
 
           return items.reduce(
-            (acc, item) => ({
-              name: brand,
-              Opening: acc.Opening + (item.opening || 0),
-              Production: acc.Production + (item["purchased/transfer in"] || 0),
-              Total:
-                acc.Total +
-                ((item.opening || 0) + (item["purchased/transfer in"] || 0)),
-              Dispatch: acc.Dispatch + (item.sold || 0),
-              Returned: acc.Returned + (item.returned || 0),
-              Closing: acc.Closing + (item.closing || 0),
-            }),
+            (acc, item) => {
+              const metrics = getFinishedItemMetrics(item);
+              return {
+                name: brand,
+                Opening: acc.Opening + metrics.opening,
+                Production: acc.Production + metrics.production,
+                Total: acc.Total + metrics.total,
+                Dispatch: acc.Dispatch + metrics.dispatch,
+                Returned: acc.Returned + metrics.returned,
+                Closing: acc.Closing + metrics.closing,
+              };
+            },
             {
               name: brand,
               Opening: 0,
@@ -436,52 +464,53 @@ let fgProdPercentage = 0;
       if (!selectedBrand || !finishedData[selectedBrand]) return [];
       const items = finishedData[selectedBrand];
       
-      return items.map(item => ({
-        name: item.description || "Unknown",
-        Opening: item.opening || 0,
-        Production: item["purchased/transfer in"] || 0,
-        Total: (item.opening || 0) + (item["purchased/transfer in"] || 0),
-        Dispatch: item.sold || 0,
-        Returned: item.returned || 0,
-        Closing: item.closing || 0,
-      }));
+      return items.map(item => {
+        const metrics = getFinishedItemMetrics(item);
+        return {
+          name: item.description || "Unknown",
+          Opening: metrics.opening,
+          Production: metrics.production,
+          Total: metrics.total,
+          Dispatch: metrics.dispatch,
+          Returned: metrics.returned,
+          Closing: metrics.closing,
+        };
+      });
     } 
     else if (selectedCategory === "raw") {
       const rawItems = rawData?.["All Raw Materials"] || [];
       
-      return rawItems.map(item => ({
-        name: item.description || "Unknown",
-        Opening: item.opening || 0,
-        Arrival: item["purchased/transfer in"] || 0,
-        Total: (item.opening || 0) + (item["purchased/transfer in"] || 0),
-        Used: item["consumed/transfer out"] || 0,
-        Returned: item.returned || 0,
-        Closing: item.closing || 0,
-      }));
+      return rawItems.map(item => {
+        const metrics = getRawItemMetrics(item);
+        return {
+          name: item.description || "Unknown",
+          Opening: metrics.opening,
+          Arrival: metrics.arrival,
+          Total: metrics.total,
+          Used: metrics.used,
+          Returned: metrics.returned,
+          Closing: metrics.closing,
+        };
+      });
     }
     else if (selectedCategory === "packing") {
       const packingData = [];
+      const source = packingProductionData || [];
 
-       const source = packingProductionData || [];
-
-      
-      // const friedGram = data.finished?.["FRIED GRAM"] || [];
-       const friedGram = source.filter(item => item.category === "FRIED GRAM");
+      const friedGram = source.filter(item => item.category === "FRIED GRAM");
       friedGram.forEach(item => {
         packingData.push({
           name: `FG: ${item.description || "Unknown"}`,
-          Production: item["purchased/transfer in"] || 0,
+          Production: toNumber(item["purchased/transfer in"]),
           category: "Fried Gram"
         });
       });
       
-      // const bengalGram = data.finished?.["BENGAL GRAM"] || [];
-        const bengalGram = source.filter(item => item.category === "BENGAL GRAM");
-
+      const bengalGram = source.filter(item => item.category === "BENGAL GRAM");
       bengalGram.forEach(item => {
         packingData.push({
           name: `BG: ${item.description || "Unknown"}`,
-          Production: item["purchased/transfer in"] || 0,
+          Production: toNumber(item["purchased/transfer in"]),
           category: "Bengal Gram"
         });
       });
@@ -491,7 +520,6 @@ let fgProdPercentage = 0;
     
     return [];
   };
-
   const getMetricLabel = () => {
     if (selectedCategory === "raw") {
       const rawMap = {
@@ -551,7 +579,14 @@ let fgProdPercentage = 0;
     const isSingleMetric = ["finished", "raw"].includes(selectedCategory) && metricType;
     const pieMetricKey = isSingleMetric ? metricLabel : "Production";
     const pieChartData = chartData.filter((item) => Number(item[pieMetricKey]) > 0);
-    
+
+
+const totalValue = pieChartData.reduce(
+  (sum, item) => sum + Number(item[pieMetricKey] || 0),
+  0
+);
+
+
     const commonProps = {
       data: chartData,
       margin: { top: 20, right: 30, left: isMobile ? 40 : 60, bottom: 70 }
@@ -674,7 +709,7 @@ let fgProdPercentage = 0;
                     </text>
                   ) : null;
                 }}
-                outerRadius={isMobile ? 80 : 130}
+                outerRadius={isMobile ? 60 : 130}
                 innerRadius={0} 
                 dataKey={pieMetricKey}
               >
@@ -696,7 +731,24 @@ let fgProdPercentage = 0;
                   color: isDarkMode ? '#f1f5f9' : '#0f172a'
                 }}
               />
-              <Legend />
+              {/* <Legend /> */}
+
+              <Legend
+              formatter={(value, entry) => {
+                const item = pieChartData.find(
+                  (d) => d.name === entry.payload?.name
+                );
+
+                if (!item) return value;
+
+                const val = Number(item[pieMetricKey] || 0);
+                const percent = totalValue > 0 ? (val / totalValue) * 100 : 0;
+
+                //Only show <1%, otherwise just name
+                return percent < 1 ? `${value} (<1%)` : value;
+              }}
+            />
+              
             </PieChart>
           </ResponsiveContainer>
         );
@@ -792,12 +844,12 @@ let fgProdPercentage = 0;
                     {items.map((i, idx) => (
                       <div key={idx} className={`${styles.mobileItem} ${isDarkMode ? styles.mobileItemDark : ''}`}>
                         <div className={styles.mobileItemTitle}>{i.description}</div>
-                        <MobileRow label="Opening" value={fmt(i.opening)} />
-                        <MobileRow label="Production" value={fmt(i["purchased/transfer in"])} />
-                        <MobileRow label="Total" value={fmt(i.opening + i["purchased/transfer in"])} />
-                        <MobileRow label="Dispatch" value={fmt(i.sold)} />
-                        <MobileRow label="Returned" value={fmt(i.returned)} />
-                        <MobileRow label="Closing" value={fmt(i.closing)} highlight />
+                        <MobileRow label="Opening" value={fmt(getFinishedItemMetrics(i).opening)} />
+                        <MobileRow label="Production" value={fmt(getFinishedItemMetrics(i).production)} />
+                        <MobileRow label="Total" value={fmt(getFinishedItemMetrics(i).total)} />
+                        <MobileRow label="Dispatch" value={fmt(getFinishedItemMetrics(i).dispatch)} />
+                        <MobileRow label="Returned" value={fmt(getFinishedItemMetrics(i).returned)} />
+                        <MobileRow label="Closing" value={fmt(getFinishedItemMetrics(i).closing)} highlight />
                         <MobileRow label="Prod %" value={formatPercentage(i.prod_percentage)} />
                       </div>
                     ))}
@@ -854,14 +906,17 @@ let fgProdPercentage = 0;
           <tbody>
             {brands.map((cat, brandIndex) => {
               const items = finishedData[cat] || [];
-              const subtotal = items.reduce((acc, i) => ({
-                opening: acc.opening + (i.opening || 0),
-                produced: acc.produced + (i["purchased/transfer in"] || 0),
-                total: acc.total + ((i.opening || 0) + (i["purchased/transfer in"] || 0)),
-                dispatch: acc.dispatch + (i.sold || 0),
-                returned: acc.returned + (i.returned || 0),
-                closing: acc.closing + (i.closing || 0),
-              }), { opening: 0, produced: 0, total: 0, dispatch: 0, returned: 0, closing: 0 });
+              const subtotal = items.reduce((acc, item) => {
+                const metrics = getFinishedItemMetrics(item);
+                return {
+                  opening: acc.opening + metrics.opening,
+                  produced: acc.produced + metrics.production,
+                  total: acc.total + metrics.total,
+                  dispatch: acc.dispatch + metrics.dispatch,
+                  returned: acc.returned + metrics.returned,
+                  closing: acc.closing + metrics.closing,
+                };
+              }, { opening: 0, produced: 0, total: 0, dispatch: 0, returned: 0, closing: 0 });
               
               const subtotalPercentage = calcRoundedProdPercentage(items);
               
@@ -895,12 +950,12 @@ let fgProdPercentage = 0;
                       <td className={`${styles.tableCellDescription} ${styles.tableCellIndented}`}>
                         {item.description || 'No Description'}
                       </td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber(item.opening || 0)}</td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber(item["purchased/transfer in"] || 0)}</td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber((item.opening || 0) + (item["purchased/transfer in"] || 0))}</td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber(item.sold || 0)}</td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber(item.returned || 0)}</td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber(item.closing || 0)}</td>
+                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).opening)}</td>
+                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).production)}</td>
+                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).total)}</td>
+                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).dispatch)}</td>
+                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).returned)}</td>
+                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).closing)}</td>
                       <td className={styles.tableCellPercentage}>{formatPercentage(item.prod_percentage)}</td>
                     </tr>
                   ))}
@@ -938,13 +993,16 @@ let fgProdPercentage = 0;
     }
     
     const rawItems = rawData["All Raw Materials"] || [];
-    const rawTotals = rawItems.reduce((acc, item) => ({
-      opening: acc.opening + (item.opening || 0),
-      arrival: acc.arrival + (item["purchased/transfer in"] || 0),
-      used: acc.used + (item["consumed/transfer out"] || 0),
-      returned: acc.returned + (item.returned || 0),
-      closing: acc.closing + (item.closing || 0),
-    }), { opening: 0, arrival: 0, used: 0, returned: 0, closing: 0 });
+    const rawTotals = rawItems.reduce((acc, item) => {
+      const metrics = getRawItemMetrics(item);
+      return {
+        opening: acc.opening + metrics.opening,
+        arrival: acc.arrival + metrics.arrival,
+        used: acc.used + metrics.used,
+        returned: acc.returned + metrics.returned,
+        closing: acc.closing + metrics.closing,
+      };
+    }, { opening: 0, arrival: 0, used: 0, returned: 0, closing: 0 });
     rawTotals.total = rawTotals.opening + rawTotals.arrival;
     
     if (isMobile) {
@@ -953,12 +1011,12 @@ let fgProdPercentage = 0;
           {rawItems.map((item, idx) => (
             <div key={idx} className={`${styles.mobileItem} ${isDarkMode ? styles.mobileItemDark : ''}`}>
               <div className={styles.mobileItemTitle}>{item.description}</div>
-              <MobileRow label="Opening" value={fmt(item.opening || 0)} />
-              <MobileRow label="Arrival" value={fmt(item["purchased/transfer in"] || 0)} />
-              <MobileRow label="Total" value={fmt((item.opening || 0) + (item["purchased/transfer in"] || 0))} />
-              <MobileRow label="Used" value={fmt(item["consumed/transfer out"] || 0)} />
-              <MobileRow label="Returned" value={fmt(item.returned || 0)} />
-              <MobileRow label="Closing" value={fmt(item.closing || 0)} highlight />
+              <MobileRow label="Opening" value={fmt(getRawItemMetrics(item).opening)} />
+              <MobileRow label="Arrival" value={fmt(toNumber(item["purchased/transfer in"]))} />
+              <MobileRow label="Total" value={fmt(getRawItemMetrics(item).total)} />
+              <MobileRow label="Used" value={fmt(getRawItemMetrics(item).used)} />
+              <MobileRow label="Returned" value={fmt(getRawItemMetrics(item).returned)} />
+              <MobileRow label="Closing" value={fmt(getRawItemMetrics(item).closing)} highlight />
             </div>
           ))}
           
@@ -997,12 +1055,12 @@ let fgProdPercentage = 0;
               <tr key={i} className={i % 2 === 0 ? styles.tableRowEven : ''}>
                 <td className={styles.tableCellArrow}></td>
                 <td className={styles.tableCellDescription}>{item.description || 'No Description'}</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber(item.opening || 0)}</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber(item["purchased/transfer in"] || 0)}</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber((item.opening || 0) + (item["purchased/transfer in"] || 0))}</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber(item["consumed/transfer out"] || 0)}</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber(item.returned || 0)}</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber(item.closing || 0)}</td>
+                <td className={styles.tableCellNumber}>{formatIndianNumber(getRawItemMetrics(item).opening)}</td>
+                <td className={styles.tableCellNumber}>{formatIndianNumber(toNumber(item["purchased/transfer in"]))}</td>
+                <td className={styles.tableCellNumber}>{formatIndianNumber(getRawItemMetrics(item).total)}</td>
+                <td className={styles.tableCellNumber}>{formatIndianNumber(getRawItemMetrics(item).used)}</td>
+                <td className={styles.tableCellNumber}>{formatIndianNumber(getRawItemMetrics(item).returned)}</td>
+                <td className={styles.tableCellNumber}>{formatIndianNumber(getRawItemMetrics(item).closing)}</td>
               </tr>
             ))}
             <tr className={styles.tableGrandTotalRaw}>
@@ -1062,7 +1120,7 @@ let fgProdPercentage = 0;
                 {friedGram.map((item, idx) => (
                   <div key={idx} className={`${styles.mobileItem} ${isDarkMode ? styles.mobileItemDark : ''}`}>
                     <div className={styles.mobileItemTitle}>{item.description}</div>
-                    <MobileRow label="Production" value={fmt(item["purchased/transfer in"] || 0)} />
+                    <MobileRow label="Production" value={fmt(toNumber(item["purchased/transfer in"]))} />
                   </div>
                 ))}
                 <div className={styles.mobileCardFooter}>
@@ -1081,7 +1139,7 @@ let fgProdPercentage = 0;
                 {bengalGram.map((item, idx) => (
                   <div key={idx} className={`${styles.mobileItem} ${isDarkMode ? styles.mobileItemDark : ''}`}>
                     <div className={styles.mobileItemTitle}>{item.description}</div>
-                    <MobileRow label="Production" value={fmt(item["purchased/transfer in"] || 0)} />
+                    <MobileRow label="Production" value={fmt(toNumber(item["purchased/transfer in"]))} />
                   </div>
                 ))}
                 <div className={styles.mobileCardFooter}>
@@ -1118,7 +1176,7 @@ let fgProdPercentage = 0;
               <tr key={`fried-${i}`}>
                 <td className={styles.tableCellArrow}>  </td>
                 <td className={styles.tableCellDescription}>{item.description || 'No Description'}</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber(item["purchased/transfer in"] || 0)}</td>
+                <td className={styles.tableCellNumber}>{formatIndianNumber(toNumber(item["purchased/transfer in"]))}</td>
               </tr>
             ))}
             {friedGram.length > 0 && (
@@ -1132,7 +1190,7 @@ let fgProdPercentage = 0;
               <tr key={`bengal-${i}`}>
                 <td className={styles.tableCellArrow}>  </td>
                 <td className={styles.tableCellDescription}>{item.description || 'No Description'}</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber(item["purchased/transfer in"] || 0)}</td>
+                <td className={styles.tableCellNumber}>{formatIndianNumber(toNumber(item["purchased/transfer in"]))}</td>
               </tr>
             ))}
             {bengalGram.length > 0 && (
