@@ -234,16 +234,57 @@ const Production = () => {
     return rest ? `${rest},${last3}` : last3;
   };
 
+
+  // Correct negative number formatting for Indian style
+  // const formatIndianNumber = (num) => {
+  //   if (num == null || isNaN(num)) return '';
+  //   const abs = Math.abs(Math.round(num));
+  //   const numStr = abs.toString();
+  //   const lastThree = numStr.slice(-3);
+  //   const otherNumbers = numStr.slice(0, -3);
+  //   let formatted = otherNumbers !== ''
+  //     ? otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree
+  //     : lastThree;
+  //   if (num < 0) formatted = '-' + formatted;
+  //   return formatted;
+  // };
+
   const formatIndianNumber = (num) => {
-    if (!num && num !== 0) return "0";
-    const numStr = Math.round(num).toString();
-    const lastThree = numStr.slice(-3);
-    const otherNumbers = numStr.slice(0, -3);
-    if (otherNumbers !== "") {
-      return otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree;
-    }
-    return lastThree;
-  };
+  if (num == null || isNaN(num)) return '';
+  const rounded = Math.round(num);
+  if (rounded === 0) return '0';
+  const abs = Math.abs(rounded);
+  const numStr = abs.toString();
+  const lastThree = numStr.slice(-3);
+  const otherNumbers = numStr.slice(0, -3);
+  let formatted = otherNumbers !== ''
+    ? otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree
+    : lastThree;
+  if (rounded < 0) formatted = '-' + formatted;
+  return formatted;
+};
+
+const CustomXAxisTick = ({ x, y, payload }) => {
+  const text = payload.value || "";
+
+  const words = text.split(" ");
+  const firstLine = words.slice(0, 3).join(" ");
+  const secondLine = words.slice(3).join(" ");
+
+  return (
+    <g transform={`translate(${x},${y + 10}) rotate(-45)`}>
+        <text
+          textAnchor="end"
+          fill={isDarkMode ? "#e5e7eb" : "#666"}
+          fontSize={12}
+        >
+        <tspan x={0} dy={0}>{firstLine}</tspan>
+        <tspan x={0} dy={14}>{secondLine}</tspan>
+      </text>
+    </g>
+  );
+};
+
 
   const formatPercentage = (value) => {
     const num = Number(value) || 0;
@@ -580,16 +621,19 @@ let fgProdPercentage = 0;
     const pieMetricKey = isSingleMetric ? metricLabel : "Production";
     const pieChartData = chartData.filter((item) => Number(item[pieMetricKey]) > 0);
 
+    const negativeItems = chartData.filter(
+      (item) => Number(item[pieMetricKey]) <= 0
+    );
 
-const totalValue = pieChartData.reduce(
-  (sum, item) => sum + Number(item[pieMetricKey] || 0),
-  0
-);
+    const totalValue = pieChartData.reduce(
+      (sum, item) => sum + Number(item[pieMetricKey] || 0),
+      0
+    );
 
 
     const commonProps = {
       data: chartData,
-      margin: { top: 20, right: 30, left: isMobile ? 40 : 60, bottom: 70 }
+      margin: { top: 20, right: 30, left: isMobile ? 40 : 60, bottom: 90 }
     };
 
     const CustomTooltip = ({ active, payload, label }) => {
@@ -611,16 +655,26 @@ const totalValue = pieChartData.reduce(
     switch (chartType) {
       case "bar":
         return (
+   
           <ResponsiveContainer width="100%" height="100%">
             <BarChart {...commonProps}>
               <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#444' : '#e0e0e0'} />
-              <XAxis 
+              {/* <XAxis 
                 dataKey="name" 
                 angle={-45}
                 textAnchor="end"
-                height={70}
+                height={110} // Increased for long labels
+                interval={0} // Show all labels
                 tick={{ fontSize: isMobile ? 10 : 12, fill: isDarkMode ? '#b0b0b0' : '#666' }}
+              /> */}
+
+              <XAxis 
+                dataKey="name"
+                tick={<CustomXAxisTick />}
+                height={100}
               />
+
+
               <YAxis 
                 tick={{ fontSize: isMobile ? 10 : 12, fill: isDarkMode ? '#b0b0b0' : '#666' }}
                 tickFormatter={(value) => formatIndianNumber(value)}
@@ -645,13 +699,20 @@ const totalValue = pieChartData.reduce(
           <ResponsiveContainer width="100%" height="100%">
             <LineChart {...commonProps}>
               <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#444' : '#e0e0e0'} />
-              <XAxis 
+              {/* <XAxis 
                 dataKey="name" 
                 angle={-45}
                 textAnchor="end"
                 height={70}
                 tick={{ fontSize: isMobile ? 10 : 12, fill: isDarkMode ? '#b0b0b0' : '#666' }}
+              /> */}
+
+              <XAxis 
+                dataKey="name"
+                tick={<CustomXAxisTick />}
+                height={100}
               />
+
               <YAxis 
                 tick={{ fontSize: isMobile ? 10 : 12, fill: isDarkMode ? '#b0b0b0' : '#666' }}
                 tickFormatter={(value) => formatIndianNumber(value)}
@@ -671,17 +732,43 @@ const totalValue = pieChartData.reduce(
           </ResponsiveContainer>
         );
 
-      case "pie":
-        if (pieChartData.length === 0) {
-          return (
-            <div className={styles.noDataMessage}>
-              <i className="bi bi-pie-chart"></i>
-              <p>No positive values available for pie chart</p>
-            </div>
-          );
-        }
+    
+case "pie":
+  if (pieChartData.length === 0) {
+    return (
+      <div className={styles.noDataMessage}>
+        <i className="bi bi-pie-chart"></i>
+        <p>No positive values available for pie chart</p>
+      </div>
+    );
+  }
 
-        return (
+  return (
+    <>
+      {/* Warning */}
+      {negativeItems.length > 0 && (
+        <div
+          style={{
+            fontSize: "12px",
+            color: isDarkMode ? "#fbbf24" : "#b45309",
+            marginBottom: "6px",
+          }}
+        >
+          ⚠ Negative / zero values are excluded from pie chart
+        </div>
+      )}
+
+      {/* ✅ MAIN WRAPPER FIX */}
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {/* Chart */}
+        <div style={{ flex: 1, minHeight: 0 }}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -695,7 +782,7 @@ const totalValue = pieChartData.reduce(
                   const x = cx + radius * Math.cos(-midAngle * RADIAN);
                   const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
-                  return percent > 0.03 ? ( 
+                  return percent > 0.03 ? (
                     <text
                       x={x}
                       y={y}
@@ -710,61 +797,115 @@ const totalValue = pieChartData.reduce(
                   ) : null;
                 }}
                 outerRadius={isMobile ? 60 : 130}
-                innerRadius={0} 
+                innerRadius={0}
                 dataKey={pieMetricKey}
               >
                 {pieChartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={colors[index % colors.length]}
+                  />
                 ))}
               </Pie>
-              <Tooltip 
+
+              <Tooltip
                 formatter={(value) => [formatIndianNumber(value), "Value"]}
-                contentStyle={{ 
-                  backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
-                  borderColor: isDarkMode ? '#444' : '#e0e0e0',
-                  color: isDarkMode ? '#f1f5f9' : '#0f172a'
+                contentStyle={{
+                  backgroundColor: isDarkMode ? "#2d2d2d" : "#ffffff",
+                  borderColor: isDarkMode ? "#444" : "#e0e0e0",
+                  color: isDarkMode ? "#f1f5f9" : "#0f172a",
                 }}
                 itemStyle={{
-                  color: isDarkMode ? '#f1f5f9' : '#0f172a'
+                  color: isDarkMode ? "#f1f5f9" : "#0f172a",
                 }}
                 labelStyle={{
-                  color: isDarkMode ? '#f1f5f9' : '#0f172a'
+                  color: isDarkMode ? "#f1f5f9" : "#0f172a",
                 }}
               />
-              {/* <Legend /> */}
 
               <Legend
-              formatter={(value, entry) => {
-                const item = pieChartData.find(
-                  (d) => d.name === entry.payload?.name
-                );
+                wrapperStyle={{
+                  paddingTop: "10px",
+                }}
+                formatter={(value, entry) => {
+                  const item = pieChartData.find(
+                    (d) => d.name === entry.payload?.name
+                  );
 
-                if (!item) return value;
+                  if (!item) return value;
 
-                const val = Number(item[pieMetricKey] || 0);
-                const percent = totalValue > 0 ? (val / totalValue) * 100 : 0;
+                  const val = Number(item[pieMetricKey] || 0);
+                  const percent =
+                    totalValue > 0 ? (val / totalValue) * 100 : 0;
 
-                //Only show <1%, otherwise just name
-                return percent < 1 ? `${value} (<1%)` : value;
-              }}
-            />
-              
+                  return percent < 1 ? `${value} (<1%)` : value;
+                }}
+              />
             </PieChart>
           </ResponsiveContainer>
-        );
+        </div>
+
+        {/* ✅ EXCLUDED ITEMS (VISIBLE NOW) */}
+        {negativeItems.length > 0 && (
+          <div
+            style={{
+              paddingTop: "8px",
+              textAlign: "center",
+              fontSize: "12px",
+              color: isDarkMode ? "#9ca3af" : "#555",
+              flexShrink: 0,
+            }}
+          >
+            <strong>Excluded Items:</strong>
+
+            <div
+              style={{
+                marginTop: "4px",
+                display: "flex",
+                flexWrap: "wrap",
+                justifyContent: "center",
+                maxHeight: "60px",
+                overflowY: "auto",
+              }}
+            >
+              {negativeItems.map((item, index) => (
+                <span
+                  key={index}
+                  style={{
+                    margin: "4px 10px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  • {item.name} (
+                  {formatIndianNumber(item[pieMetricKey])})
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
 
       case "area":
         return (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart {...commonProps}>
               <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#444' : '#e0e0e0'} />
-              <XAxis 
+              {/* <XAxis 
                 dataKey="name" 
                 angle={-45}
                 textAnchor="end"
                 height={70}
                 tick={{ fontSize: isMobile ? 10 : 12, fill: isDarkMode ? '#b0b0b0' : '#666' }}
-              />
+              /> */}
+
+                <XAxis 
+                  dataKey="name"
+                  tick={<CustomXAxisTick />}
+                  height={100}
+                />
+
               <YAxis 
                 tick={{ fontSize: isMobile ? 10 : 12, fill: isDarkMode ? '#b0b0b0' : '#666' }}
                 tickFormatter={(value) => formatIndianNumber(value)}
@@ -873,12 +1014,12 @@ const totalValue = pieChartData.reduce(
           <div className={`${styles.mobileCard} ${styles.grandTotalCard}`}>
             <div className={styles.mobileCardBody}>
               <div className={styles.mobileCardFooterTitle}>Grand Total - Finished Goods</div>
-              <MobileRow label="Opening" value={fmt(grand.o)} />
-              <MobileRow label="Production" value={fmt(grand.p)} />
-              <MobileRow label="Total" value={fmt(grand.o + grand.p)} />
-              <MobileRow label="Dispatch" value={fmt(grand.d)} />
-              <MobileRow label="Returned" value={fmt(grand.r)} />
-              <MobileRow label="Closing" value={fmt(grand.c)} highlight />
+              <MobileRow label="Opening" value={formatIndianNumber(grand.o)} />
+              <MobileRow label="Production" value={formatIndianNumber(grand.p)} />
+              <MobileRow label="Total" value={formatIndianNumber(grand.o + grand.p)} />
+              <MobileRow label="Dispatch" value={formatIndianNumber(grand.d)} />
+              <MobileRow label="Returned" value={formatIndianNumber(grand.r)} />
+              <MobileRow label="Closing" value={formatIndianNumber(grand.c)} highlight />
               <MobileRow label="Prod %" value={formatPercentage(fgProdPercentage)} />
             </div>
           </div>
@@ -1011,24 +1152,24 @@ const totalValue = pieChartData.reduce(
           {rawItems.map((item, idx) => (
             <div key={idx} className={`${styles.mobileItem} ${isDarkMode ? styles.mobileItemDark : ''}`}>
               <div className={styles.mobileItemTitle}>{item.description}</div>
-              <MobileRow label="Opening" value={fmt(getRawItemMetrics(item).opening)} />
-              <MobileRow label="Arrival" value={fmt(toNumber(item["purchased/transfer in"]))} />
-              <MobileRow label="Total" value={fmt(getRawItemMetrics(item).total)} />
-              <MobileRow label="Used" value={fmt(getRawItemMetrics(item).used)} />
-              <MobileRow label="Returned" value={fmt(getRawItemMetrics(item).returned)} />
-              <MobileRow label="Closing" value={fmt(getRawItemMetrics(item).closing)} highlight />
+              <MobileRow label="Opening" value={formatIndianNumber(getRawItemMetrics(item).opening)} />
+              <MobileRow label="Arrival" value={formatIndianNumber(toNumber(item["purchased/transfer in"]))} />
+              <MobileRow label="Total" value={formatIndianNumber(getRawItemMetrics(item).total)} />
+              <MobileRow label="Used" value={formatIndianNumber(getRawItemMetrics(item).used)} />
+              <MobileRow label="Returned" value={formatIndianNumber(getRawItemMetrics(item).returned)} />
+              <MobileRow label="Closing" value={formatIndianNumber(getRawItemMetrics(item).closing)} highlight />
             </div>
           ))}
           
           <div className={`${styles.mobileCard} ${styles.rawTotalCard}`}>
             <div className={styles.mobileCardBody}>
               <div className={styles.mobileCardFooterTitle}>Grand Total - Raw Materials</div>
-              <MobileRow label="Opening" value={fmt(rawTotals.opening)} />
-              <MobileRow label="Arrival" value={fmt(rawTotals.arrival)} />
-              <MobileRow label="Total" value={fmt(rawTotals.total)} />
-              <MobileRow label="Used" value={fmt(rawTotals.used)} />
-              <MobileRow label="Returned" value={fmt(rawTotals.returned)} />
-              <MobileRow label="Closing" value={fmt(rawTotals.closing)} />
+              <MobileRow label="Opening" value={formatIndianNumber(rawTotals.opening)} />
+              <MobileRow label="Arrival" value={formatIndianNumber(rawTotals.arrival)} />
+              <MobileRow label="Total" value={formatIndianNumber(rawTotals.total)} />
+              <MobileRow label="Used" value={formatIndianNumber(rawTotals.used)} />
+              <MobileRow label="Returned" value={formatIndianNumber(rawTotals.returned)} />
+              <MobileRow label="Closing" value={formatIndianNumber(rawTotals.closing)} />
             </div>
           </div>
         </div>
