@@ -243,6 +243,21 @@ body {
   place-items: center;
 }
 
+.appDateNav:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+  background: #f1f1f1;
+  color: #aaa;
+  border-color: #ddd;
+}
+
+[data-theme="dark"] .appDateNav:disabled {
+  background: #020617;
+  color: #475569;
+  border-color: #1e293b;
+}
+
 .appDateNav:hover {
   border-color: var(--dashboard-accent, var(--primary));
   color: var(--dashboard-accent-strong, var(--primary-dark));

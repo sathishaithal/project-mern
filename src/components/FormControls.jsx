@@ -100,6 +100,19 @@ export const AppDatePicker = ({ value, onChange, min, max }) => {
   const days = getCalendarDays(month);
   const weekDays = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
+  const minMonth = min ? new Date(min.getFullYear(), min.getMonth(), 1) : null;
+  const maxMonth = max ? new Date(max.getFullYear(), max.getMonth(), 1) : null;
+
+  const isPrevDisabled =
+    minMonth &&
+    month.getFullYear() === minMonth.getFullYear() &&
+    month.getMonth() === minMonth.getMonth();
+
+  const isNextDisabled =
+    maxMonth &&
+    month.getFullYear() === maxMonth.getFullYear() &&
+    month.getMonth() === maxMonth.getMonth();
+
   useEffect(() => {
     if (!open) return undefined;
 
@@ -144,16 +157,24 @@ export const AppDatePicker = ({ value, onChange, min, max }) => {
             <button
               type="button"
               className="appDateNav"
-              onClick={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}
+              disabled={isPrevDisabled}
+              onClick={() =>
+                !isPrevDisabled &&
+                setMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))
+              }
             >
               <i className="bi bi-chevron-left"></i>
             </button>
             <div className="appDateMonth">{formatMonthLabel(month)}</div>
-            <button
-              type="button"
-              className="appDateNav"
-              onClick={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}
-            >
+           <button
+                type="button"
+                className="appDateNav"
+                disabled={isNextDisabled}
+                onClick={() =>
+                  !isNextDisabled &&
+                  setMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))
+                }
+              >
               <i className="bi bi-chevron-right"></i>
             </button>
           </div>
