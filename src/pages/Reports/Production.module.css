@@ -366,6 +366,10 @@
   transition: transform 0.2s ease;
 }
 
+.othersSummaryCard {
+  background: linear-gradient(135deg, var(--production-others-start, #0ea5e9), var(--production-others-end, #0284c7));
+}
+
 .totalCard:hover {
   transform: translateY(-2px);
 }
@@ -487,6 +491,14 @@
     135deg,
     var(--production-raw-start, #10b981),
     var(--production-raw-end, #059669)
+  );
+}
+
+.othersHeader {
+  background: linear-gradient(
+    135deg,
+    var(--production-others-start, #0ea5e9),
+    var(--production-others-end, #0284c7)
   );
 }
 
@@ -681,6 +693,7 @@
 /* Grand Total Rows */
 .tableGrandTotal,
 .tableGrandTotalRaw,
+.tableGrandTotalOthers,
 .tableGrandTotalPacking {
   color: white;
   font-weight: 600;
@@ -694,6 +707,11 @@
 .tableGrandTotalRaw {
   background: linear-gradient(135deg, var(--production-raw-start, #10b981), var(--production-raw-end, #059669));
   border-top: 2px solid color-mix(in srgb, var(--production-raw-end, #059669) 78%, black);
+}
+
+.tableGrandTotalOthers {
+  background: linear-gradient(135deg, var(--production-others-start, #0ea5e9), var(--production-others-end, #0284c7));
+  border-top: 2px solid color-mix(in srgb, var(--production-others-end, #0284c7) 78%, black);
 }
 
 .tableGrandTotalPacking {
@@ -717,6 +735,14 @@
   );
 }
 
+.containerDark .tableGrandTotalOthers {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--production-others-start, #0ea5e9) 66%, #0f172a),
+    color-mix(in srgb, var(--production-others-end, #0284c7) 62%, #020617)
+  );
+}
+
 .containerDark .tableGrandTotalPacking {
   background: linear-gradient(
     135deg,
@@ -727,6 +753,7 @@
 
 .tableGrandTotal td,
 .tableGrandTotalRaw td,
+.tableGrandTotalOthers td,
 .tableGrandTotalPacking td {
   padding: 14px 12px;
   border-bottom: none;
@@ -865,14 +892,20 @@
 
 .grandTotalCard,
 .rawTotalCard,
+.othersTotalCard,
 .packingTotalCard {
   background: linear-gradient(135deg, var(--production-accent, #3b82f6), var(--production-accent-strong, #2563eb));
   color: white;
   border: none;
 }
 
+.othersTotalCard {
+  background: linear-gradient(135deg, var(--production-others-start, #0ea5e9), var(--production-others-end, #0284c7));
+}
+
 .grandTotalCard .mobileCardFooter,
 .rawTotalCard .mobileCardFooter,
+.othersTotalCard .mobileCardFooter,
 .packingTotalCard .mobileCardFooter {
   background: rgba(255, 255, 255, 0.1);
   border-top-color: rgba(255, 255, 255, 0.2);

@@ -31,6 +31,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { ColorModeProvider } from "./theme/ThemeContext";
 
 import MainLayout from "./layouts/MainLayout";
+import "./styles/global.css";
 import "./index.css";
 import ScrollToTop from "./components/ScrollToTop";
 import { useAuth } from "./context/AuthContext";

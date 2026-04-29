@@ -19,7 +19,41 @@ import {
   Area,
 } from "recharts";
 import { useColorMode } from "../../theme/ThemeContext";
+import { AppDatePicker, AppSelect } from "../../components/FormControls";
 import styles from "./Production.module.css";
+
+const toNumber = (value) => Number(value) || 0;
+
+const hasRoundedDisplayValue = (...values) =>
+  values.some((value) => Math.round(toNumber(value)) !== 0);
+
+const hasFinishedDisplayValue = (item = {}) =>
+  hasRoundedDisplayValue(
+    item.opening,
+    item["purchased/transfer in"],
+    item.sold,
+    item.returned ?? item.return ?? item["sales return"],
+    item.closing,
+    item.prod_percentage
+  );
+
+const hasRawDisplayValue = (item = {}) =>
+  hasRoundedDisplayValue(
+    item.opening,
+    item["purchased/transfer in"],
+    item["consumed/transfer out"],
+    item.returned ?? item.return,
+    item.closing
+  );
+
+const filterGroupedData = (grouped = {}, predicate) =>
+  Object.entries(grouped || {}).reduce((acc, [key, items]) => {
+    const filteredItems = (items || []).filter(predicate);
+    if (filteredItems.length > 0) {
+      acc[key] = filteredItems;
+    }
+    return acc;
+  }, {});
 
 const Production = () => {
   const { isDarkMode, selectedAccent, selectedFont } = useColorMode();
@@ -35,6 +69,7 @@ const Production = () => {
   const filterBarRef = useRef(null);
 
   const [finishedCollapsed, setFinishedCollapsed] = useState(false);
+  const [othersCollapsed, setOthersCollapsed] = useState(false);
   const [rawCollapsed, setRawCollapsed] = useState(false);
   const [packingCollapsed, setPackingCollapsed] = useState(false);
   const [chartCollapsed, setChartCollapsed] = useState(false);
@@ -100,10 +135,10 @@ const Production = () => {
     if (toastTimeoutRef.current) {
       clearTimeout(toastTimeoutRef.current);
     }
-    
+
     setToast({ show: true, message, type, title });
     setToastVisible(true);
-    
+
     toastTimeoutRef.current = setTimeout(() => {
       setToastVisible(false);
       setTimeout(() => {
@@ -120,19 +155,6 @@ const Production = () => {
     setTimeout(() => {
       setToast({ show: false, message: "", type: "info", title: "" });
     }, 300);
-  };
-
-  const handleDateChange = (value, setter) => {
-    if (!value) {
-      return;
-    }
-
-    const nextDate = new Date(value);
-    if (Number.isNaN(nextDate.getTime())) {
-      return;
-    }
-
-    setter(nextDate);
   };
 
   const toggleReportFullscreen = () => {
@@ -154,16 +176,38 @@ const Production = () => {
 
   const finishedData = useMemo(() => {
     if (!data) return {};
-    if (dataView === "unproduced") return data.finished2 || {};
-    if (dataView === "all") return mergeGroupedData(data.finished, data.finished2);
-    return data.finished || {};
+    const source =
+      dataView === "unproduced"
+        ? data.finished2 || {}
+        : dataView === "all"
+        ? mergeGroupedData(data.finished, data.finished2)
+        : data.finished || {};
+
+    return filterGroupedData(source, hasFinishedDisplayValue);
+  }, [data, dataView]);
+
+  const finishedOthersData = useMemo(() => {
+    if (!data) return {};
+    const source =
+      dataView === "unproduced"
+        ? data.finishedOthers2 || {}
+        : dataView === "all"
+        ? mergeGroupedData(data.finishedOthers, data.finishedOthers2)
+        : data.finishedOthers || {};
+
+    return filterGroupedData(source, hasFinishedDisplayValue);
   }, [data, dataView]);
 
   const rawData = useMemo(() => {
     if (!data) return {};
-    if (dataView === "unproduced") return data.raw2 || {};
-    if (dataView === "all") return mergeGroupedData(data.raw, data.raw2);
-    return data.raw || {};
+    const source =
+      dataView === "unproduced"
+        ? data.raw2 || {}
+        : dataView === "all"
+        ? mergeGroupedData(data.raw, data.raw2)
+        : data.raw || {};
+
+    return filterGroupedData(source, hasRawDisplayValue);
   }, [data, dataView]);
 
   const derivePackingProduction = (sourceFinished = {}) => [
@@ -181,9 +225,14 @@ const Production = () => {
     if (!data) return [];
     const producedPacking = data.fried_gram_production || derivePackingProduction(data.finished);
     const unproducedPacking = data.fried_gram_production2 || derivePackingProduction(data.finished2);
-    if (dataView === "unproduced") return unproducedPacking;
-    if (dataView === "all") return [...producedPacking, ...unproducedPacking];
-    return producedPacking;
+    const source =
+      dataView === "unproduced"
+        ? unproducedPacking
+        : dataView === "all"
+        ? [...producedPacking, ...unproducedPacking]
+        : producedPacking;
+
+    return source.filter((item) => hasRoundedDisplayValue(item["purchased/transfer in"]));
   }, [data, dataView]);
 
   const dataViewLabel = {
@@ -199,19 +248,32 @@ const Production = () => {
     );
   }, [data, finishedData]);
 
+  const othersBrands = useMemo(() => {
+    if (!data) return [];
+    return Object.keys(finishedOthersData || {}).filter(
+      (b) => Array.isArray(finishedOthersData[b]) && finishedOthersData[b].length
+    );
+  }, [data, finishedOthersData]);
+
+  const chartCategoryBrands = selectedCategory === "others" ? othersBrands : brands;
+
   useEffect(() => {
-    if (selectedBrand !== "all" && !brands.includes(selectedBrand)) {
+    if (
+      ["finished", "others"].includes(selectedCategory) &&
+      selectedBrand !== "all" &&
+      !chartCategoryBrands.includes(selectedBrand)
+    ) {
       setSelectedBrand("all");
     }
-  }, [brands, selectedBrand]);
+  }, [chartCategoryBrands, selectedBrand, selectedCategory]);
 
-  const calculateGrandTotals = () => {
-    if (!data || !brands || brands.length === 0) return { opening: 0, production: 0, total: 0, dispatch: 0, returned: 0, closing: 0 };
-    
+  const calculateGrandTotals = (sourceData = finishedData, categories = brands) => {
+    if (!data || !categories || categories.length === 0) return { opening: 0, production: 0, total: 0, dispatch: 0, returned: 0, closing: 0 };
+
     let grand = { opening: 0, production: 0, total: 0, dispatch: 0, returned: 0, closing: 0 };
-    
-    brands.forEach((cat) => {
-      const items = finishedData[cat] || [];
+
+    categories.forEach((cat) => {
+      const items = sourceData[cat] || [];
       items.forEach(i => {
         const metrics = getFinishedItemMetrics(i);
         grand.opening += metrics.opening;
@@ -222,7 +284,7 @@ const Production = () => {
         grand.closing += metrics.closing;
       });
     });
-    
+
     return grand;
   };
 
@@ -291,45 +353,69 @@ const CustomXAxisTick = ({ x, y, payload }) => {
     return `${num.toFixed(2)}%`;
   };
 
-  // const fgTotals = data?.finished_grand_total || {};
-  const fgTotals =
-  dataView === "produced"
-    ? data?.finished_grand_total || {}
-    : dataView === "unproduced"
-    ? data?.finished_grand_total2 || {}
-    : {
-        totalOpening:
-          (data?.finished_grand_total?.totalOpening || 0) +
-          (data?.finished_grand_total2?.totalOpening || 0),
-
-        totalProduction:
-          (data?.finished_grand_total?.totalProduction || 0) +
-          (data?.finished_grand_total2?.totalProduction || 0),
-
-        totalDispatch:
-          (data?.finished_grand_total?.totalDispatch || 0) +
-          (data?.finished_grand_total2?.totalDispatch || 0),
-
-        totalReturn:
-          (data?.finished_grand_total?.totalReturn || 0) +
-          (data?.finished_grand_total2?.totalReturn || 0),
-
-        totalClosing:
-          (data?.finished_grand_total?.totalClosing || 0) +
-          (data?.finished_grand_total2?.totalClosing || 0),
-      };
-
-const fgOpening = fgTotals.totalOpening || 0;
-const fgProduction = fgTotals.totalProduction || 0;
-const fgDispatch = fgTotals.totalDispatch || 0;
-const fgReturned = fgTotals.totalReturn || 0;
-const fgClosing = fgTotals.totalClosing || 0;
-
-const fgTotal = fgOpening + fgProduction;
+  const formatPayloadDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
 let fgProdPercentage = 0;
 
-  const toNumber = (value) => Number(value) || 0;
+  const getFinishedOthersTotals = () => {
+    if (dataView === "produced") {
+      const totals = data?.finished_grand_total_others || {};
+      return {
+        totalOpening: totals.totalOpeningOthers || 0,
+        totalProduction: totals.totalProductionOthers || 0,
+        totalDispatch: totals.totalDispatchOthers || 0,
+        totalReturn: totals.totalReturnOthers || 0,
+        totalClosing: totals.totalClosingOthers || 0,
+      };
+    }
+
+    if (dataView === "unproduced") {
+      const totals = data?.finished_grand_total_others2 || {};
+      return {
+        totalOpening: totals.totalOpeningOthers2 || 0,
+        totalProduction: totals.totalProductionOthers2 || 0,
+        totalDispatch: totals.totalDispatchOthers2 || 0,
+        totalReturn: totals.totalReturnOthers2 || 0,
+        totalClosing: totals.totalClosingOthers2 || 0,
+      };
+    }
+
+    return {
+      totalOpening:
+        (data?.finished_grand_total_others?.totalOpeningOthers || 0) +
+        (data?.finished_grand_total_others2?.totalOpeningOthers2 || 0),
+
+      totalProduction:
+        (data?.finished_grand_total_others?.totalProductionOthers || 0) +
+        (data?.finished_grand_total_others2?.totalProductionOthers2 || 0),
+
+      totalDispatch:
+        (data?.finished_grand_total_others?.totalDispatchOthers || 0) +
+        (data?.finished_grand_total_others2?.totalDispatchOthers2 || 0),
+
+      totalReturn:
+        (data?.finished_grand_total_others?.totalReturnOthers || 0) +
+        (data?.finished_grand_total_others2?.totalReturnOthers2 || 0),
+
+      totalClosing:
+        (data?.finished_grand_total_others?.totalClosingOthers || 0) +
+        (data?.finished_grand_total_others2?.totalClosingOthers2 || 0),
+    };
+  };
+
+const othersTotals = getFinishedOthersTotals();
+const othersOpening = othersTotals.totalOpening || 0;
+const othersProduction = othersTotals.totalProduction || 0;
+const othersDispatch = othersTotals.totalDispatch || 0;
+const othersReturned = othersTotals.totalReturn || 0;
+const othersClosing = othersTotals.totalClosing || 0;
+const othersTotal = othersOpening + othersProduction;
+let othersProdPercentage = 0;
 
   const getFinishedItemMetrics = (item = {}) => {
     const opening = toNumber(item.opening);
@@ -385,18 +471,27 @@ let fgProdPercentage = 0;
 
   const calcRoundedProdPercentage = calcProdPercentage;
 
+  const fgSummaryTotals = calculateGrandTotals(finishedData, brands);
+  const fgOpening = fgSummaryTotals.opening;
+  const fgProduction = fgSummaryTotals.production;
+  const fgDispatch = fgSummaryTotals.dispatch;
+  const fgReturned = fgSummaryTotals.returned;
+  const fgClosing = fgSummaryTotals.closing;
+  const fgTotal = fgSummaryTotals.total;
+
   fgProdPercentage = calcProdPercentage(brands.flatMap(cat => finishedData[cat] || []));
+  othersProdPercentage = calcProdPercentage(othersBrands.flatMap(cat => finishedOthersData[cat] || []));
 
   const fetchReport = async () => {
     setLoading(true);
     showToast("Loading", "Fetching production report...", "info");
-    
+
     try {
       const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
 
       const payload = {
-        fromdate: fromDate.toISOString().slice(0, 10),
-        todate: toDate.toISOString().slice(0, 10),
+        fromdate: formatPayloadDate(fromDate),
+        todate: formatPayloadDate(toDate),
         catgroup: "Fried Gram Mill",
       };
 
@@ -423,6 +518,7 @@ let fgProdPercentage = 0;
       setData(res.data);
       const obj = {};
       [...Object.keys(res.data.finished || {}), ...Object.keys(res.data.finished2 || {})].forEach((k) => (obj[k] = true));
+      [...Object.keys(res.data.finishedOthers || {}), ...Object.keys(res.data.finishedOthers2 || {})].forEach((k) => (obj[`others:${k}`] = true));
       setCollapsedCats(obj);
 
       if (res.data.finished && Object.keys(res.data.finished).length > 0) {
@@ -433,13 +529,13 @@ let fgProdPercentage = 0;
           setSelectedBrand("all");
         }
       }
-      
+
       showToast("Success", "Report loaded successfully!", "success");
 
     } catch (err) {
       let errorTitle = "Error";
       let errorMessage = "Failed to fetch production report";
-      
+
       if (err.response) {
         if (err.response.status === 401) {
           errorTitle = "Authentication Error";
@@ -462,7 +558,7 @@ let fgProdPercentage = 0;
       setData(null);
       setIsReportFullscreen(false);
       showToast(errorTitle, errorMessage, "error");
-      
+
     } finally {
       setLoading(false);
     }
@@ -471,10 +567,13 @@ let fgProdPercentage = 0;
   const prepareChartData = () => {
     if (!data) return [];
 
-    if (selectedCategory === "finished") {
+    if (selectedCategory === "finished" || selectedCategory === "others") {
+      const chartSourceData = selectedCategory === "others" ? finishedOthersData : finishedData;
+      const chartBrands = selectedCategory === "others" ? othersBrands : brands;
+
       if (selectedBrand === "all") {
-        return brands.map((brand) => {
-          const items = finishedData[brand] || [];
+        return chartBrands.map((brand) => {
+          const items = chartSourceData[brand] || [];
 
           return items.reduce(
             (acc, item) => {
@@ -502,9 +601,9 @@ let fgProdPercentage = 0;
         });
       }
 
-      if (!selectedBrand || !finishedData[selectedBrand]) return [];
-      const items = finishedData[selectedBrand];
-      
+      if (!selectedBrand || !chartSourceData[selectedBrand]) return [];
+      const items = chartSourceData[selectedBrand];
+
       return items.map(item => {
         const metrics = getFinishedItemMetrics(item);
         return {
@@ -517,10 +616,10 @@ let fgProdPercentage = 0;
           Closing: metrics.closing,
         };
       });
-    } 
+    }
     else if (selectedCategory === "raw") {
       const rawItems = rawData?.["All Raw Materials"] || [];
-      
+
       return rawItems.map(item => {
         const metrics = getRawItemMetrics(item);
         return {
@@ -546,7 +645,7 @@ let fgProdPercentage = 0;
           category: "Fried Gram"
         });
       });
-      
+
       const bengalGram = source.filter(item => item.category === "BENGAL GRAM");
       bengalGram.forEach(item => {
         packingData.push({
@@ -555,10 +654,10 @@ let fgProdPercentage = 0;
           category: "Bengal Gram"
         });
       });
-      
+
       return packingData;
     }
-    
+
     return [];
   };
   const getMetricLabel = () => {
@@ -573,7 +672,7 @@ let fgProdPercentage = 0;
       };
       return rawMap[metricType] || "Opening";
     }
-    
+
     const finishedMap = {
       opening: "Opening",
       produced: "Production",
@@ -607,7 +706,7 @@ let fgProdPercentage = 0;
     const colors = getChartColors();
     const metricLabel = getMetricLabel();
     const isMobile = window.innerWidth < 768;
-    
+
     if (chartData.length === 0) {
       return (
         <div className={styles.noDataMessage}>
@@ -617,7 +716,7 @@ let fgProdPercentage = 0;
       );
     }
 
-    const isSingleMetric = ["finished", "raw"].includes(selectedCategory) && metricType;
+    const isSingleMetric = ["finished", "others", "raw"].includes(selectedCategory) && metricType;
     const pieMetricKey = isSingleMetric ? metricLabel : "Production";
     const pieChartData = chartData.filter((item) => Number(item[pieMetricKey]) > 0);
 
@@ -655,12 +754,12 @@ let fgProdPercentage = 0;
     switch (chartType) {
       case "bar":
         return (
-   
+
           <ResponsiveContainer width="100%" height="100%">
             <BarChart {...commonProps}>
               <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#444' : '#e0e0e0'} />
-              {/* <XAxis 
-                dataKey="name" 
+              {/* <XAxis
+                dataKey="name"
                 angle={-45}
                 textAnchor="end"
                 height={110} // Increased for long labels
@@ -668,14 +767,14 @@ let fgProdPercentage = 0;
                 tick={{ fontSize: isMobile ? 10 : 12, fill: isDarkMode ? '#b0b0b0' : '#666' }}
               /> */}
 
-              <XAxis 
+              <XAxis
                 dataKey="name"
                 tick={<CustomXAxisTick />}
                 height={100}
               />
 
 
-              <YAxis 
+              <YAxis
                 tick={{ fontSize: isMobile ? 10 : 12, fill: isDarkMode ? '#b0b0b0' : '#666' }}
                 tickFormatter={(value) => formatIndianNumber(value)}
               />
@@ -699,21 +798,21 @@ let fgProdPercentage = 0;
           <ResponsiveContainer width="100%" height="100%">
             <LineChart {...commonProps}>
               <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#444' : '#e0e0e0'} />
-              {/* <XAxis 
-                dataKey="name" 
+              {/* <XAxis
+                dataKey="name"
                 angle={-45}
                 textAnchor="end"
                 height={70}
                 tick={{ fontSize: isMobile ? 10 : 12, fill: isDarkMode ? '#b0b0b0' : '#666' }}
               /> */}
 
-              <XAxis 
+              <XAxis
                 dataKey="name"
                 tick={<CustomXAxisTick />}
                 height={100}
               />
 
-              <YAxis 
+              <YAxis
                 tick={{ fontSize: isMobile ? 10 : 12, fill: isDarkMode ? '#b0b0b0' : '#666' }}
                 tickFormatter={(value) => formatIndianNumber(value)}
               />
@@ -732,7 +831,7 @@ let fgProdPercentage = 0;
           </ResponsiveContainer>
         );
 
-    
+
 case "pie":
   if (pieChartData.length === 0) {
     return (
@@ -892,21 +991,21 @@ case "pie":
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart {...commonProps}>
               <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#444' : '#e0e0e0'} />
-              {/* <XAxis 
-                dataKey="name" 
+              {/* <XAxis
+                dataKey="name"
                 angle={-45}
                 textAnchor="end"
                 height={70}
                 tick={{ fontSize: isMobile ? 10 : 12, fill: isDarkMode ? '#b0b0b0' : '#666' }}
               /> */}
 
-                <XAxis 
+                <XAxis
                   dataKey="name"
                   tick={<CustomXAxisTick />}
                   height={100}
                 />
 
-              <YAxis 
+              <YAxis
                 tick={{ fontSize: isMobile ? 10 : 12, fill: isDarkMode ? '#b0b0b0' : '#666' }}
                 tickFormatter={(value) => formatIndianNumber(value)}
               />
@@ -945,7 +1044,7 @@ case "pie":
   // Render Finished Goods Table (keep your existing working version)
   const renderFinishedGoodsTable = () => {
     const isMobile = window.innerWidth < 768;
-    
+
     if (!data || !brands.length) {
       return (
         <div className={styles.noDataMessage}>
@@ -954,32 +1053,32 @@ case "pie":
         </div>
       );
     }
-    
+
     const grandTotals = calculateGrandTotals();
-    
+
     if (isMobile) {
       let grand = { o: 0, p: 0, d: 0, r: 0, c: 0 };
-      
+
       return (
         <div className={styles.mobileTableContainer}>
           {brands.map((cat) => {
             const items = finishedData[cat] || [];
             const sub = calcTotals(items);
             const pct = calcRoundedProdPercentage(items);
-            
+
             grand.o += sub.o;
             grand.p += sub.p;
             grand.d += sub.d;
             grand.r += sub.r;
             grand.c += sub.c;
-            
+
             return (
               <div key={cat} className={`${styles.mobileCard} ${isDarkMode ? styles.mobileCardDark : ''}`}>
                 <div className={styles.mobileCardHeader} onClick={() => setCollapsedCats((p) => ({ ...p, [cat]: !p[cat] }))}>
                   <span className={styles.mobileCardTitle}>Sub Total - {cat}</span>
                   <i className={`bi ${collapsedCats[cat] ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
                 </div>
-                
+
                 {!collapsedCats[cat] && (
                   <div className={styles.mobileCardBody}>
                     {items.map((i, idx) => (
@@ -996,7 +1095,7 @@ case "pie":
                     ))}
                   </div>
                 )}
-                
+
                 <div className={styles.mobileCardFooter}>
                   <div className={styles.mobileCardFooterTitle}>Sub Total</div>
                   <MobileRow label="Opening" value={fmt(sub.o)} />
@@ -1010,7 +1109,7 @@ case "pie":
               </div>
             );
           })}
-          
+
           <div className={`${styles.mobileCard} ${styles.grandTotalCard}`}>
             <div className={styles.mobileCardBody}>
               <div className={styles.mobileCardFooterTitle}>Grand Total - Finished Goods</div>
@@ -1026,7 +1125,7 @@ case "pie":
         </div>
       );
     }
-    
+
     // Desktop version
     return (
       <div className={styles.tableWrapper}>
@@ -1058,12 +1157,12 @@ case "pie":
                   closing: acc.closing + metrics.closing,
                 };
               }, { opening: 0, produced: 0, total: 0, dispatch: 0, returned: 0, closing: 0 });
-              
+
               const subtotalPercentage = calcRoundedProdPercentage(items);
-              
+
               return (
                 <React.Fragment key={cat}>
-                  <tr 
+                  <tr
                     className={`${styles.tableRow} ${styles.tableSubTotalRow} ${brandIndex % 2 === 0 ? styles.tableSubTotalRowEven : styles.tableSubTotalRowOdd}`}
                     onClick={() => setCollapsedCats((p) => ({ ...p, [cat]: !p[cat] }))}
                   >
@@ -1081,7 +1180,7 @@ case "pie":
                     <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.closing)}</td>
                     <td className={styles.tableCellPercentage}>{formatPercentage(subtotalPercentage)}</td>
                   </tr>
-                  
+
                   {!collapsedCats[cat] && items.map((item, i) => (
                     <tr
                       key={i}
@@ -1103,7 +1202,7 @@ case "pie":
                 </React.Fragment>
               );
             })}
-            
+
             <tr className={styles.tableGrandTotal}>
               <td colSpan="2" className={styles.tableCellDescription}>Grand Total - Finished Goods</td>
               <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.opening)}</td>
@@ -1120,10 +1219,188 @@ case "pie":
     );
   };
 
+  const renderOthersTable = () => {
+    const isMobile = window.innerWidth < 768;
+
+    if (!data || !othersBrands.length) {
+      return (
+        <div className={styles.noDataMessage}>
+          <i className="bi bi-inbox"></i>
+          <p>No data available</p>
+        </div>
+      );
+    }
+
+    const grandTotals = calculateGrandTotals(finishedOthersData, othersBrands);
+
+    if (isMobile) {
+      let grand = { o: 0, p: 0, d: 0, r: 0, c: 0 };
+
+      return (
+        <div className={styles.mobileTableContainer}>
+          {othersBrands.map((cat) => {
+            const items = finishedOthersData[cat] || [];
+            const sub = calcTotals(items);
+            const pct = calcRoundedProdPercentage(items);
+            const collapseKey = `others:${cat}`;
+
+            grand.o += sub.o;
+            grand.p += sub.p;
+            grand.d += sub.d;
+            grand.r += sub.r;
+            grand.c += sub.c;
+
+            return (
+              <div key={cat} className={`${styles.mobileCard} ${isDarkMode ? styles.mobileCardDark : ''}`}>
+                <div className={styles.mobileCardHeader} onClick={() => setCollapsedCats((p) => ({ ...p, [collapseKey]: !p[collapseKey] }))}>
+                  <span className={styles.mobileCardTitle}>Sub Total - {cat}</span>
+                  <i className={`bi ${collapsedCats[collapseKey] ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                </div>
+
+                {!collapsedCats[collapseKey] && (
+                  <div className={styles.mobileCardBody}>
+                    {items.map((i, idx) => (
+                      <div key={idx} className={`${styles.mobileItem} ${isDarkMode ? styles.mobileItemDark : ''}`}>
+                        <div className={styles.mobileItemTitle}>{i.description}</div>
+                        <MobileRow label="Opening" value={formatIndianNumber(getFinishedItemMetrics(i).opening)} />
+                        <MobileRow label="Production" value={formatIndianNumber(getFinishedItemMetrics(i).production)} />
+                        <MobileRow label="Total" value={formatIndianNumber(getFinishedItemMetrics(i).total)} />
+                        <MobileRow label="Dispatch" value={formatIndianNumber(getFinishedItemMetrics(i).dispatch)} />
+                        <MobileRow label="Returned" value={formatIndianNumber(getFinishedItemMetrics(i).returned)} />
+                        <MobileRow label="Closing" value={formatIndianNumber(getFinishedItemMetrics(i).closing)} highlight />
+                        <MobileRow label="Prod %" value={formatPercentage(i.prod_percentage)} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className={styles.mobileCardFooter}>
+                  <div className={styles.mobileCardFooterTitle}>Sub Total</div>
+                  <MobileRow label="Opening" value={formatIndianNumber(sub.o)} />
+                  <MobileRow label="Production" value={formatIndianNumber(sub.p)} />
+                  <MobileRow label="Total" value={formatIndianNumber(sub.o + sub.p)} />
+                  <MobileRow label="Dispatch" value={formatIndianNumber(sub.d)} />
+                  <MobileRow label="Returned" value={formatIndianNumber(sub.r)} />
+                  <MobileRow label="Closing" value={formatIndianNumber(sub.c)} highlight />
+                  <MobileRow label="Prod %" value={formatPercentage(pct)} />
+                </div>
+              </div>
+            );
+          })}
+
+          <div className={`${styles.mobileCard} ${styles.othersTotalCard}`}>
+            <div className={styles.mobileCardBody}>
+              <div className={styles.mobileCardFooterTitle}>Grand Total - Others</div>
+              <MobileRow label="Opening" value={formatIndianNumber(grand.o)} />
+              <MobileRow label="Production" value={formatIndianNumber(grand.p)} />
+              <MobileRow label="Total" value={formatIndianNumber(grand.o + grand.p)} />
+              <MobileRow label="Dispatch" value={formatIndianNumber(grand.d)} />
+              <MobileRow label="Returned" value={formatIndianNumber(grand.r)} />
+              <MobileRow label="Closing" value={formatIndianNumber(grand.c)} highlight />
+              <MobileRow label="Prod %" value={formatPercentage(othersProdPercentage)} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className={styles.tableWrapper}>
+        <table className={styles.dataTable}>
+          <thead>
+            <tr>
+              <th className={styles.tableCellArrow}></th>
+              <th className={styles.tableCellDescription}>Others</th>
+              <th className={styles.tableCellNumber}>Opening</th>
+              <th className={styles.tableCellNumber}>Production</th>
+              <th className={styles.tableCellNumber}>Total</th>
+              <th className={styles.tableCellNumber}>Dispatch</th>
+              <th className={styles.tableCellNumber}>Returned</th>
+              <th className={styles.tableCellNumber}>Closing</th>
+              <th className={styles.tableCellPercentage}>Prod %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {othersBrands.map((cat, brandIndex) => {
+              const items = finishedOthersData[cat] || [];
+              const subtotal = items.reduce((acc, item) => {
+                const metrics = getFinishedItemMetrics(item);
+                return {
+                  opening: acc.opening + metrics.opening,
+                  produced: acc.produced + metrics.production,
+                  total: acc.total + metrics.total,
+                  dispatch: acc.dispatch + metrics.dispatch,
+                  returned: acc.returned + metrics.returned,
+                  closing: acc.closing + metrics.closing,
+                };
+              }, { opening: 0, produced: 0, total: 0, dispatch: 0, returned: 0, closing: 0 });
+
+              const subtotalPercentage = calcRoundedProdPercentage(items);
+              const collapseKey = `others:${cat}`;
+
+              return (
+                <React.Fragment key={cat}>
+                  <tr
+                    className={`${styles.tableRow} ${styles.tableSubTotalRow} ${brandIndex % 2 === 0 ? styles.tableSubTotalRowEven : styles.tableSubTotalRowOdd}`}
+                    onClick={() => setCollapsedCats((p) => ({ ...p, [collapseKey]: !p[collapseKey] }))}
+                  >
+                    <td className={styles.tableCellArrow}>
+                      <i className={`bi ${collapsedCats[collapseKey] ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                    </td>
+                    <td className={`${styles.tableCellDescription} ${styles.tableCellBold}`}>
+                      Sub Total - {cat}
+                    </td>
+                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.opening)}</td>
+                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.produced)}</td>
+                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.total)}</td>
+                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.dispatch)}</td>
+                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.returned)}</td>
+                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.closing)}</td>
+                    <td className={styles.tableCellPercentage}>{formatPercentage(subtotalPercentage)}</td>
+                  </tr>
+
+                  {!collapsedCats[collapseKey] && items.map((item, i) => (
+                    <tr
+                      key={i}
+                      className={`${styles.tableSubRow} ${i % 2 === 0 ? styles.tableSubRowEven : styles.tableSubRowOdd}`}
+                    >
+                      <td className={styles.tableCellArrow}></td>
+                      <td className={`${styles.tableCellDescription} ${styles.tableCellIndented}`}>
+                        {item.description || 'No Description'}
+                      </td>
+                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).opening)}</td>
+                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).production)}</td>
+                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).total)}</td>
+                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).dispatch)}</td>
+                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).returned)}</td>
+                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).closing)}</td>
+                      <td className={styles.tableCellPercentage}>{formatPercentage(item.prod_percentage)}</td>
+                    </tr>
+                  ))}
+                </React.Fragment>
+              );
+            })}
+
+            <tr className={styles.tableGrandTotalOthers}>
+              <td colSpan="2" className={styles.tableCellDescription}>Grand Total - Others</td>
+              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.opening)}</td>
+              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.production)}</td>
+              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.total)}</td>
+              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.dispatch)}</td>
+              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.returned)}</td>
+              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.closing)}</td>
+              <td className={styles.tableCellPercentage}>{formatPercentage(calcRoundedProdPercentage(othersBrands.flatMap(cat => finishedOthersData[cat] || [])))}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   // Render Raw Materials Table (keep your existing working version)
   const renderRawMaterialsTable = () => {
     const isMobile = window.innerWidth < 768;
-    
+
     if (!rawData?.["All Raw Materials"] || rawData["All Raw Materials"].length === 0) {
       return (
         <div className={styles.noDataMessage}>
@@ -1132,7 +1409,7 @@ case "pie":
         </div>
       );
     }
-    
+
     const rawItems = rawData["All Raw Materials"] || [];
     const rawTotals = rawItems.reduce((acc, item) => {
       const metrics = getRawItemMetrics(item);
@@ -1145,7 +1422,7 @@ case "pie":
       };
     }, { opening: 0, arrival: 0, used: 0, returned: 0, closing: 0 });
     rawTotals.total = rawTotals.opening + rawTotals.arrival;
-    
+
     if (isMobile) {
       return (
         <div className={styles.mobileTableContainer}>
@@ -1160,7 +1437,7 @@ case "pie":
               <MobileRow label="Closing" value={formatIndianNumber(getRawItemMetrics(item).closing)} highlight />
             </div>
           ))}
-          
+
           <div className={`${styles.mobileCard} ${styles.rawTotalCard}`}>
             <div className={styles.mobileCardBody}>
               <div className={styles.mobileCardFooterTitle}>Grand Total - Raw Materials</div>
@@ -1175,7 +1452,7 @@ case "pie":
         </div>
       );
     }
-    
+
     return (
       <div className={styles.tableWrapper}>
         <table className={styles.dataTable}>
@@ -1236,7 +1513,7 @@ case "pie":
 
     // const friedGram = data?.finished?.["FRIED GRAM"] || [];
     // const bengalGram = data?.finished?.["BENGAL GRAM"] || [];
-    
+
     if (friedGram.length === 0 && bengalGram.length === 0) {
       return (
         <div className={styles.noDataMessage}>
@@ -1245,10 +1522,10 @@ case "pie":
         </div>
       );
     }
-    
+
     const friedGramTotal = friedGram.reduce((sum, i) => sum + (i["purchased/transfer in"] || 0), 0);
     const bengalGramTotal = bengalGram.reduce((sum, i) => sum + (i["purchased/transfer in"] || 0), 0);
-    
+
     if (isMobile) {
       return (
         <div className={styles.mobileTableContainer}>
@@ -1270,7 +1547,7 @@ case "pie":
               </div>
             </div>
           )}
-          
+
           {bengalGram.length > 0 && (
             <div className={`${styles.mobileCard} ${isDarkMode ? styles.mobileCardDark : ''}`}>
               <div className={styles.mobileCardHeader}>
@@ -1289,7 +1566,7 @@ case "pie":
               </div>
             </div>
           )}
-          
+
           <div className={`${styles.mobileCard} ${styles.packingTotalCard}`}>
             <div className={styles.mobileCardBody}>
               <div className={styles.mobileCardFooterTitle}>Grand Total - Packing</div>
@@ -1301,7 +1578,7 @@ case "pie":
         </div>
       );
     }
-    
+
     return (
       <div className={styles.tableWrapper}>
         <table className={styles.dataTable}>
@@ -1363,6 +1640,8 @@ case "pie":
         "--production-finished-end": selectedAccent.secondary,
         "--production-raw-start": `color-mix(in srgb, ${selectedAccent.primary} 68%, #10b981)`,
         "--production-raw-end": `color-mix(in srgb, ${selectedAccent.secondary} 62%, #059669)`,
+        "--production-others-start": `color-mix(in srgb, ${selectedAccent.primary} 58%, #0ea5e9)`,
+        "--production-others-end": `color-mix(in srgb, ${selectedAccent.secondary} 56%, #0284c7)`,
         "--production-packing-start": `color-mix(in srgb, ${selectedAccent.primary} 60%, #8b5cf6)`,
         "--production-packing-end": `color-mix(in srgb, ${selectedAccent.secondary} 58%, #7c3aed)`,
         "--production-chart-start": `color-mix(in srgb, ${selectedAccent.primary} 52%, #f59e0b)`,
@@ -1406,7 +1685,7 @@ case "pie":
         )}
       </div>
 
-      <div 
+      <div
         ref={filterBarRef}
         className={`${styles.filterBar} ${isFilterSticky ? styles.filterBarSticky : ''} ${!mobileFiltersOpen ? styles.filterBarCollapsed : ''}`}
       >
@@ -1422,16 +1701,11 @@ case "pie":
             <label className={styles.filterLabel}>
               <i className="bi bi-tags"></i> Category Group
             </label>
-            <div className={styles.selectWrapper}>
-              <select 
-                className={styles.filterSelect}
-                value={catGroup}
-                onChange={(e) => setCatGroup(e.target.value)}
-              >
-                <option value="Fried Gram Mill">Fried Gram Mill</option>
-              </select>
-              <i className={`bi bi-chevron-down ${styles.selectIcon}`}></i>
-            </div>
+            <AppSelect
+              value={catGroup}
+              onChange={setCatGroup}
+              options={[{ value: "Fried Gram Mill", label: "Fried Gram Mill" }]}
+            />
           </motion.div>
 
           {/* Data View */}
@@ -1445,18 +1719,15 @@ case "pie":
             <label className={styles.filterLabel}>
               <i className="bi bi-layers"></i> Data View
             </label>
-            <div className={styles.selectWrapper}>
-              <select
-                className={styles.filterSelect}
-                value={dataView}
-                onChange={(e) => setDataView(e.target.value)}
-              >
-                <option value="produced">Produced Items</option>
-                <option value="unproduced">Unproduced Items</option>
-                <option value="all">All Items</option>
-              </select>
-              <i className={`bi bi-chevron-down ${styles.selectIcon}`}></i>
-            </div>
+            <AppSelect
+              value={dataView}
+              onChange={setDataView}
+              options={[
+                { value: "produced", label: "Produced Items" },
+                { value: "unproduced", label: "Unproduced Items" },
+                { value: "all", label: "All Items" },
+              ]}
+            />
           </motion.div>
           {/* From Date */}
           <motion.div
@@ -1469,18 +1740,11 @@ case "pie":
             <label className={styles.filterLabel}>
               <i className="bi bi-calendar3"></i> From Date
             </label>
-            <div className={styles.dateWrapper}>
-              <input 
-                type="date"
-                className={styles.filterInput}
-                value={fromDate.toISOString().slice(0, 10)}
-                onChange={(e) => handleDateChange(e.target.value, setFromDate)}
-                onKeyDown={(e) => e.preventDefault()}
-                onPaste={(e) => e.preventDefault()}
-                max={toDate.toISOString().slice(0, 10)}
-                inputMode="none"
-              />
-            </div>
+            <AppDatePicker
+              value={fromDate}
+              onChange={setFromDate}
+              max={toDate}
+            />
           </motion.div>
 
           {/* To Date */}
@@ -1494,18 +1758,11 @@ case "pie":
             <label className={styles.filterLabel}>
               <i className="bi bi-calendar3"></i> To Date
             </label>
-            <div className={styles.dateWrapper}>
-              <input 
-                type="date"
-                className={styles.filterInput}
-                value={toDate.toISOString().slice(0, 10)}
-                onChange={(e) => handleDateChange(e.target.value, setToDate)}
-                onKeyDown={(e) => e.preventDefault()}
-                onPaste={(e) => e.preventDefault()}
-                min={fromDate.toISOString().slice(0, 10)}
-                inputMode="none"
-              />
-            </div>
+            <AppDatePicker
+              value={toDate}
+              onChange={setToDate}
+              min={fromDate}
+            />
           </motion.div>
 
           {/* Generate Button */}
@@ -1515,7 +1772,7 @@ case "pie":
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.2 }}
           >
-            <motion.button 
+            <motion.button
               className={styles.generateBtn}
               onClick={fetchReport}
               disabled={loading}
@@ -1543,7 +1800,7 @@ case "pie":
         <>
           {/* 1. Finished Goods Report */}
           <div className={styles.reportCard}>
-            <div 
+            <div
               className={`${styles.reportCardHeader} ${styles.finishedHeader}`}
               onClick={() => setFinishedCollapsed(!finishedCollapsed)}
             >
@@ -1560,6 +1817,23 @@ case "pie":
             )}
           </div>
 
+          <div className={styles.reportCard}>
+            <div
+              className={`${styles.reportCardHeader} ${styles.othersHeader}`}
+              onClick={() => setOthersCollapsed(!othersCollapsed)}
+            >
+              <div className={styles.reportCardTitle}>
+                <i className="bi bi-boxes"></i>
+                <span>Others</span>
+              </div>
+              <i className={`bi ${othersCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+            </div>
+            {!othersCollapsed && (
+              <div className={styles.reportCardBody}>
+                {renderOthersTable()}
+              </div>
+            )}
+          </div>
 
           <div className={styles.totalCardWrapper}>
             <div className={styles.totalCard}>
@@ -1599,9 +1873,48 @@ case "pie":
               </div>
             </div>
           </div>
+
+          <div className={styles.totalCardWrapper}>
+            <div className={`${styles.totalCard} ${styles.othersSummaryCard}`}>
+              <div className={styles.totalCardContent}>
+                <div className={styles.totalCardHeader}>
+                  <div className={styles.totalCardLabel}>Others</div>
+                  <div className={styles.totalCardSubLabel}>{dataViewLabel}</div>
+                </div>
+                <div className={styles.totalCardItem}>
+                  <div className={styles.totalCardItemLabel}>Opening</div>
+                  <div className={styles.totalCardItemValue}>{formatIndianNumber(othersOpening)}</div>
+                </div>
+                <div className={styles.totalCardItem}>
+                  <div className={styles.totalCardItemLabel}>Production</div>
+                  <div className={styles.totalCardItemValue}>{formatIndianNumber(othersProduction)}</div>
+                </div>
+                <div className={styles.totalCardItem}>
+                  <div className={styles.totalCardItemLabel}>Total</div>
+                  <div className={styles.totalCardItemValue}>{formatIndianNumber(othersTotal)}</div>
+                </div>
+                <div className={styles.totalCardItem}>
+                  <div className={styles.totalCardItemLabel}>Dispatch</div>
+                  <div className={styles.totalCardItemValue}>{formatIndianNumber(othersDispatch)}</div>
+                </div>
+                <div className={styles.totalCardItem}>
+                  <div className={styles.totalCardItemLabel}>Returned</div>
+                  <div className={styles.totalCardItemValue}>{formatIndianNumber(othersReturned)}</div>
+                </div>
+                <div className={styles.totalCardItem}>
+                  <div className={styles.totalCardItemLabel}>Closing</div>
+                  <div className={styles.totalCardItemValue}>{formatIndianNumber(othersClosing)}</div>
+                </div>
+                <div className={styles.totalCardItem}>
+                  <div className={styles.totalCardItemLabel}>Prod %</div>
+                  <div className={styles.totalCardItemValue}>{formatPercentage(othersProdPercentage)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
           {/* 2. Raw Materials Usage */}
           <div className={styles.reportCard}>
-            <div 
+            <div
               className={`${styles.reportCardHeader} ${styles.rawHeader}`}
               onClick={() => setRawCollapsed(!rawCollapsed)}
             >
@@ -1620,7 +1933,7 @@ case "pie":
 
           {/* 3. Packing Report */}
           <div className={styles.reportCard}>
-            <div 
+            <div
               className={`${styles.reportCardHeader} ${styles.packingHeader}`}
               onClick={() => setPackingCollapsed(!packingCollapsed)}
             >
@@ -1637,12 +1950,12 @@ case "pie":
             )}
           </div>
 
-          
+
 
           {/* Chart Section */}
-          {data && brands.length > 0 && (
+          {data && (brands.length > 0 || othersBrands.length > 0) && (
             <div className={styles.reportCard}>
-              <div 
+              <div
                 className={`${styles.reportCardHeader} ${styles.chartHeader}`}
                 onClick={() => setChartCollapsed(!chartCollapsed)}
               >
@@ -1658,29 +1971,26 @@ case "pie":
                     {/* Category Select */}
                     <div className={styles.chartFilterItem}>
                       <label className={styles.filterLabel}>Stock Type</label>
-                      <select 
-                        className={styles.filterSelect}
+                      <AppSelect
                         value={selectedCategory}
-                        onChange={e => {
-                          setSelectedCategory(e.target.value);
-                          if (e.target.value === "packing") {
-                            setMetricType("opening");
-                          } else {
-                            setMetricType("opening");
-                          }
+                        onChange={(value) => {
+                          setSelectedCategory(value);
+                          setMetricType("opening");
                         }}
-                      >
-                        <option value="finished">Finished Goods</option>
-                        <option value="raw">Raw Materials</option>
-                        <option value="packing">Packing</option>
-                      </select>
+                        options={[
+                          { value: "finished", label: "Finished Goods" },
+                          { value: "others", label: "Others" },
+                          { value: "raw", label: "Raw Materials" },
+                          { value: "packing", label: "Packing" },
+                        ]}
+                      />
                     </div>
-                    
+
                     {/* Brand Select */}
                     {/* {selectedCategory === "finished" && (
                       <div className={styles.chartFilterItem}>
                         <label className={styles.filterLabel}>Item Category</label>
-                        <select 
+                        <select
                           className={styles.filterSelect}
                           value={selectedBrand}
                           onChange={e => setSelectedBrand(e.target.value)}
@@ -1697,51 +2007,49 @@ case "pie":
                     {selectedCategory !== "packing" && (
                       <div className={styles.chartFilterItem}>
                         <label className={styles.filterLabel}>Metric</label>
-                        <select 
-                          className={styles.filterSelect}
+                        <AppSelect
                           value={metricType}
-                          onChange={e => setMetricType(e.target.value)}
-                        >
-                          {selectedCategory === "finished" ? (
-                            <>
-                              <option value="opening">Opening</option>
-                              <option value="produced">Production</option>
-                              <option value="total">Total</option>
-                              <option value="dispatch">Dispatch</option>
-                              <option value="returned">Returned</option>
-                              <option value="closing">Closing</option>
-                            </>
-                          ) : (
-                            <>
-                              <option value="opening">Opening</option>
-                              <option value="arrival">Arrival</option>
-                              <option value="total">Total</option>
-                              <option value="used">Used</option>
-                              <option value="returned">Returned</option>
-                              <option value="closing">Closing</option>
-                            </>
-                          )}
-                        </select>
+                          onChange={setMetricType}
+                          options={
+                            selectedCategory !== "raw"
+                              ? [
+                                  { value: "opening", label: "Opening" },
+                                  { value: "produced", label: "Production" },
+                                  { value: "total", label: "Total" },
+                                  { value: "dispatch", label: "Dispatch" },
+                                  { value: "returned", label: "Returned" },
+                                  { value: "closing", label: "Closing" },
+                                ]
+                              : [
+                                  { value: "opening", label: "Opening" },
+                                  { value: "arrival", label: "Arrival" },
+                                  { value: "total", label: "Total" },
+                                  { value: "used", label: "Used" },
+                                  { value: "returned", label: "Returned" },
+                                  { value: "closing", label: "Closing" },
+                                ]
+                          }
+                        />
                       </div>
                     )}
-                    
+
                     {/* Chart Type Select */}
                     <div className={styles.chartFilterItem}>
                       <label className={styles.filterLabel}>Chart Type</label>
-                      <select 
-                        className={styles.filterSelect}
+                      <AppSelect
                         value={chartType}
-                        onChange={e => setChartType(e.target.value)}
-                      >
-                        <option value="bar">Bar Chart</option>
-                        <option value="line">Line Chart</option>
-                        <option value="pie">Pie Chart</option>
-                        <option value="area">Area Chart</option>
-                      </select>
+                        onChange={setChartType}
+                        options={[
+                          { value: "bar", label: "Bar Chart" },
+                          { value: "line", label: "Line Chart" },
+                          { value: "pie", label: "Pie Chart" },
+                          { value: "area", label: "Area Chart" },
+                        ]}
+                      />
                     </div>
                   </div>
 
-                  {selectedCategory === "finished" && brands.length > 0 && (
+                  {["finished", "others"].includes(selectedCategory) && chartCategoryBrands.length > 0 && (
                     <div className={styles.chartCategoryPicker}>
                       <div className={styles.chartCategoryPickerLabel}>Quick Item Category</div>
                       <div className={styles.chartCategoryChips}>
@@ -1752,7 +2060,7 @@ case "pie":
                         >
                           All
                         </button>
-                        {brands.map((brand) => (
+                        {chartCategoryBrands.map((brand) => (
                           <button
                             key={brand}
                             type="button"
@@ -1765,7 +2073,7 @@ case "pie":
                       </div>
                     </div>
                   )}
-                  
+
                   <div className={styles.chartContainer}>
                     {renderChart()}
                   </div>
@@ -1786,7 +2094,7 @@ case "pie":
             transition={{ duration: 0.3 }}
             className={styles.toastContainer}
           >
-            <div 
+            <div
               className={`${styles.toast} ${styles[`toast${toast.type.charAt(0).toUpperCase() + toast.type.slice(1)}`]}`}
               onClick={closeToast}
             >
