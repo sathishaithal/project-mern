@@ -118,6 +118,18 @@
   text-shadow: 0 10px 30px rgba(117, 49, 49, 0.2);
 }
 
+.bhagyaText {
+  font-size: clamp(1.6rem, 8vw, 5rem);
+  font-weight: 900;
+  line-height: 1.5;
+  color: #1e293b;
+  margin-bottom: 0.3rem;
+  min-height: 1.5em;
+  max-width: 100%;
+  overflow: visible;
+  padding-top: 0.1em;
+}
+
 .dashboardText {
   font-size: clamp(2.5rem, 5vw, 4.2rem);
   font-weight: 800;
@@ -455,6 +467,7 @@
   }
 
   .title,
+  .bhagyaText,
   .dashboardText,
   .subtitle {
     text-align: center;

@@ -71,6 +71,7 @@ const Production = () => {
   const [finishedCollapsed, setFinishedCollapsed] = useState(false);
   const [othersCollapsed, setOthersCollapsed] = useState(false);
   const [rawCollapsed, setRawCollapsed] = useState(false);
+  const [productionRatioCollapsed, setProductionRatioCollapsed] = useState(false);
   const [packingCollapsed, setPackingCollapsed] = useState(false);
   const [chartCollapsed, setChartCollapsed] = useState(false);
   const [collapsedCats, setCollapsedCats] = useState({});
@@ -1089,7 +1090,7 @@ case "pie":
                         <MobileRow label="Total" value={fmt(getFinishedItemMetrics(i).total)} />
                         <MobileRow label="Dispatch" value={fmt(getFinishedItemMetrics(i).dispatch)} />
                         <MobileRow label="Returned" value={fmt(getFinishedItemMetrics(i).returned)} />
-                        <MobileRow label="Closing" value={fmt(getFinishedItemMetrics(i).closing)} highlight />
+                        <MobileRow label="Closing" value={fmt(getFinishedItemMetrics(i).closing)} />
                         <MobileRow label="Prod %" value={formatPercentage(i.prod_percentage)} />
                       </div>
                     ))}
@@ -1103,7 +1104,7 @@ case "pie":
                   <MobileRow label="Total" value={fmt(sub.o + sub.p)} />
                   <MobileRow label="Dispatch" value={fmt(sub.d)} />
                   <MobileRow label="Returned" value={fmt(sub.r)} />
-                  <MobileRow label="Closing" value={fmt(sub.c)} highlight />
+                  <MobileRow label="Closing" value={fmt(sub.c)} />
                   <MobileRow label="Prod %" value={formatPercentage(pct)} />
                 </div>
               </div>
@@ -1118,7 +1119,7 @@ case "pie":
               <MobileRow label="Total" value={formatIndianNumber(grand.o + grand.p)} />
               <MobileRow label="Dispatch" value={formatIndianNumber(grand.d)} />
               <MobileRow label="Returned" value={formatIndianNumber(grand.r)} />
-              <MobileRow label="Closing" value={formatIndianNumber(grand.c)} highlight />
+              <MobileRow label="Closing" value={formatIndianNumber(grand.c)} />
               <MobileRow label="Prod %" value={formatPercentage(fgProdPercentage)} />
             </div>
           </div>
@@ -1267,7 +1268,7 @@ case "pie":
                         <MobileRow label="Total" value={formatIndianNumber(getFinishedItemMetrics(i).total)} />
                         <MobileRow label="Dispatch" value={formatIndianNumber(getFinishedItemMetrics(i).dispatch)} />
                         <MobileRow label="Returned" value={formatIndianNumber(getFinishedItemMetrics(i).returned)} />
-                        <MobileRow label="Closing" value={formatIndianNumber(getFinishedItemMetrics(i).closing)} highlight />
+                        <MobileRow label="Closing" value={formatIndianNumber(getFinishedItemMetrics(i).closing)} />
                         <MobileRow label="Prod %" value={formatPercentage(i.prod_percentage)} />
                       </div>
                     ))}
@@ -1281,7 +1282,7 @@ case "pie":
                   <MobileRow label="Total" value={formatIndianNumber(sub.o + sub.p)} />
                   <MobileRow label="Dispatch" value={formatIndianNumber(sub.d)} />
                   <MobileRow label="Returned" value={formatIndianNumber(sub.r)} />
-                  <MobileRow label="Closing" value={formatIndianNumber(sub.c)} highlight />
+                  <MobileRow label="Closing" value={formatIndianNumber(sub.c)} />
                   <MobileRow label="Prod %" value={formatPercentage(pct)} />
                 </div>
               </div>
@@ -1290,13 +1291,13 @@ case "pie":
 
           <div className={`${styles.mobileCard} ${styles.othersTotalCard}`}>
             <div className={styles.mobileCardBody}>
-              <div className={styles.mobileCardFooterTitle}>Grand Total - Others</div>
+              <div className={styles.mobileCardFooterTitle}>Grand Total - By Products and Packing Section Material</div>
               <MobileRow label="Opening" value={formatIndianNumber(grand.o)} />
               <MobileRow label="Production" value={formatIndianNumber(grand.p)} />
               <MobileRow label="Total" value={formatIndianNumber(grand.o + grand.p)} />
               <MobileRow label="Dispatch" value={formatIndianNumber(grand.d)} />
               <MobileRow label="Returned" value={formatIndianNumber(grand.r)} />
-              <MobileRow label="Closing" value={formatIndianNumber(grand.c)} highlight />
+              <MobileRow label="Closing" value={formatIndianNumber(grand.c)} />
               <MobileRow label="Prod %" value={formatPercentage(othersProdPercentage)} />
             </div>
           </div>
@@ -1310,7 +1311,7 @@ case "pie":
           <thead>
             <tr>
               <th className={styles.tableCellArrow}></th>
-              <th className={styles.tableCellDescription}>Others</th>
+              <th className={styles.tableCellDescription}>By Products and Packing Section Material</th>
               <th className={styles.tableCellNumber}>Opening</th>
               <th className={styles.tableCellNumber}>Production</th>
               <th className={styles.tableCellNumber}>Total</th>
@@ -1382,7 +1383,7 @@ case "pie":
             })}
 
             <tr className={styles.tableGrandTotalOthers}>
-              <td colSpan="2" className={styles.tableCellDescription}>Grand Total - Others</td>
+              <td colSpan="2" className={styles.tableCellDescription}>Grand Total - By Products and Packing Section Material</td>
               <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.opening)}</td>
               <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.production)}</td>
               <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.total)}</td>
@@ -1434,7 +1435,7 @@ case "pie":
               <MobileRow label="Total" value={formatIndianNumber(getRawItemMetrics(item).total)} />
               <MobileRow label="Used" value={formatIndianNumber(getRawItemMetrics(item).used)} />
               <MobileRow label="Returned" value={formatIndianNumber(getRawItemMetrics(item).returned)} />
-              <MobileRow label="Closing" value={formatIndianNumber(getRawItemMetrics(item).closing)} highlight />
+              <MobileRow label="Closing" value={formatIndianNumber(getRawItemMetrics(item).closing)} />
             </div>
           ))}
 
@@ -1491,6 +1492,107 @@ case "pie":
               <td className={styles.tableCellNumber}>{formatIndianNumber(rawTotals.closing)}</td>
             </tr>
           </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderProductionRatioTable = () => {
+    const rawItems = rawData?.["All Raw Materials"] || [];
+    const gram100KGItem = rawItems.find(
+      (item) => item.description?.toUpperCase().trim() === "GRAM 100 KG"
+    );
+    const gram100KGUsed = gram100KGItem ? getRawItemMetrics(gram100KGItem).used : 0;
+
+    const gramBrokenItem = othersBrands
+      .flatMap((cat) => finishedOthersData[cat] || [])
+      .find((item) => item.description?.toUpperCase().includes("GRAM BROKEN"));
+    const gramBrokenQty = gramBrokenItem ? getFinishedItemMetrics(gramBrokenItem).production : null;
+
+    const calcPct = (qty) =>
+      gram100KGUsed > 0 ? ((qty / gram100KGUsed) * 100).toFixed(2) + "%" : "-";
+
+    const makeTooltip = (label, qty) =>
+      gram100KGUsed > 0
+        ? `${label} (${formatIndianNumber(qty)}) / GRAM 100 KG Raw Materials Usage (${formatIndianNumber(gram100KGUsed)}) × 100 = ${calcPct(qty)}`
+        : "GRAM 100 KG usage not available";
+
+    const rows = [
+      {
+        name: "Finished Goods",
+        qty: fgProduction,
+        hasData: true,
+        qtyLabel: "Finished Goods Total Production",
+        pctTooltip: makeTooltip("Finished Goods Qty in KG", fgProduction),
+      },
+      {
+        name: "Gram Husk Packing 18KG",
+        qty: null,
+        hasData: false,
+      },
+      {
+        name: "Fried Gram Chikal",
+        qty: null,
+        hasData: false,
+      },
+      {
+        name: "Fried Gram Broken",
+        qty: gramBrokenQty,
+        hasData: gramBrokenQty !== null,
+        qtyLabel: "Fried Gram Broken Total Production",
+        pctTooltip: gramBrokenQty !== null
+          ? makeTooltip("Fried Gram Broken Qty in KG", gramBrokenQty)
+          : "",
+      },
+      {
+        name: "Fried Gram Powder",
+        qty: null,
+        hasData: false,
+      },
+    ];
+
+    const totalQty = rows.reduce((sum, row) => sum + (row.hasData ? (row.qty || 0) : 0), 0);
+    const totalPct = gram100KGUsed > 0 ? ((totalQty / gram100KGUsed) * 100).toFixed(2) + "%" : "-";
+
+    return (
+      <div className={styles.tableWrapper}>
+        <table className={styles.dataTable}>
+          <thead>
+            <tr>
+              <th className={styles.tableCellDescription} style={{ width: "60%" }}>Item</th>
+              <th className={styles.tableCellNumber}>Qty in KG</th>
+              <th className={styles.tableCellNumber}>Production %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr
+                key={i}
+                className={`${styles.tableSubRow} ${i % 2 === 0 ? styles.tableSubRowEven : styles.tableSubRowOdd}`}
+              >
+                <td className={`${styles.tableCellDescription} ${styles.tableCellBold}`}>{row.name}</td>
+                <td
+                  className={styles.tableCellNumber}
+                  title={row.hasData ? row.qtyLabel : ""}
+                >
+                  {row.hasData ? formatIndianNumber(row.qty) : "-"}
+                </td>
+                <td
+                  className={styles.tableCellNumber}
+                  title={row.hasData ? row.pctTooltip : ""}
+                >
+                  {row.hasData ? calcPct(row.qty) : "-"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className={styles.tableGrandTotal}>
+              <td className={styles.tableCellDescription}>Total</td>
+              <td className={styles.tableCellNumber}>{formatIndianNumber(totalQty)}</td>
+              <td className={styles.tableCellNumber}>{totalPct}</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     );
@@ -1638,14 +1740,21 @@ case "pie":
         "--production-accent-glow": selectedAccent.glow,
         "--production-finished-start": selectedAccent.primary,
         "--production-finished-end": selectedAccent.secondary,
-        "--production-raw-start": `color-mix(in srgb, ${selectedAccent.primary} 68%, #10b981)`,
-        "--production-raw-end": `color-mix(in srgb, ${selectedAccent.secondary} 62%, #059669)`,
-        "--production-others-start": `color-mix(in srgb, ${selectedAccent.primary} 58%, #0ea5e9)`,
-        "--production-others-end": `color-mix(in srgb, ${selectedAccent.secondary} 56%, #0284c7)`,
-        "--production-packing-start": `color-mix(in srgb, ${selectedAccent.primary} 60%, #8b5cf6)`,
-        "--production-packing-end": `color-mix(in srgb, ${selectedAccent.secondary} 58%, #7c3aed)`,
-        "--production-chart-start": `color-mix(in srgb, ${selectedAccent.primary} 52%, #f59e0b)`,
-        "--production-chart-end": `color-mix(in srgb, ${selectedAccent.secondary} 50%, #d97706)`,
+        // dark navy base — accent stays dominant, muted/grounded shade
+        "--production-others-start": `color-mix(in srgb, ${selectedAccent.primary} 80%, #1e293b)`,
+        "--production-others-end": `color-mix(in srgb, ${selectedAccent.secondary} 75%, #0f172a)`,
+        // dark forest base — accent dominant, subtly cooler/deeper
+        "--production-raw-start": `color-mix(in srgb, ${selectedAccent.primary} 76%, #14532d)`,
+        "--production-raw-end": `color-mix(in srgb, ${selectedAccent.secondary} 71%, #052e16)`,
+        // dark violet base — accent dominant, subtly deeper cool
+        "--production-packing-start": `color-mix(in srgb, ${selectedAccent.primary} 78%, #3b0764)`,
+        "--production-packing-end": `color-mix(in srgb, ${selectedAccent.secondary} 73%, #2e1065)`,
+        // dark warm-brown base — accent dominant, subtly warmer
+        "--production-chart-start": `color-mix(in srgb, ${selectedAccent.primary} 74%, #431407)`,
+        "--production-chart-end": `color-mix(in srgb, ${selectedAccent.secondary} 69%, #3c0f05)`,
+        // dark neutral-warm base — distinct from chart, still accent-dominant
+        "--production-ratio-start": `color-mix(in srgb, ${selectedAccent.primary} 79%, #292524)`,
+        "--production-ratio-end": `color-mix(in srgb, ${selectedAccent.secondary} 74%, #1c1917)`,
         "--production-display-font": selectedFont.display,
         "--production-body-font": selectedFont.body,
       }}
@@ -1824,7 +1933,7 @@ case "pie":
             >
               <div className={styles.reportCardTitle}>
                 <i className="bi bi-boxes"></i>
-                <span>Others</span>
+                <span>By Products and Packing Section Material</span>
               </div>
               <i className={`bi ${othersCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
             </div>
@@ -1839,76 +1948,45 @@ case "pie":
             <div className={styles.totalCard}>
               <div className={styles.totalCardContent}>
                 <div className={styles.totalCardHeader}>
-                  <div className={styles.totalCardLabel}>Finished Goods - Fried Gram</div>
+                  <div className={styles.totalCardLabel}>Grand Total</div>
                   <div className={styles.totalCardSubLabel}>{dataViewLabel}</div>
+                  <div style={{
+                    fontSize: "0.72rem",
+                    color: "rgba(255,255,255,0.75)",
+                    marginTop: "6px",
+                    lineHeight: 1.4,
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "5px",
+                  }}>
+                    <i className="bi bi-info-circle" style={{ marginTop: "1px", flexShrink: 0 }}></i>
+                    <span>Finished Goods + By Products and Packing Section Material</span>
+                  </div>
                 </div>
-                <div className={styles.totalCardItem}>
-                  <div className={styles.totalCardItemLabel}>Opening</div>
-                  <div className={styles.totalCardItemValue}>{formatIndianNumber(fgOpening)}</div>
-                </div>
-                <div className={styles.totalCardItem}>
-                  <div className={styles.totalCardItemLabel}>Production</div>
-                  <div className={styles.totalCardItemValue}>{formatIndianNumber(fgProduction)}</div>
-                </div>
-                <div className={styles.totalCardItem}>
-                  <div className={styles.totalCardItemLabel}>Total</div>
-                  <div className={styles.totalCardItemValue}>{formatIndianNumber(fgTotal)}</div>
-                </div>
-                <div className={styles.totalCardItem}>
-                  <div className={styles.totalCardItemLabel}>Dispatch</div>
-                  <div className={styles.totalCardItemValue}>{formatIndianNumber(fgDispatch)}</div>
-                </div>
-                <div className={styles.totalCardItem}>
-                  <div className={styles.totalCardItemLabel}>Returned</div>
-                  <div className={styles.totalCardItemValue}>{formatIndianNumber(fgReturned)}</div>
-                </div>
-                <div className={styles.totalCardItem}>
-                  <div className={styles.totalCardItemLabel}>Closing</div>
-                  <div className={styles.totalCardItemValue}>{formatIndianNumber(fgClosing)}</div>
-                </div>
-                <div className={styles.totalCardItem}>
-                  <div className={styles.totalCardItemLabel}>Prod %</div>
-                  <div className={styles.totalCardItemValue}>{formatPercentage(fgProdPercentage)}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className={styles.totalCardWrapper}>
-            <div className={`${styles.totalCard} ${styles.othersSummaryCard}`}>
-              <div className={styles.totalCardContent}>
-                <div className={styles.totalCardHeader}>
-                  <div className={styles.totalCardLabel}>Others</div>
-                  <div className={styles.totalCardSubLabel}>{dataViewLabel}</div>
-                </div>
-                <div className={styles.totalCardItem}>
-                  <div className={styles.totalCardItemLabel}>Opening</div>
-                  <div className={styles.totalCardItemValue}>{formatIndianNumber(othersOpening)}</div>
-                </div>
-                <div className={styles.totalCardItem}>
-                  <div className={styles.totalCardItemLabel}>Production</div>
-                  <div className={styles.totalCardItemValue}>{formatIndianNumber(othersProduction)}</div>
-                </div>
-                <div className={styles.totalCardItem}>
-                  <div className={styles.totalCardItemLabel}>Total</div>
-                  <div className={styles.totalCardItemValue}>{formatIndianNumber(othersTotal)}</div>
-                </div>
-                <div className={styles.totalCardItem}>
-                  <div className={styles.totalCardItemLabel}>Dispatch</div>
-                  <div className={styles.totalCardItemValue}>{formatIndianNumber(othersDispatch)}</div>
-                </div>
-                <div className={styles.totalCardItem}>
-                  <div className={styles.totalCardItemLabel}>Returned</div>
-                  <div className={styles.totalCardItemValue}>{formatIndianNumber(othersReturned)}</div>
-                </div>
-                <div className={styles.totalCardItem}>
-                  <div className={styles.totalCardItemLabel}>Closing</div>
-                  <div className={styles.totalCardItemValue}>{formatIndianNumber(othersClosing)}</div>
-                </div>
-                <div className={styles.totalCardItem}>
-                  <div className={styles.totalCardItemLabel}>Prod %</div>
-                  <div className={styles.totalCardItemValue}>{formatPercentage(othersProdPercentage)}</div>
-                </div>
+                {[
+                  { label: "Opening",    value: fgOpening + othersOpening },
+                  { label: "Production", value: fgProduction + othersProduction },
+                  { label: "Total",      value: fgTotal + othersTotal },
+                  { label: "Dispatch",   value: fgDispatch + othersDispatch },
+                  { label: "Returned",   value: fgReturned + othersReturned },
+                  { label: "Closing",    value: fgClosing + othersClosing },
+                ].map((item, i) => (
+                  <motion.div
+                    key={item.label}
+                    className={styles.totalCardItem}
+                    initial={{ rotateX: 90, opacity: 0 }}
+                    animate={{ rotateX: 0, opacity: 1 }}
+                    transition={{
+                      duration: 0.5,
+                      delay: 0.15 + i * 0.1,
+                      ease: [0.22, 0.61, 0.36, 1],
+                    }}
+                    style={{ transformOrigin: "top center", transformStyle: "preserve-3d" }}
+                  >
+                    <div className={styles.totalCardItemLabel}>{item.label}</div>
+                    <div className={styles.totalCardItemValue}>{formatIndianNumber(item.value)}</div>
+                  </motion.div>
+                ))}
               </div>
             </div>
           </div>
@@ -1931,7 +2009,26 @@ case "pie":
             )}
           </div>
 
-          {/* 3. Packing Report */}
+          {/* 3. Production Ratio */}
+          <div className={styles.reportCard}>
+            <div
+              className={`${styles.reportCardHeader} ${styles.productionRatioHeader}`}
+              onClick={() => setProductionRatioCollapsed(!productionRatioCollapsed)}
+            >
+              <div className={styles.reportCardTitle}>
+                <i className="bi bi-bar-chart-steps"></i>
+                <span>Production Ratio</span>
+              </div>
+              <i className={`bi ${productionRatioCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+            </div>
+            {!productionRatioCollapsed && (
+              <div className={styles.reportCardBody}>
+                {renderProductionRatioTable()}
+              </div>
+            )}
+          </div>
+
+          {/* 4. Packing Report */}
           <div className={styles.reportCard}>
             <div
               className={`${styles.reportCardHeader} ${styles.packingHeader}`}
@@ -1979,7 +2076,7 @@ case "pie":
                         }}
                         options={[
                           { value: "finished", label: "Finished Goods" },
-                          { value: "others", label: "Others" },
+                          { value: "others", label: "By Products and Packing Section Material" },
                           { value: "raw", label: "Raw Materials" },
                           { value: "packing", label: "Packing" },
                         ]}

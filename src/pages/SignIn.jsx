@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useColorMode } from "../theme/ThemeContext";
 import axios from "axios";
 import bhagyaLogo from "../assets/bhagya.png";
 import styles from "./SignIn.module.css";
@@ -23,6 +24,12 @@ const SignIn = () => {
     textSecondary: "#475569",
   };
 
+  const { setMode } = useColorMode();
+
+  useEffect(() => {
+    setMode("light");
+  }, []);
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -35,6 +42,17 @@ const SignIn = () => {
   const [clickBursts, setClickBursts] = useState([]);
   const [activeFeature, setActiveFeature] = useState(0);
   const [formFocus, setFormFocus] = useState(null);
+  const [langIndex, setLangIndex] = useState(0);
+
+  const bhagyaNames = [
+    "Bhagyalakshmi",
+    "ಭಾಗ್ಯಲಕ್ಷ್ಮಿ",
+    "భాగ్యలక్ష్మి",
+    "பாக்யலக்ஷ்மி",
+    "भाग्यलक्ष्मी",
+    "ഭാഗ്യലക്ഷ്മി",
+  ];
+
   const backgroundRef = useRef(null);
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -76,6 +94,13 @@ const SignIn = () => {
     const interval = setInterval(() => {
       setActiveFeature((prev) => (prev + 1) % 6);
     }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLangIndex((prev) => (prev + 1) % bhagyaNames.length);
+    }, 3500);
     return () => clearInterval(interval);
   }, []);
 
@@ -321,26 +346,6 @@ const SignIn = () => {
     { icon: "bi bi-stars", label: "Smooth Motion", tone: "#8b5cf6" },
   ];
 
-  const AnimatedDashboard = () => (
-    <div className={styles.dashboardText}>
-      {"Groups".split("").map((char, i) => (
-        <motion.span
-          key={i}
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.2,
-            delay: 0.4 + i * 0.06,
-            ease: [0.22, 0.61, 0.36, 1],
-          }}
-          whileHover={{ scale: 1.1, y: -5 }}
-          style={{ display: "inline-block", cursor: "default" }}
-        >
-          {char === " " ? "\u00A0" : char}
-        </motion.span>
-      ))}
-    </div>
-  );
 
   return (
     <>
@@ -536,18 +541,33 @@ const SignIn = () => {
                 />
 
                 <div style={{ position: "relative", zIndex: 2, marginBottom: "2rem" }}>
+                  {/* Line 1: Sri - static blue gradient */}
                   <motion.div
                     initial={{ opacity: 0, y: 60 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.9, ease: "easeOut" }}
-                    whileHover={{ scale: 1.02 }}
                   >
-                    <h1 className={styles.title}>
-                      Sri Bhagyalakshmi
-                    </h1>
+                    <h1 className={styles.title}>Sri</h1>
                   </motion.div>
 
-                  <AnimatedDashboard />
+                  {/* Line 2: Bhagyalakshmi cycling in black */}
+                  <div className={styles.bhagyaText}>
+                    <AnimatePresence mode="wait">
+                      <motion.span
+                        key={langIndex}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.45, ease: "easeInOut" }}
+                        style={{ display: "block" }}
+                      >
+                        {bhagyaNames[langIndex]}
+                      </motion.span>
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Line 3: Groups - static, same blue gradient as Sri */}
+                  <div className={styles.title}>Groups</div>
 
                   <motion.div
                     initial={{ width: 0 }}
