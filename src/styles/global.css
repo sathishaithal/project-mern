@@ -366,3 +366,66 @@ body {
   transform: translateY(-4px);
   box-shadow: var(--shadow-xl);
 }
+
+/* ── Sales Dashboard: Fullscreen mode ────────────────────────────────────── */
+body.is-fullscreen .fullscreen-content {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #f8fafc;
+  z-index: 1000;
+  overflow-y: auto;
+  padding: 1.25rem;
+}
+
+/* ── Sales Dashboard: Card entrance animation ────────────────────────────── */
+@keyframes cardEntrance {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.hover-lift {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+}
+
+/* ── Sales Dashboard: Chart section reveal animation ─────────────────────── */
+@keyframes sectionReveal {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-section {
+  animation: sectionReveal 0.35s ease-out both;
+}
+
+/* ── Sales Dashboard: Zoom modal fade ────────────────────────────────────── */
+@keyframes modalFade {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.modal-fade-in {
+  animation: modalFade 0.22s ease-out both;
+}
+
+/* ── Sales Dashboard: Responsive chart rows ──────────────────────────────── */
+.charts-section-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.charts-section-row > * {
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .charts-section-row {
+    flex-direction: column;
+  }
+}

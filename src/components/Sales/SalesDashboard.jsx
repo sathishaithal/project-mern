@@ -1,0 +1,162 @@
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { useColorMode } from '../../theme/ThemeContext';
+import SalesReportPage from './SalesReportPage';
+import DayWisePage from './DayWisePage';
+import ShortSupplyPage from './ShortSupplyPage';
+import ChartsPage from './ChartsPage';
+import SummaryCards from './SummaryCards';
+
+const REPORT_TABS = [
+  { id: 'monthwise',   label: 'Month Wise' },
+  { id: 'daywise',     label: 'Day Wise' },
+  { id: 'shortsupply', label: 'SHORT SUPPLY' },
+];
+
+const TOP_TABS = [
+  { id: 'reports', label: 'Reports' },
+  { id: 'charts',  label: 'Charts' },
+];
+
+export default function SalesDashboard() {
+  const [topTab,       setTopTab]       = useState('reports');
+  const [reportTab,    setReportTab]    = useState('monthwise');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const { isDarkMode, selectedAccent, selectedFont } = useColorMode();
+
+  const accent      = selectedAccent?.primary   || '#1a237e';
+  const accent2     = selectedAccent?.secondary || '#283593';
+  const tabBg       = isDarkMode ? '#1e293b' : 'white';
+  const tabBorder   = isDarkMode ? '#334155' : 'rgba(148,163,184,0.18)';
+  const inactiveClr = isDarkMode ? '#94a3b8' : '#475569';
+  const fontFamily  = selectedFont?.body || "'Manrope', sans-serif";
+
+  const toggleFullscreen = () => setIsFullscreen(p => !p);
+
+  useEffect(() => {
+    if (isFullscreen) document.body.classList.add('sales-report-fullscreen');
+    else              document.body.classList.remove('sales-report-fullscreen');
+    return () => document.body.classList.remove('sales-report-fullscreen');
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape' && isFullscreen) setIsFullscreen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isFullscreen]);
+
+  const activeTopBtn = (active) => ({
+    background: active ? `linear-gradient(135deg, ${accent}, ${accent2})` : 'none',
+    border: 'none', borderRadius: 7, cursor: 'pointer',
+    padding: '0.45rem 1.4rem', fontSize: '0.85rem',
+    fontWeight: active ? 700 : 500,
+    color: active ? 'white' : inactiveClr,
+    fontFamily, transition: 'all 0.18s', whiteSpace: 'nowrap',
+  });
+
+  const activeSubBtn = (active) => ({
+    background: active ? `linear-gradient(135deg, ${accent}, ${accent2})` : 'none',
+    border: 'none', borderRadius: 7, cursor: 'pointer',
+    padding: '0.45rem 1.2rem', fontSize: '0.82rem',
+    fontWeight: active ? 700 : 500,
+    color: active ? 'white' : inactiveClr,
+    fontFamily, transition: 'all 0.18s', whiteSpace: 'nowrap',
+  });
+
+  return (
+    <div style={{ width: '100%', fontFamily }}>
+
+      {/* ── Top tab bar + Full Screen button (hidden in fullscreen) ── */}
+      {!isFullscreen && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.32 }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}
+        >
+          <div style={{
+            display: 'flex', gap: 0,
+            background: tabBg, borderRadius: 10, padding: '4px',
+            boxShadow: '0 2px 8px rgba(37,99,235,0.07)', border: `1px solid ${tabBorder}`,
+          }}>
+            {TOP_TABS.map(t => (
+              <button key={t.id} onClick={() => setTopTab(t.id)} style={activeTopBtn(topTab === t.id)}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={toggleFullscreen}
+            title="Full Screen"
+            style={{
+              background: tabBg, border: `1px solid ${accent}`, color: accent,
+              borderRadius: 8, padding: '0.38rem 0.85rem', fontSize: '0.78rem',
+              fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center',
+              gap: 6, fontFamily, transition: 'all 0.2s',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+            }}
+          >
+            <i className="bi bi-arrows-fullscreen" style={{ fontSize: '0.82rem' }} />
+            Full Screen
+          </button>
+        </motion.div>
+      )}
+
+      {/* ── Floating Exit Full Screen button ── */}
+      {isFullscreen && (
+        <div style={{ position: 'fixed', top: 14, right: 20, zIndex: 9999 }}>
+          <button
+            onClick={toggleFullscreen}
+            style={{
+              background: accent, border: 'none', color: 'white',
+              borderRadius: 8, padding: '0.42rem 1rem', fontSize: '0.78rem',
+              fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center',
+              gap: 6, boxShadow: '0 4px 18px rgba(0,0,0,0.28)', fontFamily,
+            }}
+          >
+            <i className="bi bi-fullscreen-exit" style={{ fontSize: '0.82rem' }} />
+            Close Full Screen
+          </button>
+        </div>
+      )}
+
+      {/* ── REPORTS tab ─────────────────────────────────────────────────── */}
+      {topTab === 'reports' && (
+        <>
+          {/* Summary cards — hide in fullscreen */}
+          {!isFullscreen && <SummaryCards />}
+
+          {/* Report sub-tab pills — hide in fullscreen */}
+          {!isFullscreen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.28, delay: 0.08 }}
+              style={{
+                display: 'flex', gap: 0,
+                background: tabBg, borderRadius: 10, padding: '4px',
+                boxShadow: '0 2px 8px rgba(37,99,235,0.07)', border: `1px solid ${tabBorder}`,
+                marginBottom: '1.25rem', width: 'fit-content',
+              }}
+            >
+              {REPORT_TABS.map(t => (
+                <button key={t.id} onClick={() => setReportTab(t.id)} style={activeSubBtn(reportTab === t.id)}>
+                  {t.label}
+                </button>
+              ))}
+            </motion.div>
+          )}
+
+          {reportTab === 'monthwise'   && <SalesReportPage />}
+          {reportTab === 'daywise'     && <DayWisePage />}
+          {reportTab === 'shortsupply' && <ShortSupplyPage />}
+        </>
+      )}
+
+      {/* ── CHARTS tab ──────────────────────────────────────────────────── */}
+      {topTab === 'charts' && <ChartsPage />}
+    </div>
+  );
+}

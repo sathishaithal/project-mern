@@ -484,6 +484,19 @@
   padding: 0;
 }
 
+:global(body.sales-report-fullscreen) .mainContent {
+  margin-left: 0;
+}
+
+:global(body.sales-report-fullscreen) .header,
+:global(body.sales-report-fullscreen) .pageTitle {
+  display: none;
+}
+
+:global(body.sales-report-fullscreen) .pageContent {
+  padding: 0;
+}
+
 /* Animations */
 @keyframes dropdownFade {
   from {
