@@ -1,5 +1,5 @@
 import React from 'react';
-import SalesDashboard from '../../components/Sales/SalesDashboard';
+import SalesDashboard from './SalesDashboard';
 
 const Sales = () => <SalesDashboard />;
 

@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import FilterBar from './filters/FilterBar';
-import { useSalesFilterStore } from '../../store/salesFilterStore';
-import { getDaywiseSalesReport, getLastUpdatedDates } from '../../services/salesDashboardApi';
-import { fmtAmt, fmtDate } from '../../utils/salesFormatters';
-import { useAuth } from '../../context/AuthContext';
-import { useColorMode } from '../../theme/ThemeContext';
+import { useSalesFilterStore } from '../../../store/salesFilterStore';
+import { getDaywiseSalesReport, getLastUpdatedDates } from '../../../services/salesDashboardApi';
+import { fmtAmt, fmtDate } from '../../../utils/salesFormatters';
+import { useAuth } from '../../../context/AuthContext';
+import { useColorMode } from '../../../theme/ThemeContext';
 
 const daysInMonth = (year, month) => new Date(year, month, 0).getDate();
 
@@ -18,9 +18,6 @@ const sumTonnage = (row, days) => {
 const priceKey = (row, d) =>
   (row.disttype === 'Distribution' || row.type === 'Distribution')
     ? `cobiprice${d}` : `basicprice${d}`;
-
-const toDateStr = (year, month, day) =>
-  `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
 export default function DayWisePage() {
   const { user } = useAuth();
@@ -59,14 +56,12 @@ export default function DayWisePage() {
     setExpanded({});
     setThirdLevel({});
 
-    const fromdate = toDateStr(daywiseyear, daywisemonth, 1);
-    const todate   = toDateStr(daywiseyear, daywisemonth, days);
-
     try {
       const [data, dates] = await Promise.all([
         getDaywiseSalesReport({
           employeename, company: daywisecompany,
-          disttype: daywisedisttype, fromdate, todate,
+          disttype: daywisedisttype,
+          year: daywiseyear, month: daywisemonth,
         }),
         getLastUpdatedDates(employeename),
       ]);
@@ -77,7 +72,7 @@ export default function DayWisePage() {
     } finally {
       setLoading(false);
     }
-  }, [daywiseyear, daywisemonth, daywisecompany, daywisedisttype, employeename, days]);
+  }, [daywiseyear, daywisemonth, daywisecompany, daywisedisttype, employeename]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

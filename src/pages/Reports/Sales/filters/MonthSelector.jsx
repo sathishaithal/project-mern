@@ -1,7 +1,7 @@
 import React from 'react';
 import Select from 'react-select';
-import { useSalesFilterStore, MONTH_OPTIONS } from '../../../store/salesFilterStore';
-import { useColorMode } from '../../../theme/ThemeContext';
+import { useSalesFilterStore, MONTH_OPTIONS } from '../../../../store/salesFilterStore';
+import { useColorMode } from '../../../../theme/ThemeContext';
 
 const MonthSelector = () => {
   const { daywisemonth, setDaywiseMonth } = useSalesFilterStore();

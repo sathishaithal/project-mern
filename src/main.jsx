@@ -12,7 +12,7 @@ import Dashboard from "./pages/Dashboard";
 // ---------------- REPORTS ----------------
 import Reports from "./pages/Reports/Reports";
 import Production from "./pages/Reports/Production";
-import Sales from "./pages/Reports/Sales";
+import Sales from "./pages/Reports/Sales/Sales";
 import Inventory from "./pages/Reports/Inventory";
 
 // ---------------- MANAGEMENT ----------------

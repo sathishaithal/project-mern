@@ -1,0 +1,141 @@
+/* ═══════════════════════════════════════════════════════════
+   SalesReport.css
+   Layout & responsive rules for Sales Dashboard components.
+   Dynamic colours / fonts stay in inline styles.
+═══════════════════════════════════════════════════════════ */
+
+/* ── Loading spinner ──────────────────────────────────────── */
+@keyframes srSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.sr-spin {
+  animation: srSpin 0.9s linear infinite;
+  display: inline-block;
+}
+
+/* ── SalesReportPage outer wrapper ───────────────────────── */
+.sr-page {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* ── Sub-tabs (YoY Summary / Distributors / …) ───────────── */
+.sr-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.sr-tabs::-webkit-scrollbar { display: none; }
+.sr-tabs > button {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 0.5rem 1rem;
+  font-size: 0.82rem;
+}
+
+/* ── Table scroll wrapper ─────────────────────────────────── */
+.sr-table-wrap {
+  overflow-x: auto;
+  overflow-y: auto;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Data table ───────────────────────────────────────────── */
+.sr-table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: max-content;
+  font-size: 0.78rem;
+}
+
+/* ── SalesDashboard outer wrapper ────────────────────────── */
+.dash-outer {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* ── Report sub-tab pills (Month Wise / Day Wise / SHORT SUPPLY) */
+.dash-report-tabs {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.dash-report-tabs::-webkit-scrollbar { display: none; }
+.dash-report-tabs > button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* SummaryCards uses inline auto-fit grid — no CSS class needed */
+
+/* ── FilterBar inner layout ───────────────────────────────── */
+.fb-inner {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.fb-group {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.fb-actions {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
+}
+
+/* ── Responsive ≤ 768px ───────────────────────────────────── */
+@media (max-width: 768px) {
+  .sr-tabs > button {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.7rem;
+  }
+  .sr-table {
+    font-size: 0.72rem;
+  }
+  .fb-inner {
+    gap: 0.5rem;
+  }
+  .fb-group {
+    width: 100%;
+    gap: 0.5rem;
+  }
+  .fb-group > * {
+    flex: 1 1 calc(50% - 0.25rem);
+    max-width: 100%;
+    min-width: 0;
+  }
+  .fb-actions {
+    margin-left: 0;
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+/* ── Responsive ≤ 480px ───────────────────────────────────── */
+@media (max-width: 480px) {
+  .fb-group > * {
+    flex: 1 1 100%;
+  }
+}

@@ -1,9 +1,10 @@
 import React from 'react';
-import { useColorMode } from '../../../theme/ThemeContext';
+import { useColorMode } from '../../../../theme/ThemeContext';
 import YearSelector from './YearSelector';
 import CompanySelector from './CompanySelector';
 import DistTypeSelector from './DistTypeSelector';
 import MonthSelector from './MonthSelector';
+import '../Sales.css';
 
 const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateDate, children }) => {
   const { isDarkMode, selectedAccent } = useColorMode();
@@ -28,8 +29,8 @@ const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateD
 
   return (
     <div style={barStyle}>
-      <div style={innerStyle}>
-        <div style={groupStyle}>
+      <div className="fb-inner">
+        <div className="fb-group">
           <YearSelector mode={mode} />
           {mode === 'daywise' && <MonthSelector />}
           <CompanySelector mode={mode} />
@@ -37,12 +38,15 @@ const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateD
         </div>
 
         {children && (
-          <div style={{ ...groupStyle, borderLeft: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`, paddingLeft: '1rem' }}>
+          <div
+            className="fb-group"
+            style={{ borderLeft: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`, paddingLeft: '1rem' }}
+          >
             {children}
           </div>
         )}
 
-        <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem' }}>
+        <div className="fb-actions">
           {lastUpdateDate && (
             <span style={{ fontSize: '0.72rem', color: isDarkMode ? '#94a3b8' : '#64748b', whiteSpace: 'nowrap' }}>
               Last update on:&nbsp;
@@ -66,8 +70,5 @@ const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateD
     </div>
   );
 };
-
-const innerStyle = { display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: '0.75rem' };
-const groupStyle = { display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: '0.75rem' };
 
 export default FilterBar;

@@ -6,15 +6,17 @@ import {
 import Select from 'react-select';
 import SummaryCards from './SummaryCards';
 import FilterBar from './filters/FilterBar';
-import { useSalesFilterStore } from '../../store/salesFilterStore';
-import { useAuth } from '../../context/AuthContext';
-import { useColorMode } from '../../theme/ThemeContext';
+import { useSalesFilterStore } from '../../../store/salesFilterStore';
+import { useAuth } from '../../../context/AuthContext';
+import { useColorMode } from '../../../theme/ThemeContext';
 import {
   getGraphMonthwise,
   getGraphCatgroup,
   getGraphSellingDataByCategory,
   getGraphCategoryWithCode,
-} from '../../services/salesDashboardApi';
+  getGraphSellingData,
+  getGraphSellingDataByItem,
+} from '../../../services/salesDashboardApi';
 
 const MONTH_COLORS = [
   '#FF00CC','#ADD8E6','#99CC00','#FF3333','#CCCC00','#9900FF',
@@ -330,19 +332,28 @@ function Spinner({ text = 'Loading…' }) {
   );
 }
 
-const MAIN_TABS = [
-  { id: 'monthwise', label: 'Month Wise' },
-];
+const SHOP_RESTRICTED_ROLES = ['Distributor', 'Sales Man', 'Sales Executive', 'Asst. Manager Sales'];
 
-export default function ChartsPage() {
+const DW_DAYSEL_OPTIONS  = ['yesterday','today','7days','30days','month','lmonth'].map(v => ({ value: v, label: v }));
+const DW_METHOD_OPTIONS  = [{ value: 'Distribution', label: 'Distribution' }, { value: 'Shops', label: 'Shops' }];
+const DW_COMPANY_OPTIONS = ['ALL','SBL','BALAJI'].map(v => ({ value: v, label: v }));
+const DW_FILTER_OPTIONS  = ['Category group','Category','Item'].map(v => ({ value: v, label: v }));
+const DW_BASEDON_OPTIONS = ['Tonnage','Amount'].map(v => ({ value: v, label: v }));
+
+export default function ChartsPage({ loggedInRolex }) {
   const { user }    = useAuth();
   const employeename = user?.username;
   const { multiyear, monthwisecompany, monthwisedisttype } = useSalesFilterStore();
 
-  const [viewMode, setViewMode]           = useState('Year');
-  const [isFullscreen, setIsFullscreen]   = useState(false);
-  const [zoomChart, setZoomChart]         = useState(null);
-  const [error, setError]                 = useState(null);
+  const rolex = typeof loggedInRolex === 'string' ? loggedInRolex : (loggedInRolex?.designation || '');
+  const showShopsOption = !SHOP_RESTRICTED_ROLES.includes(rolex);
+  const { styles: selStyles } = useSelStyles();
+
+  const [chartTab,     setChartTab]     = useState('monthwise');
+  const [viewMode,     setViewMode]     = useState('Year');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [zoomChart,    setZoomChart]    = useState(null);
+  const [error,        setError]        = useState(null);
 
   const [graphData,    setGraphData]    = useState(null);
   const [loading,      setLoading]      = useState(true);
@@ -358,6 +369,21 @@ export default function ChartsPage() {
   const [clickedCatgroup, setClickedCatgroup] = useState(null);
   const [clickedCategory, setClickedCategory] = useState(null);
   const [clickedPieGroup, setClickedPieGroup] = useState(null);
+
+  const [dwBasedon,         setDwBasedon]         = useState('Tonnage');
+  const [dwDaysel,          setDwDaysel]           = useState('yesterday');
+  const [dwMethod,          setDwMethod]           = useState('Distribution');
+  const [dwCompany,         setDwCompany]          = useState('ALL');
+  const [dwFilter,          setDwFilter]           = useState('Category group');
+  const [dwSortAsc,         setDwSortAsc]          = useState(false);
+  const [dwLevel1,          setDwLevel1]           = useState([]);
+  const [dwLevel2,          setDwLevel2]           = useState([]);
+  const [dwLevel3,          setDwLevel3]           = useState([]);
+  const [dwL1Loading,       setDwL1Loading]        = useState(false);
+  const [dwL2Loading,       setDwL2Loading]        = useState(false);
+  const [dwL3Loading,       setDwL3Loading]        = useState(false);
+  const [dwClickedCatgroup, setDwClickedCatgroup]  = useState(null);
+  const [dwClickedCategory, setDwClickedCategory]  = useState(null);
 
   useEffect(() => {
     if (isFullscreen) document.body.classList.add('is-fullscreen');
@@ -455,7 +481,7 @@ export default function ChartsPage() {
         basedon: 'Tonnage',
       });
       setCategoryData(Array.isArray(rows)
-        ? rows.map(r => ({ name: r.category, value: parseFloat(r.monthval) || 0 }))
+        ? rows.map(r => ({ name: r.catgroup, value: parseFloat(r.tonnage) || 0 }))
         : []);
     } catch { setCategoryData([]); }
     setCategoryLoading(false);
@@ -497,6 +523,84 @@ export default function ChartsPage() {
 
   const showSection3b = codeData.length > 0 || codeLoading;
 
+  const sortedDwLevel1 = useMemo(() => {
+    const copy = [...dwLevel1];
+    copy.sort((a, b) => dwSortAsc ? a.value - b.value : b.value - a.value);
+    return copy;
+  }, [dwLevel1, dwSortAsc]);
+
+  const sortedDwLevel2 = useMemo(() => {
+    const copy = [...dwLevel2];
+    copy.sort((a, b) => dwSortAsc ? a.value - b.value : b.value - a.value);
+    return copy;
+  }, [dwLevel2, dwSortAsc]);
+
+  const sortedDwLevel3 = useMemo(() => {
+    const copy = [...dwLevel3];
+    copy.sort((a, b) => dwSortAsc ? a.value - b.value : b.value - a.value);
+    return copy;
+  }, [dwLevel3, dwSortAsc]);
+
+  const fetchDwData = useCallback(async () => {
+    setDwL1Loading(true);
+    setDwLevel1([]); setDwLevel2([]); setDwLevel3([]);
+    setDwClickedCatgroup(null); setDwClickedCategory(null);
+    try {
+      // Route 17: getGraphSellingData returns res.data (not .list) — shape: { list: [...], list1: [...] }
+      const result = await getGraphSellingData({
+        daysel: dwDaysel, method: dwMethod, company: dwCompany,
+        basedon: dwBasedon, grdaiyfilter: dwFilter, employeename,
+      });
+      const list = Array.isArray(result) ? result : (result?.list ?? []);
+      setDwLevel1(list.map(r => ({
+        name:  r.catgroup,
+        value: parseFloat(dwBasedon === 'Tonnage' ? r.tonnage : r.amount) || 0,
+      })));
+    } catch { setDwLevel1([]); }
+    setDwL1Loading(false);
+  }, [dwDaysel, dwMethod, dwCompany, dwBasedon, dwFilter, employeename]);
+
+  const handleDwBarClick = useCallback(async (payload) => {
+    if (!payload?.name) return;
+    setDwClickedCatgroup(payload.name);
+    setDwLevel2([]); setDwLevel3([]);
+    setDwClickedCategory(null);
+    setDwL2Loading(true);
+    try {
+      // Route 16: getGraphSellingDataByCategory — returns array of { catgroup, tonnage, amount, ... }
+      const rows = await getGraphSellingDataByCategory({
+        label: payload.name, daysel: dwDaysel, method: dwMethod,
+        company: dwCompany, basedon: dwBasedon,
+      });
+      setDwLevel2(Array.isArray(rows) ? rows.map(r => ({
+        name:  r.catgroup,
+        value: parseFloat(dwBasedon === 'Tonnage' ? r.tonnage : r.amount) || 0,
+      })) : []);
+    } catch { setDwLevel2([]); }
+    setDwL2Loading(false);
+    scrollTo('dw-section2');
+  }, [dwDaysel, dwMethod, dwCompany, dwBasedon]);
+
+  const handleDwCategoryClick = useCallback(async (payload) => {
+    if (!payload?.name) return;
+    setDwClickedCategory(payload.name);
+    setDwLevel3([]);
+    setDwL3Loading(true);
+    try {
+      // Route 18: getGraphSellingDataByItem — NOTE: "catgory" is intentional PHP typo
+      const rows = await getGraphSellingDataByItem({
+        catgory: dwClickedCatgroup, label: payload.name,
+        daysel: dwDaysel, method: dwMethod, company: dwCompany, basedon: dwBasedon,
+      });
+      setDwLevel3(Array.isArray(rows) ? rows.map(r => ({
+        name:  r.catgroup,
+        value: parseFloat(dwBasedon === 'Tonnage' ? r.tonnage : r.amount) || 0,
+      })) : []);
+    } catch { setDwLevel3([]); }
+    setDwL3Loading(false);
+    scrollTo('dw-section3');
+  }, [dwClickedCatgroup, dwDaysel, dwMethod, dwCompany, dwBasedon]);
+
   const handleZoom = (title, content) => setZoomChart({ title, content });
 
   const pieGroupLabel = clickedPieGroup === 2 ? 'institution'
@@ -507,8 +611,17 @@ export default function ChartsPage() {
       {!isFullscreen && <SummaryCards />}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-        <div style={{ fontWeight: 700, fontSize: '1.1rem', color: '#1e293b' }}>
-          Sales Charts
+        <div style={{ display: 'flex', gap: 4, background: '#f1f5f9', borderRadius: 8, padding: 3 }}>
+          {[{ id: 'monthwise', label: 'Month Wise' }, { id: 'daywise', label: 'Day Wise' }].map(t => (
+            <button key={t.id} onClick={() => setChartTab(t.id)} style={{
+              background: chartTab === t.id ? '#1565c0' : 'none',
+              border: 'none', borderRadius: 6, cursor: 'pointer',
+              padding: '0.35rem 1rem', fontSize: '0.8rem',
+              fontWeight: chartTab === t.id ? 700 : 500,
+              color: chartTab === t.id ? 'white' : '#475569',
+              transition: 'all 0.18s',
+            }}>{t.label}</button>
+          ))}
         </div>
         <button onClick={() => setIsFullscreen(p => !p)}
           title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
@@ -517,82 +630,206 @@ export default function ChartsPage() {
         </button>
       </div>
 
-      <FilterBar mode="monthwise" onApply={fetchGraphData} isLoading={loading} />
+      {chartTab === 'monthwise' && <FilterBar mode="monthwise" onApply={fetchGraphData} isLoading={loading} />}
 
-      {error && (
-        <div style={{ padding: '0.75rem 1rem', marginBottom: '1rem', background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 8, color: '#c62828', fontSize: '0.82rem' }}>
-          <i className="bi bi-exclamation-triangle" style={{ marginRight: 6 }} />{error}
-        </div>
-      )}
-
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '5rem', color: '#94a3b8' }}>
-          <i className="bi bi-arrow-clockwise" style={{ fontSize: '2rem' }} />
-          <p style={{ marginTop: 8 }}>Loading chart data…</p>
-        </div>
-      ) : (
+      {/* ── MONTH WISE ── */}
+      {chartTab === 'monthwise' && (
         <>
-          {/* SECTION 1 */}
-          <div id="section1" style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
-            <BarChartCard title={graphTitle} data={monthlyBarData}
-              viewMode={viewMode} onViewModeChange={setViewMode}
-              onBarClick={handleBarClick} onZoom={handleZoom} />
-            <PieChartCard title={graphTitle} data={monthlyBarData}
-              viewMode={viewMode} onViewModeChange={setViewMode}
-              onPieClick={(entry) => handleBarClick({ activeLabel: entry.name })}
-              onZoom={handleZoom} />
-          </div>
-
-          {/* SECTION 2 */}
-          {showSection2 && (
-            <div key={clickedMonth} id="section2" style={{ marginBottom: 20 }}>
-              <div style={{ fontWeight: 700, fontSize: '0.8rem', color: '#1e3a5f', marginBottom: 10 }}>
-                Category Group — {clickedMonth}
-              </div>
-              {catgroupLoading ? <Spinner text="Loading category groups…" /> : (
-                <div style={{ display: 'flex', gap: 16 }}>
-                  <DrillPieCard
-                    title={`${companyLabel} ${clickedMonth} Month Wise Distribution Overview (tonnage)`}
-                    data={distPie}
-                    onSliceClick={(name) => handlePieSliceClick(name, 1)}
-                    onZoom={handleZoom} />
-                  <DrillPieCard
-                    title={`${companyLabel} ${clickedMonth} Month Wise institution Overview (tonnage)`}
-                    data={instPie}
-                    onSliceClick={(name) => handlePieSliceClick(name, 2)}
-                    onZoom={handleZoom} />
-                  <DrillPieCard
-                    title={`${companyLabel} ${clickedMonth} Month Wise Govt Orders Overview (tonnage)`}
-                    data={govtPie}
-                    onSliceClick={null}
-                    onZoom={handleZoom} />
-                </div>
-              )}
+          {error && (
+            <div style={{ padding: '0.75rem 1rem', marginBottom: '1rem', background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 8, color: '#c62828', fontSize: '0.82rem' }}>
+              <i className="bi bi-exclamation-triangle" style={{ marginRight: 6 }} />{error}
             </div>
           )}
 
-          {/* SECTION 3 + 3b */}
-          {showSection3 && (
-            <div key={clickedCatgroup} id="section3" style={{ marginBottom: 20 }}>
-              {categoryLoading ? <Spinner text="Loading categories…" /> : (
-                <div style={{ display: 'flex', gap: 16 }}>
-                  <HBarCard
-                    title={`${companyLabel} ${clickedMonth} Month Wise ${pieGroupLabel} and ${clickedCatgroup} Overview (tonnage)`}
-                    data={categoryData}
-                    onBarClick={handleCategoryBarClick}
-                    onZoom={handleZoom} />
-                  {showSection3b && (
-                    <div key={clickedCategory} id="section3b" style={{ flex: 1 }}>
-                      {codeLoading ? <Spinner text="Loading items…" /> : (
-                        <MirroredHBarCard
-                          title={`${companyLabel} ${clickedMonth} Month Wise ${pieGroupLabel} and ${clickedCatgroup} with ${clickedCategory} Category Overview (tonnage)`}
-                          data={codeData}
-                          onZoom={handleZoom} />
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '5rem', color: '#94a3b8' }}>
+              <i className="bi bi-arrow-clockwise" style={{ fontSize: '2rem' }} />
+              <p style={{ marginTop: 8 }}>Loading chart data…</p>
+            </div>
+          ) : (
+            <>
+              {/* SECTION 1 */}
+              <div id="section1" style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
+                <BarChartCard title={graphTitle} data={monthlyBarData}
+                  viewMode={viewMode} onViewModeChange={setViewMode}
+                  onBarClick={handleBarClick} onZoom={handleZoom} />
+                <PieChartCard title={graphTitle} data={monthlyBarData}
+                  viewMode={viewMode} onViewModeChange={setViewMode}
+                  onPieClick={(entry) => handleBarClick({ activeLabel: entry.name })}
+                  onZoom={handleZoom} />
+              </div>
+
+              {/* SECTION 2 */}
+              {showSection2 && (
+                <div key={clickedMonth} id="section2" style={{ marginBottom: 20 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.8rem', color: '#1e3a5f', marginBottom: 10 }}>
+                    Category Group — {clickedMonth}
+                  </div>
+                  {catgroupLoading ? <Spinner text="Loading category groups…" /> : (
+                    <div style={{ display: 'flex', gap: 16 }}>
+                      <DrillPieCard
+                        title={`${companyLabel} ${clickedMonth} Month Wise Distribution Overview (tonnage)`}
+                        data={distPie}
+                        onSliceClick={(name) => handlePieSliceClick(name, 1)}
+                        onZoom={handleZoom} />
+                      <DrillPieCard
+                        title={`${companyLabel} ${clickedMonth} Month Wise institution Overview (tonnage)`}
+                        data={instPie}
+                        onSliceClick={(name) => handlePieSliceClick(name, 2)}
+                        onZoom={handleZoom} />
+                      <DrillPieCard
+                        title={`${companyLabel} ${clickedMonth} Month Wise Govt Orders Overview (tonnage)`}
+                        data={govtPie}
+                        onSliceClick={null}
+                        onZoom={handleZoom} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SECTION 3 + 3b */}
+              {showSection3 && (
+                <div key={clickedCatgroup} id="section3" style={{ marginBottom: 20 }}>
+                  {categoryLoading ? <Spinner text="Loading categories…" /> : (
+                    <div style={{ display: 'flex', gap: 16 }}>
+                      <HBarCard
+                        title={`${companyLabel} ${clickedMonth} Month Wise ${pieGroupLabel} and ${clickedCatgroup} Overview (tonnage)`}
+                        data={categoryData}
+                        onBarClick={handleCategoryBarClick}
+                        onZoom={handleZoom} />
+                      {showSection3b && (
+                        <div key={clickedCategory} id="section3b" style={{ flex: 1 }}>
+                          {codeLoading ? <Spinner text="Loading items…" /> : (
+                            <MirroredHBarCard
+                              title={`${companyLabel} ${clickedMonth} Month Wise ${pieGroupLabel} and ${clickedCatgroup} with ${clickedCategory} Category Overview (tonnage)`}
+                              data={codeData}
+                              onZoom={handleZoom} />
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
                 </div>
               )}
+            </>
+          )}
+        </>
+      )}
+
+      {/* ── DAY WISE ── */}
+      {chartTab === 'daywise' && (
+        <>
+          {/* Day-Wise filter bar */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: '1rem', padding: '0.6rem 0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10 }}>
+            <Select
+              options={DW_DAYSEL_OPTIONS}
+              value={DW_DAYSEL_OPTIONS.find(o => o.value === dwDaysel)}
+              onChange={o => setDwDaysel(o.value)}
+              styles={selStyles}
+              isSearchable={false}
+              menuPortalTarget={document.body}
+              menuPosition="fixed"
+              placeholder="Period"
+            />
+            {showShopsOption && (
+              <Select
+                options={DW_METHOD_OPTIONS}
+                value={DW_METHOD_OPTIONS.find(o => o.value === dwMethod)}
+                onChange={o => setDwMethod(o.value)}
+                styles={selStyles}
+                isSearchable={false}
+                menuPortalTarget={document.body}
+                menuPosition="fixed"
+                placeholder="Method"
+              />
+            )}
+            <Select
+              options={DW_COMPANY_OPTIONS}
+              value={DW_COMPANY_OPTIONS.find(o => o.value === dwCompany)}
+              onChange={o => setDwCompany(o.value)}
+              styles={selStyles}
+              isSearchable={false}
+              menuPortalTarget={document.body}
+              menuPosition="fixed"
+              placeholder="Company"
+            />
+            <Select
+              options={DW_FILTER_OPTIONS}
+              value={DW_FILTER_OPTIONS.find(o => o.value === dwFilter)}
+              onChange={o => setDwFilter(o.value)}
+              styles={selStyles}
+              isSearchable={false}
+              menuPortalTarget={document.body}
+              menuPosition="fixed"
+              placeholder="Group by"
+            />
+            <Select
+              options={DW_BASEDON_OPTIONS}
+              value={DW_BASEDON_OPTIONS.find(o => o.value === dwBasedon)}
+              onChange={o => setDwBasedon(o.value)}
+              styles={selStyles}
+              isSearchable={false}
+              menuPortalTarget={document.body}
+              menuPosition="fixed"
+              placeholder="Based on"
+            />
+            <button onClick={fetchDwData} disabled={dwL1Loading} style={{
+              background: '#1565c0', border: 'none', color: 'white', borderRadius: 6,
+              padding: '0.35rem 1rem', fontSize: '0.78rem', fontWeight: 600,
+              cursor: dwL1Loading ? 'not-allowed' : 'pointer', opacity: dwL1Loading ? 0.6 : 1,
+            }}>
+              {dwL1Loading ? 'Loading…' : 'Apply'}
+            </button>
+            <button onClick={() => setDwSortAsc(p => !p)} title="Toggle sort order" style={{
+              background: 'none', border: '1px solid #cbd5e1', color: '#475569',
+              borderRadius: 6, padding: '0.35rem 0.6rem', fontSize: '0.78rem', cursor: 'pointer',
+            }}>
+              {dwSortAsc ? '↑ Asc' : '↓ Desc'}
+            </button>
+          </div>
+
+          {/* Day-Wise Level 1 */}
+          {(dwL1Loading || dwLevel1.length > 0) && (
+            <div id="dw-section1" style={{ marginBottom: 20 }}>
+              {dwL1Loading ? <Spinner text="Loading day-wise data…" /> : (
+                <HBarCard
+                  title={`Day Wise — ${dwFilter} (${dwBasedon}) [${dwDaysel}]`}
+                  data={sortedDwLevel1}
+                  onBarClick={handleDwBarClick}
+                  onZoom={handleZoom} />
+              )}
+            </div>
+          )}
+
+          {/* Day-Wise Level 2 */}
+          {(dwL2Loading || dwLevel2.length > 0) && (
+            <div id="dw-section2" style={{ marginBottom: 20 }}>
+              {dwL2Loading ? <Spinner text="Loading breakdown…" /> : (
+                <HBarCard
+                  title={`Day Wise — ${dwClickedCatgroup} breakdown (${dwBasedon})`}
+                  data={sortedDwLevel2}
+                  onBarClick={handleDwCategoryClick}
+                  onZoom={handleZoom} />
+              )}
+            </div>
+          )}
+
+          {/* Day-Wise Level 3 */}
+          {(dwL3Loading || dwLevel3.length > 0) && (
+            <div id="dw-section3" style={{ marginBottom: 20 }}>
+              {dwL3Loading ? <Spinner text="Loading items…" /> : (
+                <HBarCard
+                  title={`Day Wise — ${dwClickedCatgroup} → ${dwClickedCategory} items (${dwBasedon})`}
+                  data={sortedDwLevel3}
+                  onBarClick={null}
+                  onZoom={handleZoom} />
+              )}
+            </div>
+          )}
+
+          {!dwL1Loading && dwLevel1.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8', fontSize: '0.85rem' }}>
+              Select filters and click <strong>Apply</strong> to load day-wise chart data.
             </div>
           )}
         </>

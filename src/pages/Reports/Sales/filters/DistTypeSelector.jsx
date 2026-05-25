@@ -1,7 +1,8 @@
 import React from 'react';
 import Select from 'react-select';
-import { useSalesFilterStore } from '../../../store/salesFilterStore';
-import { useColorMode } from '../../../theme/ThemeContext';
+import { CheckOption } from './salesSelectUtils';
+import { useSalesFilterStore } from '../../../../store/salesFilterStore';
+import { useColorMode } from '../../../../theme/ThemeContext';
 
 const DistTypeSelector = ({ mode = 'monthwise' }) => {
   const {
@@ -53,7 +54,7 @@ const DistTypeSelector = ({ mode = 'monthwise' }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-      <label style={{ fontWeight: 700, fontSize: '0.72rem', color: accent, whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>
+      <label style={{ fontWeight: 700, fontSize: '0.72rem', color: isDarkMode ? '#94a3b8' : accent, whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>
         Methods :
       </label>
       <Select
@@ -64,6 +65,7 @@ const DistTypeSelector = ({ mode = 'monthwise' }) => {
         isSearchable={false}
         menuPortalTarget={document.body}
         menuPosition="fixed"
+        components={{ Option: CheckOption }}
       />
     </div>
   );

@@ -1,7 +1,8 @@
 import React from 'react';
 import Select from 'react-select';
-import { useSalesFilterStore, YEAR_OPTIONS } from '../../../store/salesFilterStore';
-import { useColorMode } from '../../../theme/ThemeContext';
+import { CheckOption } from './salesSelectUtils';
+import { useSalesFilterStore, YEAR_OPTIONS } from '../../../../store/salesFilterStore';
+import { useColorMode } from '../../../../theme/ThemeContext';
 
 const DAYWISE_YEAR_OPTIONS = Array.from({ length: 8 }, (_, i) => {
   const y = new Date().getFullYear() - i;
@@ -16,7 +17,7 @@ const YearSelector = ({ mode = 'monthwise' }) => {
 
   const labelStyle = {
     fontWeight: 700, fontSize: '0.72rem',
-    color: accent,
+    color: isDarkMode ? '#94a3b8' : accent,
     whiteSpace: 'nowrap', letterSpacing: '0.02em',
   };
 
@@ -61,6 +62,7 @@ const YearSelector = ({ mode = 'monthwise' }) => {
             isSearchable={false}
             menuPortalTarget={document.body}
             menuPosition="fixed"
+            components={{ Option: CheckOption }}
           />
         </div>
       </div>
@@ -89,6 +91,7 @@ const YearSelector = ({ mode = 'monthwise' }) => {
           placeholder="Select fiscal years…"
           menuPortalTarget={document.body}
           menuPosition="fixed"
+          components={{ Option: CheckOption }}
         />
       </div>
     </div>

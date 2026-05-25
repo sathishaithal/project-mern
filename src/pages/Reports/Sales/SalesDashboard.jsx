@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { useColorMode } from '../../theme/ThemeContext';
+import { useColorMode } from '../../../theme/ThemeContext';
+import { useAuth } from '../../../context/AuthContext';
+import './Sales.css';
+import { getAccessType, getHrDesignation, logLogin } from '../../../services/salesDashboardApi';
 import SalesReportPage from './SalesReportPage';
 import DayWisePage from './DayWisePage';
 import ShortSupplyPage from './ShortSupplyPage';
@@ -19,9 +22,26 @@ const TOP_TABS = [
 ];
 
 export default function SalesDashboard() {
-  const [topTab,       setTopTab]       = useState('reports');
-  const [reportTab,    setReportTab]    = useState('monthwise');
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const { user } = useAuth();
+  const employeename = user?.username;
+
+  const [topTab,        setTopTab]        = useState('reports');
+  const [reportTab,     setReportTab]     = useState('monthwise');
+  const [isFullscreen,  setIsFullscreen]  = useState(false);
+  const [loggedInRole,  setLoggedInRole]  = useState(null);
+  const [loggedInRolex, setLoggedInRolex] = useState(null);
+
+  useEffect(() => {
+    if (!employeename) return;
+    const now = new Date().toISOString();
+    getAccessType(employeename)
+      .then(d => setLoggedInRole(Array.isArray(d) ? d[0] : d))
+      .catch(() => null);
+    getHrDesignation(employeename)
+      .then(d => setLoggedInRolex(Array.isArray(d) ? d[0] : d))
+      .catch(() => null);
+    logLogin({ username: employeename, current_time: now }).catch(() => null);
+  }, [employeename]);
 
   const { isDarkMode, selectedAccent, selectedFont } = useColorMode();
 
@@ -65,7 +85,20 @@ export default function SalesDashboard() {
   });
 
   return (
-    <div style={{ width: '100%', fontFamily }}>
+    <div
+      className={isFullscreen ? undefined : 'dash-outer'}
+      style={isFullscreen ? {
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        width: '100vw', height: '100vh',
+        overflowY: 'auto',
+        zIndex: 9999,
+        background: isDarkMode ? '#0f172a' : 'white',
+        padding: '16px',
+        boxSizing: 'border-box',
+        fontFamily,
+      } : { fontFamily }}
+    >
 
       {/* ── Top tab bar + Full Screen button (hidden in fullscreen) ── */}
       {!isFullscreen && (
@@ -134,11 +167,11 @@ export default function SalesDashboard() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.28, delay: 0.08 }}
+              className="dash-report-tabs"
               style={{
-                display: 'flex', gap: 0,
                 background: tabBg, borderRadius: 10, padding: '4px',
                 boxShadow: '0 2px 8px rgba(37,99,235,0.07)', border: `1px solid ${tabBorder}`,
-                marginBottom: '1.25rem', width: 'fit-content',
+                marginBottom: '1.25rem', maxWidth: '100%',
               }}
             >
               {REPORT_TABS.map(t => (
@@ -156,7 +189,7 @@ export default function SalesDashboard() {
       )}
 
       {/* ── CHARTS tab ──────────────────────────────────────────────────── */}
-      {topTab === 'charts' && <ChartsPage />}
+      {topTab === 'charts' && <ChartsPage loggedInRolex={loggedInRolex} />}
     </div>
   );
 }

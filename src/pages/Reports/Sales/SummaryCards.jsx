@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { getLastUpdatedDates, getDispatchHeaderTop } from '../../services/salesDashboardApi';
-import { fmtDate } from '../../utils/salesFormatters';
-import { useAuth } from '../../context/AuthContext';
-import { useColorMode } from '../../theme/ThemeContext';
+import './Sales.css';
+import { getLastUpdatedDates, getDispatchHeaderTop } from '../../../services/salesDashboardApi';
+import { fmtDate } from '../../../utils/salesFormatters';
+import { useAuth } from '../../../context/AuthContext';
+import { useColorMode } from '../../../theme/ThemeContext';
 
 const CARD_DEFS = [
   { key: 'currentmonthtonnage', label: 'Current Month Sales', icon: 'bi-graph-up',         suffix: ' T', isDate: false, source: 'header' },
@@ -55,7 +56,14 @@ export default function SummaryCards() {
   }
 
   return (
-    <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+      gap: '12px',
+      width: '100%',
+      boxSizing: 'border-box',
+      marginBottom: '1.25rem',
+    }}>
       {CARD_DEFS.map((card, idx) => {
         const dataObj = card.source === 'header' ? headerData : datesData;
         const raw = dataObj?.[card.key];
@@ -67,7 +75,7 @@ export default function SummaryCards() {
           <div
             key={card.key}
             style={{
-              flex: '1 1 180px', minWidth: 170,
+              minWidth: 0, overflow: 'hidden', boxSizing: 'border-box',
               background: cardBgs[idx],
               borderRadius: 14, padding: '1rem 1.2rem',
               boxShadow: '0 4px 16px rgba(0,0,0,0.13)',

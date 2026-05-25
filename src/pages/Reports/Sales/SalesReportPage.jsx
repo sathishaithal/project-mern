@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Select from 'react-select';
-import { useColorMode } from '../../theme/ThemeContext';
+import './Sales.css';
+import { useColorMode } from '../../../theme/ThemeContext';
 import FilterBar from './filters/FilterBar';
-import { useSalesFilterStore } from '../../store/salesFilterStore';
+import { useSalesFilterStore } from '../../../store/salesFilterStore';
 import {
   getMultiYearSales,
   getMonthwiseFiltersDist,
@@ -12,9 +13,10 @@ import {
   getThirdLevelDispatch,
   getFourthLevelDispatch,
   getLastUpdatedDates,
-} from '../../services/salesDashboardApi';
-import { fmt, fmtDate } from '../../utils/salesFormatters';
-import { useAuth } from '../../context/AuthContext';
+} from '../../../services/salesDashboardApi';
+import { fmt, fmtDate } from '../../../utils/salesFormatters';
+import { useAuth } from '../../../context/AuthContext';
+import { CheckOption } from './filters/salesSelectUtils';
 
 const GROUPS = [
   { months: [
@@ -98,11 +100,11 @@ const subDiff = (row, key, lyKey) => {
   return curr - prev;
 };
 
-const MonthCell = ({ row, rows, rowIdx, level, mKey, mLyKey, bg }) => {
+const MonthCell = ({ row, rows, rowIdx, level, mKey, mLyKey }) => {
   const diff = level === 0 ? l0diff(rows, rowIdx, mKey) : subDiff(row, mKey, mLyKey);
   return (
-    <td style={{ ...tdStyle, background: bg }}>
-      <div style={{ fontWeight: 500, color: '#1e293b' }}>{fmt(row[mKey])}</div>
+    <td style={{ ...tdStyle }}>
+      <div style={{ fontWeight: 500, color: 'var(--sales-text, #1e293b)' }}>{fmt(row[mKey])}</div>
       <ArrowIcon diff={diff} />
     </td>
   );
@@ -111,8 +113,8 @@ const MonthCell = ({ row, rows, rowIdx, level, mKey, mLyKey, bg }) => {
 const QuarterCell = ({ row, rows, rowIdx, level, qKey }) => {
   const diff = level === 0 ? l0diff(rows, rowIdx, qKey) : subDiff(row, qKey, qKey + '_last');
   return (
-    <td style={{ ...tdStyle, background: '#fff0f0', fontWeight: 700 }}>
-      <div style={{ color: '#c62828' }}>{fmt(row[qKey])}</div>
+    <td style={{ ...tdStyle, fontWeight: 700, textAlign: 'center' }}>
+      <div>{fmt(row[qKey])}</div>
       <ArrowIcon diff={diff} />
     </td>
   );
@@ -141,37 +143,37 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast }) => {
   return (
     <>
       {showTillLast && (
-        <td style={{ ...tdStyle, background: '#f0f9ff', fontWeight: 600 }}>
-          <div style={{ color: '#1e293b' }}>{fmt(tillLast)}</div>
+        <td style={{ ...tdStyle, fontWeight: 600 }}>
+          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{fmt(tillLast)}</div>
         </td>
       )}
-      <td style={{ ...tdStyle, background: '#f0f9ff', fontWeight: 600 }}>
-        <div style={{ color: '#1e293b' }}>{fmt(row.currentmonthtonnage)}</div>
+      <td style={{ ...tdStyle, fontWeight: 600 }}>
+        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{fmt(row.currentmonthtonnage)}</div>
         {<ArrowIcon diff={level === 0 ? l0diff(rows, rowIdx, 'currentmonthtonnage') : subDiff(row, 'currentmonthtonnage', 'currentmonthtonnage_last')} />}
       </td>
-      <td style={{ ...tdStyle, background: '#f0f9ff', fontWeight: 700 }}>
-        <div style={{ color: '#1e293b' }}>{fmt(row.ttltonnage_crnt)}</div>
+      <td style={{ ...tdStyle, fontWeight: 700 }}>
+        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{fmt(row.ttltonnage_crnt)}</div>
         {ytdGr !== null && <ArrowIcon diff={ytdGr} />}
       </td>
-      <td style={{ ...tdStyle, background: '#f0f9ff' }}>
+      <td style={{ ...tdStyle }}>
         <div style={{ color: numColor(ytdGr) }}>{ytdGr !== null ? `${ytdGr >= 0 ? '+' : ''}${fmt(ytdGr)}` : '—'}</div>
       </td>
-      <td style={{ ...tdStyle, background: '#f0f9ff' }}>
+      <td style={{ ...tdStyle }}>
         <div style={{ color: numColor(ytdPct) }}>
           {ytdPct !== null ? `${ytdPct.toFixed(1)}%` : '—'}
           {ytdPct !== null && <ArrowIcon diff={ytdPct} />}
         </div>
       </td>
-      <td style={{ ...tdStyle, background: '#f0f9ff', fontWeight: 700 }}>
-        <div style={{ color: '#1e293b' }}>{fmt(yoyVal)}</div>
+      <td style={{ ...tdStyle, fontWeight: 700 }}>
+        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{fmt(yoyVal)}</div>
       </td>
-      <td style={{ ...tdStyle, background: '#f0f9ff' }}>
+      <td style={{ ...tdStyle }}>
         <div style={{ color: numColor(yoyGr) }}>
           {yoyGr !== null ? `${yoyGr >= 0 ? '+' : ''}${fmt(yoyGr)}` : '—'}
           {yoyGr !== null && <ArrowIcon diff={yoyGr} />}
         </div>
       </td>
-      <td style={{ ...tdStyle, background: '#f0f9ff' }}>
+      <td style={{ ...tdStyle }}>
         <div style={{ color: numColor(yoyPct) }}>
           {yoyPct !== null ? `${yoyPct.toFixed(1)}%` : '—'}
           {yoyPct !== null && <ArrowIcon diff={yoyPct} />}
@@ -181,13 +183,15 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast }) => {
   );
 };
 
-const L1_COLORS      = ['#e8f5e9','#e3f2fd','#fff3e0','#fce4ec','#f3e5f5','#e0f2f1'];
-const DARK_L1_COLORS = ['#0e1a0e','#0e121c','#1c140e','#1c0e13','#130e1c','#0e1c18'];
+const isGrandTotal = (r) =>
+  r.disttype === 'Grand Total' || String(r.year) === 'Grand Total' || r.id === '';
 
 function DrillRows({ rows, level, parentRows, expandedQuarters, isSummary, showTillLast,
   monthwisecompany, monthwisedisttype, employeename,
   expanded, drillData, drillLoading, onExpand, onCollapse, getLabel, l0Bg, isDarkMode }) {
-  return rows.map((row, i) => {
+  const dataRows = rows.filter(r => !isGrandTotal(r));
+  const effectiveParent = parentRows ? parentRows.filter(r => !isGrandTotal(r)) : dataRows;
+  return dataRows.map((row, i) => {
     const rowId   = row.id ?? `${level}-${i}`;
     const stateKey = `${level}_${rowId}`;
     const isOpen    = !!expanded[stateKey];
@@ -201,14 +205,14 @@ function DrillRows({ rows, level, parentRows, expandedQuarters, isSummary, showT
 
     const rowBg = isDarkMode
       ? (level === 0 ? '#192030'
-        : level === 1 ? DARK_L1_COLORS[i % DARK_L1_COLORS.length]
-        : level === 2 ? '#1a2035'
-        : level === 3 ? '#1a1e28'
+        : level === 1 ? '#1a1228'
+        : level === 2 ? '#0e1816'
+        : level === 3 ? '#1a1e1e'
         : '#182030')
       : (level === 0 ? (l0Bg || '#fffde7')
-        : level === 1 ? L1_COLORS[i % L1_COLORS.length]
-        : level === 2 ? '#f8f9ff'
-        : level === 3 ? '#fffbf0'
+        : level === 1 ? '#e8d5f5'
+        : level === 2 ? '#e0f2f1'
+        : level === 3 ? '#f5f5f5'
         : '#f0fff4');
 
     return (
@@ -236,7 +240,9 @@ function DrillRows({ rows, level, parentRows, expandedQuarters, isSummary, showT
             ...tdStyle,
             position: 'sticky', left: 28, background: 'inherit',
             fontWeight: level === 0 ? 700 : 600,
-            color: level === 0 ? '#1e293b' : level === 1 ? '#1d4ed8' : level === 2 ? '#7c3aed' : '#374151',
+            color: isDarkMode
+              ? (level === 0 ? '#e2e8f0' : level === 1 ? '#93c5fd' : level === 2 ? '#c4b5fd' : '#cbd5e1')
+              : (level === 0 ? '#1e293b' : level === 1 ? '#1d4ed8' : level === 2 ? '#7c3aed' : '#374151'),
             textAlign: 'left', paddingLeft: `${8 + indentPx}px`, minWidth: 160,
           }}>
             {level > 0 && <span style={{ color: '#94a3b8', marginRight: 4 }}>{'↳'.repeat(level)}</span>}
@@ -245,13 +251,13 @@ function DrillRows({ rows, level, parentRows, expandedQuarters, isSummary, showT
 
           {GROUPS.flatMap(g => [
             ...(isSummary && expandedQuarters[g.qKey] ? g.months.map(m => (
-              <MonthCell key={m.key} row={row} rows={parentRows} rowIdx={i} level={level}
-                mKey={m.key} mLyKey={m.lyKey} bg={cellBg(row[m.key])} />
+              <MonthCell key={m.key} row={row} rows={effectiveParent} rowIdx={i} level={level}
+                mKey={m.key} mLyKey={m.lyKey} />
             )) : []),
-            <QuarterCell key={g.qKey} row={row} rows={parentRows} rowIdx={i} level={level} qKey={g.qKey} />,
+            <QuarterCell key={g.qKey} row={row} rows={effectiveParent} rowIdx={i} level={level} qKey={g.qKey} />,
           ])}
 
-          <SummaryCells row={row} rows={parentRows} rowIdx={i} level={level} showTillLast={showTillLast} />
+          <SummaryCells row={row} rows={effectiveParent} rowIdx={i} level={level} showTillLast={showTillLast} />
         </tr>
 
         {isOpen && children.length > 0 && (
@@ -290,7 +296,7 @@ function GrandTotalRow({ rows, expandedQuarters, isSummary, showTillLast, accent
         ...(isSummary && expandedQuarters[g.qKey] ? g.months.map(m => (
           <td key={m.key} style={{ ...tdStyle, color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>{fmt(gt[m.key])}</td>
         )) : []),
-        <td key={g.qKey} style={{ ...tdStyle, background: 'rgba(0,0,0,0.18)', fontWeight: 800, color: 'white' }}>{fmt(gt[g.qKey])}</td>,
+        <td key={g.qKey} style={{ ...tdStyle, background: 'rgba(0,0,0,0.18)', fontWeight: 800, color: 'white', textAlign: 'center' }}>{fmt(gt[g.qKey])}</td>,
       ])}
       {showTillLast && <td style={{ ...tdStyle, background: 'rgba(255,255,255,0.1)', color: 'white', fontWeight: 600 }}>{fmt(tillLast)}</td>}
       <td style={{ ...tdStyle, background: 'rgba(255,255,255,0.1)', color: 'white', fontWeight: 600 }}>{fmt(gt.currentmonthtonnage)}</td>
@@ -362,10 +368,11 @@ export default function SalesReportPage() {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     setToast({ show: true, message, type, title });
     setToastVisible(true);
+    const duration = type === 'success' ? 3000 : 5000;
     toastTimeoutRef.current = setTimeout(() => {
       setToastVisible(false);
       setTimeout(() => setToast({ show: false, message: '', type: 'info', title: '' }), 300);
-    }, 5000);
+    }, duration);
   }, []);
 
   const closeToast = useCallback(() => {
@@ -442,7 +449,7 @@ export default function SalesReportPage() {
         fetchMain,
         getLastUpdatedDates(employeename),
       ]);
-      setRows(Array.isArray(data) ? data : []);
+      setRows(Array.isArray(data) ? data.filter(r => !isGrandTotal(r)) : []);
       setLastUpdate(Array.isArray(dates) ? dates[0] : dates);
     } catch (err) {
       const msg = err?.response?.data?.error || err?.message || 'Failed to load data';
@@ -459,6 +466,7 @@ export default function SalesReportPage() {
     const key = `${level}_${id}`;
     if (drillDataRef.current[key]) { setExpanded(p => ({ ...p, [key]: true })); return; }
     setDrillLoading(p => ({ ...p, [key]: true }));
+    showToast('Loading', 'Fetching sales data...', 'info');
     try {
       const tab = activeTabRef.current;
       const rowId = row.id ?? id;
@@ -467,13 +475,14 @@ export default function SalesReportPage() {
 
       if (tab === 'summary' && level === 0) {
         // YoY Summary Level 0 → catgroup-for-category
-        // Angular: getallmaindisttypes → getallmaindisttype(year, company, disttype, employee)
-        // confirmed working: ?selectedyear=2026&employeename=X&monthwisecompany=ALL&id=Distribution_SBL
+        // Backend splits id on "_" to extract disttype and company.
+        // multi-year-sales rows have id=year (number) — that is wrong to pass here.
+        // Build id from filter values: disttype_company (e.g. "Distribution_SBL").
         data = await getCatgroupForCategory({
           selectedyear,
           employeename,
           monthwisecompany,
-          id: rowId,
+          id: `${monthwisedisttype}_${monthwisecompany}`,
         });
       } else if (level <= 1) {
         // Level 0 for non-summary tabs, or Level 1 for summary (catgroup row → distributor list)
@@ -501,12 +510,14 @@ export default function SalesReportPage() {
         });
       }
 
-      const list = Array.isArray(data) ? data : [];
+      const list = (Array.isArray(data) ? data : []).filter(r => !isGrandTotal(r));
       drillDataRef.current = { ...drillDataRef.current, [key]: list };
       setDrillData(p => ({ ...p, [key]: list }));
       setExpanded(p => ({ ...p, [key]: true }));
+      showToast('Success', 'Data loaded successfully!', 'success');
     } catch {
       setExpanded(p => ({ ...p, [key]: true }));
+      showToast('Error', 'Failed to load data.', 'error');
     } finally {
       setDrillLoading(p => ({ ...p, [key]: false }));
     }
@@ -515,9 +526,10 @@ export default function SalesReportPage() {
   const handleCollapse = useCallback((id) => setExpanded(p => ({ ...p, [id]: false })), []);
 
   const lastUpdateDate = lastUpdate ? fmtDate(lastUpdate.dispatchlastupdate) : null;
+  const isDrillLoading = Object.values(drillLoading).some(Boolean);
 
   const accent     = selectedAccent?.primary   || '#1a237e';
-  const accent2    = selectedAccent?.secondary  || '#c62828';
+  const accent2    = selectedAccent?.secondary  || '#283593';
   const accentDark = `color-mix(in srgb, ${accent} 52%, #0a1628)`;
   const cardBg     = isDarkMode ? '#1e293b' : 'white';
 
@@ -547,14 +559,17 @@ export default function SalesReportPage() {
   const mutedClr   = isDarkMode ? '#94a3b8' : '#64748b';
 
   return (
-    <div style={{
-      width: '100%',
-      fontFamily: selectedFont?.body || "'Manrope',sans-serif",
-      background: isDarkMode ? '#0f172a' : 'transparent',
-      minHeight: '100%',
-      transition: 'background 0.3s',
-      '--sales-text-muted': mutedClr,
-    }}>
+    <div
+      className="sr-page"
+      style={{
+        fontFamily: selectedFont?.body || "'Manrope',sans-serif",
+        background: isDarkMode ? '#0f172a' : 'transparent',
+        minHeight: '100%',
+        transition: 'background 0.3s',
+        '--sales-text-muted': mutedClr,
+        '--sales-text': textClr,
+      }}
+    >
       {/* Title */}
       <motion.div
         initial={{ opacity: 0, y: -12 }}
@@ -580,7 +595,8 @@ export default function SalesReportPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3, delay: 0.1 }}
-        style={{ display: 'flex', gap: 4, marginBottom: 0, borderBottom: `2px solid ${isDarkMode ? '#334155' : '#e2e8f0'}` }}
+        className="sr-tabs"
+        style={{ marginBottom: 0, borderBottom: `2px solid ${isDarkMode ? '#334155' : '#e2e8f0'}` }}
       >
         {TABS.map(t => (
           <button
@@ -588,7 +604,6 @@ export default function SalesReportPage() {
             onClick={() => { setActiveTab(t.id); setExpanded({}); setDrillData({}); }}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
-              padding: '0.5rem 1rem', fontSize: '0.82rem',
               fontWeight: activeTab === t.id ? 700 : 500,
               color: activeTab === t.id ? accent : mutedClr,
               borderBottom: activeTab === t.id ? `2px solid ${accent}` : '2px solid transparent',
@@ -607,13 +622,13 @@ export default function SalesReportPage() {
             <label style={tabFiltLblStyle(isDarkMode, accent)}>Distributor</label>
             <Select options={[{value:'',label:'All'},...filterDists.map(d=>({value:d.distname,label:d.distname}))]}
               value={{value:fdist,label:fdist||'All'}} onChange={s=>setFdist(s.value)}
-              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" />
+              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" components={{ Option: CheckOption }} />
           </div>
           <div style={tabFiltGroupStyle}>
             <label style={tabFiltLblStyle(isDarkMode, accent)}>Cat Group</label>
             <Select options={[{value:'',label:'All'},...filterCatgroups.map(c=>({value:c.catgroup,label:c.catgroup}))]}
               value={{value:fCatgroup,label:fCatgroup||'All'}} onChange={s=>setFCatgroup(s.value)}
-              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" />
+              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" components={{ Option: CheckOption }} />
           </div>
           <button onClick={fetchData} disabled={loading} style={tabFiltApplyStyle(accent, accent2)}>
             <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />{loading ? 'Loading…' : 'Apply'}
@@ -627,7 +642,7 @@ export default function SalesReportPage() {
             <label style={tabFiltLblStyle(isDarkMode, accent)}>Category Group</label>
             <Select options={[{value:'',label:'All'},...filterCatgroups.map(c=>({value:c.catgroup,label:c.catgroup}))]}
               value={{value:fCatgroup,label:fCatgroup||'All'}} onChange={s=>setFCatgroup(s.value)}
-              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" />
+              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" components={{ Option: CheckOption }} />
           </div>
           <button onClick={fetchData} disabled={loading} style={tabFiltApplyStyle(accent, accent2)}>
             <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />{loading ? 'Loading…' : 'Apply'}
@@ -641,7 +656,7 @@ export default function SalesReportPage() {
             <label style={tabFiltLblStyle(isDarkMode, accent)}>ASM Name</label>
             <Select options={[{value:'',label:'All'},...filterAsms.map(a=>({value:a.asm,label:a.asm}))]}
               value={{value:fAsm,label:fAsm||'All'}} onChange={s=>setFAsm(s.value)}
-              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" />
+              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" components={{ Option: CheckOption }} />
           </div>
           <button onClick={fetchData} disabled={loading} style={tabFiltApplyStyle(accent, accent2)}>
             <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />{loading ? 'Loading…' : 'Apply'}
@@ -655,13 +670,13 @@ export default function SalesReportPage() {
             <label style={tabFiltLblStyle(isDarkMode, accent)}>ASM Name</label>
             <Select options={[{value:'',label:'All'},...filterAsms.map(a=>({value:a.asm,label:a.asm}))]}
               value={{value:fSoffAsm,label:fSoffAsm||'All'}} onChange={s=>setFSoffAsm(s.value)}
-              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" />
+              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" components={{ Option: CheckOption }} />
           </div>
           <div style={tabFiltGroupStyle}>
             <label style={tabFiltLblStyle(isDarkMode, accent)}>Sales Officer</label>
             <Select options={[{value:'',label:'All'},...filterSoffs.map(s=>({value:s.soff,label:s.soff}))]}
               value={{value:fSoff,label:fSoff||'All'}} onChange={s=>setFSoff(s.value)}
-              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" />
+              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" components={{ Option: CheckOption }} />
           </div>
           <button onClick={fetchData} disabled={loading} style={tabFiltApplyStyle(accent, accent2)}>
             <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />{loading ? 'Loading…' : 'Apply'}
@@ -675,10 +690,30 @@ export default function SalesReportPage() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.05 }}
-        style={{ background: cardBg, borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 12px rgba(37,99,235,0.06)', border: `1px solid ${borderClr}`, width: '100%', marginTop: '0.75rem' }}
+        style={{ background: cardBg, borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 12px rgba(37,99,235,0.06)', border: `1px solid ${borderClr}`, width: '100%', marginTop: '0.75rem', position: 'relative' }}
       >
-        <div style={{ overflowX: 'auto', maxHeight: '65vh', overflowY: 'auto', width: '100%' }}>
-          <table style={{ borderCollapse: 'collapse', fontSize: '0.78rem', minWidth: 900, width: '100%' }}>
+        {/* FIX 7: Drill-down loading overlay */}
+        {isDrillLoading && (
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 20, borderRadius: 14,
+            background: isDarkMode ? 'rgba(15,23,42,0.72)' : 'rgba(255,255,255,0.72)',
+            backdropFilter: 'blur(2px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <div style={{
+              background: isDarkMode ? '#1e293b' : 'white',
+              border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
+              borderRadius: 12, padding: '1.5rem 2rem', textAlign: 'center',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            }}>
+              <i className={`bi bi-arrow-clockwise sr-spin`} style={{ fontSize: '1.8rem', color: accent, display: 'block', marginBottom: 8 }} />
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: textClr }}>Generating Report</div>
+              <div style={{ color: mutedClr, fontSize: '0.78rem', marginTop: 4 }}>Fetching sales data…</div>
+            </div>
+          </div>
+        )}
+        <div className="sr-table-wrap" style={{ maxHeight: '65vh' }}>
+          <table className="sr-table">
             <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
               <tr style={{ background: accent, color: 'white' }}>
                 <th style={{ ...thStyle, position: 'sticky', left: 0, background: accent, width: 28, minWidth: 28, zIndex: 11, padding: '0.55rem 0.2rem' }} />
@@ -691,14 +726,17 @@ export default function SalesReportPage() {
                   )) : []),
                   isSummary ? (
                     <th key={g.qKey}
-                      style={{ ...thStyle, background: accent2, minWidth: 70, cursor: 'pointer', userSelect: 'none' }}
+                      style={{ ...thStyle, background: accent2, minWidth: 70, cursor: 'pointer', userSelect: 'none', textAlign: 'center', verticalAlign: 'middle' }}
                       onClick={() => toggleQuarter(g.qKey)}
                       title={expandedQuarters[g.qKey] ? 'Collapse months' : 'Expand months'}
                     >
-                      {expandedQuarters[g.qKey] ? '▼' : '▶'} {g.qLabel}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                        <span>{expandedQuarters[g.qKey] ? '▼' : '▶'}</span>
+                        <span>{g.qLabel}</span>
+                      </div>
                     </th>
                   ) : (
-                    <th key={g.qKey} style={{ ...thStyle, background: accent2, minWidth: 70 }}>
+                    <th key={g.qKey} style={{ ...thStyle, background: accent2, minWidth: 70, textAlign: 'center', verticalAlign: 'middle' }}>
                       {g.qLabel}
                     </th>
                   ),

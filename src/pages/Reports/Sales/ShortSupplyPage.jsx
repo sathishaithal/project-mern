@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { getShortSupplyByCategory } from '../../services/salesDashboardApi';
-import { useAuth } from '../../context/AuthContext';
-import { useColorMode } from '../../theme/ThemeContext';
+import { getShortSupplyByCategory } from '../../../services/salesDashboardApi';
+import { useAuth } from '../../../context/AuthContext';
+import { useColorMode } from '../../../theme/ThemeContext';
 
 function ShortSupplyTable({ title, data, loading, error, accent, accentDark, cardBg, borderClr, textClr, mutedClr, isDarkMode }) {
   const totals = useMemo(() => ({

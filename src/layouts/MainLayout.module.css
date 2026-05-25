@@ -13,6 +13,8 @@
 /* Main Content */
 .mainContent {
   flex: 1;
+  min-width: 0;        /* prevent flex item from expanding beyond container */
+  overflow-x: hidden;  /* clip content; child scroll containers still work */
   transition: margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   min-height: 100vh;
 }
