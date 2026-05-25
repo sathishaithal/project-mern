@@ -81,17 +81,21 @@ export async function getDispatchHeaderTop(employeename) {
   }
 }
 
-export async function getShortSupplyByCategory(employeename) {
+export async function getShortSupplyByCategory(params) {
+  // params: { fromdate, todate, employeename }
+  // also accepts a bare string (legacy: employeename only)
+  const p = typeof params === 'string' ? { employeename: params } : params;
   const res = await axios.get(`${BASE}/short-supply-by-category`, {
-    params: { employeename },
+    params: p,
     headers: authHeaders(),
   });
   return res.data.list ?? res.data;
 }
 
-export async function getCatgroupForCategory(label, employeename) {
+export async function getCatgroupForCategory(params) {
+  // params: { selectedyear, employeename, monthwisecompany, id }
   const res = await axios.get(`${BASE}/catgroup-for-category`, {
-    params: { label, employeename },
+    params,
     headers: authHeaders(),
   });
   return res.data.list ?? res.data;
@@ -169,7 +173,7 @@ export async function getMonthwiseFiltersNew(params) {
 // ─── CHART APIs ───────────────────────────────────────────────────────────────
 
 export async function getGraphCategoryWithCode(params) {
-  // params: { month, monthwisedisttype, monthwisecompany, employeename }
+  // params: { selectedyear, month, catgroup, category, dataget, monthwisedisttype, monthwisecompany }
   const res = await axios.get(`${BASE}/graph-category-with-code`, {
     params,
     headers: authHeaders(),
@@ -178,7 +182,7 @@ export async function getGraphCategoryWithCode(params) {
 }
 
 export async function getGraphCatgroup(params) {
-  // params: { month, monthwisedisttype, monthwisecompany, employeename }
+  // params: { selectedyear, month, monthwisecompany, monthwisedisttype }
   const res = await axios.get(`${BASE}/graph-catgroup`, {
     params,
     headers: authHeaders(),
@@ -187,8 +191,7 @@ export async function getGraphCatgroup(params) {
 }
 
 export async function getGraphSellingDataByCategory(params) {
-  // NOTE: intentional PHP legacy typo — param is "catgory" (no second 'e')
-  // params: { catgory, daysel, method, company, basedon }
+  // params: { label, daysel, method, company, basedon }  (label = catgroup name)
   const res = await axios.get(`${BASE}/graph-selling-data-by-category`, {
     params,
     headers: authHeaders(),

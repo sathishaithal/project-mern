@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import FilterBar from './filters/FilterBar';
 import { useSalesFilterStore } from '../../store/salesFilterStore';
-import { getDaywiseSalesReport, getThirdLevelDispatch, getLastUpdatedDates } from '../../services/salesDashboardApi';
+import { getDaywiseSalesReport, getLastUpdatedDates } from '../../services/salesDashboardApi';
 import { fmtAmt, fmtDate } from '../../utils/salesFormatters';
 import { useAuth } from '../../context/AuthContext';
 import { useColorMode } from '../../theme/ThemeContext';
@@ -89,12 +89,12 @@ export default function DayWisePage() {
 
     setThirdLoading(p => ({ ...p, [id]: true }));
     try {
-      const fromdate = toDateStr(daywiseyear, daywisemonth, 1);
-      const todate   = toDateStr(daywiseyear, daywisemonth, days);
-      const data = await getThirdLevelDispatch({
-        label: id, employeename, method: daywisedisttype,
+      // Angular: getsalesreportsecondlevel(year, month, company, disttype, type, employeename)
+      // → daywisesalesreportsecondlevel_AR1.php?year=&month=&company=&disttype=&type=&employeename=
+      const data = await getDaywiseSalesReport({
+        year: daywiseyear, month: daywisemonth,
         company: daywisecompany, disttype: daywisedisttype,
-        fromdate, todate,
+        type: row.disttype, employeename,
       });
       setThirdLevel(p => ({ ...p, [id]: Array.isArray(data) ? data : [] }));
       setExpanded(p => ({ ...p, [id]: true }));

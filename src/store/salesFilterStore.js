@@ -3,13 +3,8 @@ import { create } from 'zustand';
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
 
-const toFY = (endYear) =>
-  `${(endYear - 1).toString().slice(-2)}${endYear.toString().slice(-2)}`;
-
-const currentFY = toFY(currentYear);
-
 export const useSalesFilterStore = create((set) => ({
-  multiyear: [currentFY],
+  multiyear: [String(currentYear)],
   monthwisecompany: 'SBL',
   monthwisedisttype: 'Distribution',
 
@@ -47,7 +42,7 @@ export const YEAR_OPTIONS = Array.from(
   { length: currentYear - 2017 + 1 },
   (_, i) => {
     const calYear = currentYear - i;
-    return { value: toFY(calYear), label: String(calYear) };
+    return { value: String(calYear), label: String(calYear) };
   },
 );
 

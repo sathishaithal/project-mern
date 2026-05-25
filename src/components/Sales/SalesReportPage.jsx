@@ -8,6 +8,7 @@ import {
   getMultiYearSales,
   getMonthwiseFiltersDist,
   getMonthwiseFiltersNew,
+  getCatgroupForCategory,
   getThirdLevelDispatch,
   getFourthLevelDispatch,
   getLastUpdatedDates,
@@ -459,15 +460,47 @@ export default function SalesReportPage() {
     if (drillDataRef.current[key]) { setExpanded(p => ({ ...p, [key]: true })); return; }
     setDrillLoading(p => ({ ...p, [key]: true }));
     try {
-      const drillFn = level < 2 ? getThirdLevelDispatch : getFourthLevelDispatch;
-      const data = await drillFn({
-        catgroup: row.catgroup || '',
-        label: id,
-        employeename,
-        method: monthwisedisttype,
-        company: monthwisecompany,
-        disttype: monthwisedisttype,
-      });
+      const tab = activeTabRef.current;
+      const rowId = row.id ?? id;
+      const selectedyear = row.year ?? String(multiyear?.[0] ?? '');
+      let data;
+
+      if (tab === 'summary' && level === 0) {
+        // YoY Summary Level 0 → catgroup-for-category
+        // Angular: getallmaindisttypes → getallmaindisttype(year, company, disttype, employee)
+        // confirmed working: ?selectedyear=2026&employeename=X&monthwisecompany=ALL&id=Distribution_SBL
+        data = await getCatgroupForCategory({
+          selectedyear,
+          employeename,
+          monthwisecompany,
+          id: rowId,
+        });
+      } else if (level <= 1) {
+        // Level 0 for non-summary tabs, or Level 1 for summary (catgroup row → distributor list)
+        // Angular: getsecondlevel → thirdleveldispatch_vn_AR4_SVS.php
+        // params: id, distpatchtype, disttype, selectedyear, monthwisecompany, employeename
+        data = await getThirdLevelDispatch({
+          id: rowId,
+          distpatchtype: row.disttype || monthwisedisttype,
+          disttype: row.disttype || monthwisedisttype,
+          selectedyear,
+          monthwisecompany,
+          employeename,
+        });
+      } else {
+        // Level 2+ (distributor row → item list)
+        // Angular: catgroup_for_cat → fourthleveldispatch_all_AR4_SVS.php
+        // params: id, dispatchtype, disttype, selectedyear, monthwisecompany, employeename
+        data = await getFourthLevelDispatch({
+          id: rowId,
+          dispatchtype: row.disttype || monthwisedisttype,
+          disttype: row.disttype || monthwisedisttype,
+          selectedyear,
+          monthwisecompany,
+          employeename,
+        });
+      }
+
       const list = Array.isArray(data) ? data : [];
       drillDataRef.current = { ...drillDataRef.current, [key]: list };
       setDrillData(p => ({ ...p, [key]: list }));
@@ -477,7 +510,7 @@ export default function SalesReportPage() {
     } finally {
       setDrillLoading(p => ({ ...p, [key]: false }));
     }
-  }, [monthwisecompany, monthwisedisttype, employeename]);
+  }, [monthwisecompany, monthwisedisttype, employeename, multiyear]);
 
   const handleCollapse = useCallback((id) => setExpanded(p => ({ ...p, [id]: false })), []);
 

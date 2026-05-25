@@ -417,14 +417,17 @@ export default function ChartsPage() {
     setCatgroupRaw([]); setCategoryData([]); setCodeData([]);
     setCatgroupLoading(true);
     try {
+      const selectedyear = Array.isArray(multiyear)
+        ? String(multiyear[multiyear.length - 1])
+        : String(multiyear);
       const rows = await getGraphCatgroup({
-        month: label, monthwisedisttype, monthwisecompany, employeename,
+        selectedyear, month: label, monthwisedisttype, monthwisecompany,
       });
       setCatgroupRaw(Array.isArray(rows) ? rows : []);
     } catch { setCatgroupRaw([]); }
     setCatgroupLoading(false);
     scrollTo('section2');
-  }, [monthwisedisttype, monthwisecompany, employeename]);
+  }, [multiyear, monthwisedisttype, monthwisecompany]);
 
   const { distPie, instPie, govtPie } = useMemo(() => ({
     distPie: catgroupRaw.filter(r => r.institute !== 'Yes' && r.areaname !== 'Govt Orders')
@@ -443,13 +446,13 @@ export default function ChartsPage() {
     setCategoryData([]); setCodeData([]);
     setCategoryLoading(true);
     try {
-      // NOTE: intentional PHP legacy typo — "catgory" (no second 'e')
+      // backend: getsellingdata1_SVS.php — param is "label" (the catgroup name)
       const rows = await getGraphSellingDataByCategory({
-        catgory: catgroupName,
+        label: catgroupName,
         daysel: clickedMonth,
         method: monthwisedisttype,
         company: monthwisecompany,
-        basedon: 'tonnage',
+        basedon: 'Tonnage',
       });
       setCategoryData(Array.isArray(rows)
         ? rows.map(r => ({ name: r.category, value: parseFloat(r.monthval) || 0 }))
@@ -467,11 +470,17 @@ export default function ChartsPage() {
     setCodeData([]);
     setCodeLoading(true);
     try {
+      const selectedyear = Array.isArray(multiyear)
+        ? String(multiyear[multiyear.length - 1])
+        : String(multiyear);
       const rows = await getGraphCategoryWithCode({
+        selectedyear,
         month: clickedMonth,
+        catgroup: clickedCatgroup,
+        category: payload.name,
+        dataget: String(clickedPieGroup || 1),
         monthwisedisttype,
         monthwisecompany,
-        employeename,
       });
       setCodeData(Array.isArray(rows)
         ? rows.map(r => ({
@@ -484,7 +493,7 @@ export default function ChartsPage() {
     } catch { setCodeData([]); }
     setCodeLoading(false);
     scrollTo('section3b');
-  }, [clickedMonth, monthwisedisttype, monthwisecompany, employeename]);
+  }, [multiyear, clickedMonth, clickedCatgroup, clickedPieGroup, monthwisedisttype, monthwisecompany]);
 
   const showSection3b = codeData.length > 0 || codeLoading;
 

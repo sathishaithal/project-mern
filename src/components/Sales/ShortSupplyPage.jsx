@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { getShortSupplyByCategory } from '../../services/salesDashboardApi';
 import { useAuth } from '../../context/AuthContext';
@@ -103,6 +103,19 @@ function ShortSupplyTable({ title, data, loading, error, accent, accentDark, car
   );
 }
 
+const toYMD = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const defaultDates = () => {
+  const now = new Date();
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+  return { from: toYMD(prev), to: toYMD(prev) };
+};
+
 export default function ShortSupplyPage() {
   const { user } = useAuth();
   const { isDarkMode, selectedAccent, selectedFont } = useColorMode();
@@ -116,14 +129,17 @@ export default function ShortSupplyPage() {
   const mutedClr   = isDarkMode ? '#94a3b8' : '#64748b';
   const fontFamily = selectedFont?.body || "'Manrope', sans-serif";
 
-  const [rows, setRows] = useState([]);
+  const init = defaultDates();
+  const [fromdate, setFromdate] = useState(init.from);
+  const [todate,   setTodate]   = useState(init.to);
+  const [rows, setRows]   = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError]   = useState(null);
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
     setLoading(true);
     setError(null);
-    getShortSupplyByCategory(user?.username)
+    getShortSupplyByCategory({ fromdate, todate, employeename: user?.username })
       .then((data) => {
         setRows(Array.isArray(data) ? data : []);
         setLoading(false);
@@ -132,7 +148,9 @@ export default function ShortSupplyPage() {
         setError(err?.response?.data?.error || err?.message || 'Failed to load short supply data');
         setLoading(false);
       });
-  }, [user?.username]);
+  }, [fromdate, todate, user?.username]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const highToLow = useMemo(() =>
     [...rows].sort((a, b) => (parseFloat(b.shortsupply) || 0) - (parseFloat(a.shortsupply) || 0)),
@@ -143,6 +161,17 @@ export default function ShortSupplyPage() {
   [rows]);
 
   const tableProps = { accent, accentDark, cardBg, borderClr, textClr, mutedClr, isDarkMode, loading, error };
+
+  const inputStyle = {
+    height: 32, padding: '0 0.5rem', borderRadius: 7, fontSize: '0.8rem',
+    border: `1px solid ${isDarkMode ? '#334155' : '#cbd5e1'}`,
+    background: isDarkMode ? '#0f172a' : 'white',
+    color: textClr, fontFamily, outline: 'none',
+  };
+  const labelStyle = {
+    fontWeight: 600, fontSize: '0.72rem', color: mutedClr,
+    whiteSpace: 'nowrap', display: 'block', marginBottom: 2,
+  };
 
   return (
     <div style={{ width: '100%', fontFamily }}>
@@ -156,6 +185,25 @@ export default function ShortSupplyPage() {
           Short Supply
         </h2>
       </motion.div>
+
+      {/* Date filter bar — matches Angular fromdate/todate params */}
+      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: '1rem' }}>
+        <div>
+          <label style={labelStyle}>From Date</label>
+          <input type="date" value={fromdate} onChange={e => setFromdate(e.target.value)} style={inputStyle} />
+        </div>
+        <div>
+          <label style={labelStyle}>To Date</label>
+          <input type="date" value={todate} onChange={e => setTodate(e.target.value)} style={inputStyle} />
+        </div>
+        <button
+          onClick={fetchData}
+          disabled={loading}
+          style={{ height: 32, background: `linear-gradient(135deg,${accent},${accent2})`, color: 'white', border: 'none', borderRadius: 7, padding: '0 1rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', fontFamily, alignSelf: 'flex-end' }}
+        >
+          <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />{loading ? 'Loading…' : 'Apply'}
+        </button>
+      </div>
 
       <motion.div
         initial={{ opacity: 0, y: 18 }}
