@@ -11,24 +11,14 @@ const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateD
   const accent  = selectedAccent?.primary   || '#2563eb';
   const accent2 = selectedAccent?.secondary || '#1e40af';
 
-  const barStyle = {
-    background: isDarkMode ? '#1e293b' : 'white',
-    border: `1px solid ${isDarkMode ? '#334155' : 'rgba(148,163,184,0.18)'}`,
-    borderRadius: 14, boxShadow: '0 2px 12px rgba(37,99,235,0.06)',
-    padding: '0.75rem 1.25rem', marginBottom: '1.25rem',
-  };
-
-  const syncBtnStyle = {
-    height: 34,
-    background: `linear-gradient(135deg, ${accent}, ${accent2})`,
-    color: 'white', border: 'none', borderRadius: 8, padding: '0 1rem',
-    fontWeight: 700, fontSize: '0.82rem', fontFamily: "'Manrope', sans-serif",
-    display: 'flex', alignItems: 'center', gap: 2,
-    transition: 'opacity 0.2s', whiteSpace: 'nowrap',
-  };
-
   return (
-    <div style={barStyle}>
+    <div
+      className="fb-bar"
+      style={{
+        background: isDarkMode ? '#1e293b' : 'white',
+        border: `1px solid ${isDarkMode ? '#334155' : 'rgba(148,163,184,0.18)'}`,
+      }}
+    >
       <div className="fb-inner">
         <div className="fb-group">
           <YearSelector mode={mode} />
@@ -48,7 +38,7 @@ const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateD
 
         <div className="fb-actions">
           {lastUpdateDate && (
-            <span style={{ fontSize: '0.72rem', color: isDarkMode ? '#94a3b8' : '#64748b', whiteSpace: 'nowrap' }}>
+            <span className="fb-last-update" style={{ color: isDarkMode ? '#94a3b8' : '#64748b' }}>
               Last update on:&nbsp;
               <strong style={{ color: accent, fontWeight: 700 }}>{lastUpdateDate}</strong>
             </span>
@@ -57,7 +47,12 @@ const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateD
             <button
               onClick={onApply}
               disabled={isLoading}
-              style={{ ...syncBtnStyle, opacity: isLoading ? 0.6 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }}
+              className="fb-sync-btn"
+              style={{
+                background: `linear-gradient(135deg, ${accent}, ${accent2})`,
+                opacity: isLoading ? 0.6 : 1,
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+              }}
             >
               {isLoading
                 ? <><i className="bi bi-arrow-clockwise" style={{ marginRight: 4 }} />Loading…</>

@@ -53,8 +53,8 @@ const CompanySelector = ({ mode = 'monthwise' }) => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-      <label style={{ fontWeight: 700, fontSize: '0.72rem', color: isDarkMode ? '#94a3b8' : accent, whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>
+    <div className="sr-sel-wrap">
+      <label className="sr-filter-label" style={{ color: isDarkMode ? '#94a3b8' : accent }}>
         Companys :
       </label>
       <Select

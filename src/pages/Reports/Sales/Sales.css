@@ -4,7 +4,7 @@
    Dynamic colours / fonts stay in inline styles.
 ═══════════════════════════════════════════════════════════ */
 
-/* ── Loading spinner ──────────────────────────────────────── */
+/* ── Shared spinner ───────────────────────────────────────── */
 @keyframes srSpin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
@@ -14,7 +14,51 @@
   display: inline-block;
 }
 
-/* ── SalesReportPage outer wrapper ───────────────────────── */
+/* ── ShortSupply keyframes (moved from inline <style> tag) ── */
+@keyframes sspin { to { transform: rotate(360deg); } }
+@keyframes ssdot {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+  40%           { transform: scale(1);   opacity: 1;   }
+}
+@keyframes ssprogress { from { width: 100%; } to { width: 0%; } }
+
+/* ── ShortSupply pagination buttons ──────────────────────── */
+.ss-pg-btn {
+  background: linear-gradient(135deg, var(--ss-accent, #1a237e), var(--ss-accent2, #283593));
+  color: white;
+  border: none;
+  border-radius: 7px;
+  height: 30px;
+  padding: 0 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+  white-space: nowrap;
+}
+.ss-pg-btn:not(:disabled):hover {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 5px 16px rgba(0,0,0,0.22);
+}
+.ss-pg-btn:not(:disabled):active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: none;
+}
+.ss-pg-btn:disabled {
+  background: linear-gradient(135deg, #94a3b8, #64748b);
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+/* Flip calendar popup to open leftward — right-side table near viewport edge */
+.ss-flip-picker .appDateMenu {
+  right: 0;
+  left: auto;
+}
+
+/* ══════════════════════════════════════════════════════════
+   SalesReportPage
+══════════════════════════════════════════════════════════ */
+
 .sr-page {
   width: 100%;
   max-width: 100%;
@@ -56,12 +100,157 @@
   font-size: 0.78rem;
 }
 
-/* ── SalesDashboard outer wrapper ────────────────────────── */
+/* ── Table header cells ───────────────────────────────────── */
+.sr-th {
+  padding: 0.55rem 0.6rem;
+  font-weight: 700;
+  font-size: 0.71rem;
+  color: white;
+  text-align: right;
+  white-space: nowrap;
+  min-width: 60px;
+}
+
+/* ── Table data cells ─────────────────────────────────────── */
+.sr-td {
+  padding: 0.35rem 0.6rem;
+  text-align: right;
+  white-space: nowrap;
+  font-size: 0.77rem;
+  color: var(--sales-text-muted, #475569);
+}
+
+/* ── Expand/collapse button ───────────────────────────────── */
+.sr-expand-btn {
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  color: #64748b;
+  padding: 0;
+}
+
+/* ── Tab filter row ───────────────────────────────────────── */
+.sr-tab-filter-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  padding: 0.6rem 0;
+  margin-bottom: 0;
+}
+
+/* ── Filter group (label + select) ───────────────────────── */
+.sr-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+/* ── Filter / selector label (shared across all selector components) */
+.sr-filter-label {
+  font-weight: 700;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+/* ── Apply button base ────────────────────────────────────── */
+.sr-apply-btn {
+  height: 32px;
+  color: white;
+  border: none;
+  border-radius: 7px;
+  padding: 0 0.9rem;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  font-family: inherit;
+  align-self: flex-end;
+}
+
+/* ── Drill loading overlay ────────────────────────────────── */
+.sr-drill-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  border-radius: 14px;
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Drill overlay inner card ─────────────────────────────── */
+.sr-drill-card {
+  border-radius: 12px;
+  padding: 1.5rem 2rem;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+}
+
+/* ══════════════════════════════════════════════════════════
+   SalesDashboard
+══════════════════════════════════════════════════════════ */
+
 .dash-outer {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
   box-sizing: border-box;
+}
+
+/* ── Top row: tabs + fullscreen button ────────────────────── */
+.dash-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+/* ── Top tab bar pill container ───────────────────────────── */
+.dash-tab-bar {
+  display: flex;
+  gap: 0;
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.07);
+}
+
+/* ── Full screen toggle button ────────────────────────────── */
+.dash-fullscreen-btn {
+  border-radius: 8px;
+  padding: 0.38rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+/* ── Exit fullscreen button (floating fixed) ──────────────── */
+.dash-exit-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 0.42rem 1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.28);
 }
 
 /* ── Report sub-tab pills (Month Wise / Day Wise / SHORT SUPPLY) */
@@ -80,9 +269,19 @@
   white-space: nowrap;
 }
 
-/* SummaryCards uses inline auto-fit grid — no CSS class needed */
+/* ══════════════════════════════════════════════════════════
+   FilterBar
+══════════════════════════════════════════════════════════ */
 
-/* ── FilterBar inner layout ───────────────────────────────── */
+/* ── Outer container ──────────────────────────────────────── */
+.fb-bar {
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(37,99,235,0.06);
+  padding: 0.75rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+/* ── Inner layout ─────────────────────────────────────────── */
 .fb-inner {
   display: flex;
   align-items: flex-end;
@@ -101,6 +300,222 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 0.3rem;
+}
+
+/* ── Sync/Apply button ────────────────────────────────────── */
+.fb-sync-btn {
+  height: 34px;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0 1rem;
+  font-weight: 700;
+  font-size: 0.82rem;
+  font-family: 'Manrope', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+/* ── Last update text ─────────────────────────────────────── */
+.fb-last-update {
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+/* ══════════════════════════════════════════════════════════
+   Selector components (YearSelector / CompanySelector / DistTypeSelector)
+══════════════════════════════════════════════════════════ */
+
+.sr-sel-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* ══════════════════════════════════════════════════════════
+   SummaryCards
+══════════════════════════════════════════════════════════ */
+
+.sc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 1.25rem;
+}
+
+.sc-card {
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  border-radius: 14px;
+  padding: 1rem 1.2rem;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.13);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  color: white;
+}
+
+.sc-card-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.sc-card-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.sc-card-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  opacity: 0.85;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sc-card-subtitle {
+  font-size: 0.68rem;
+  opacity: 0.75;
+  margin-top: 1px;
+}
+
+.sc-card-value {
+  font-size: 1rem;
+  font-weight: 800;
+  margin-top: 4px;
+  letter-spacing: -0.01em;
+}
+
+.sc-card-list {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.7rem;
+  line-height: 1.6;
+}
+.sc-card-list li {
+  opacity: 0.92;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ══════════════════════════════════════════════════════════
+   ShortSupplyPage
+══════════════════════════════════════════════════════════ */
+
+.ss-th {
+  padding: 0.5rem 0.6rem;
+  font-weight: 700;
+  font-size: 0.71rem;
+  color: white;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ss-td {
+  padding: 0.4rem 0.6rem;
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--ss-muted, #64748b);
+}
+
+.ss-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  margin-bottom: 8px;
+  border-radius: 12px;
+}
+
+.ss-table-card {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(37,99,235,0.07);
+  position: relative;
+}
+
+.ss-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.ss-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+/* ══════════════════════════════════════════════════════════
+   DayWisePage
+══════════════════════════════════════════════════════════ */
+
+.dw-th {
+  padding: 0.55rem 0.5rem;
+  font-weight: 700;
+  font-size: 0.72rem;
+  color: white;
+  text-align: right;
+  white-space: nowrap;
+  min-width: 52px;
+}
+
+.dw-td {
+  padding: 0.35rem 0.5rem;
+  text-align: right;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--dw-muted, #64748b);
+}
+
+.dw-expand-btn {
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  padding: 0;
+}
+
+.dw-card {
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(37,99,235,0.06);
+  width: 100%;
+}
+
+.dw-info-bar {
+  padding: 0.6rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 /* ── Responsive ≤ 768px ───────────────────────────────────── */

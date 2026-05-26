@@ -97,7 +97,11 @@ export default function SalesDashboard() {
         padding: '16px',
         boxSizing: 'border-box',
         fontFamily,
-      } : { fontFamily }}
+      } : {
+        fontFamily,
+        '--sr-accent': accent,
+        '--sr-accent2': accent2,
+      }}
     >
 
       {/* ── Top tab bar + Full Screen button (hidden in fullscreen) ── */}
@@ -106,13 +110,12 @@ export default function SalesDashboard() {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.32 }}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}
+          className="dash-top-row"
         >
-          <div style={{
-            display: 'flex', gap: 0,
-            background: tabBg, borderRadius: 10, padding: '4px',
-            boxShadow: '0 2px 8px rgba(37,99,235,0.07)', border: `1px solid ${tabBorder}`,
-          }}>
+          <div
+            className="dash-tab-bar"
+            style={{ background: tabBg, border: `1px solid ${tabBorder}` }}
+          >
             {TOP_TABS.map(t => (
               <button key={t.id} onClick={() => setTopTab(t.id)} style={activeTopBtn(topTab === t.id)}>
                 {t.label}
@@ -123,13 +126,8 @@ export default function SalesDashboard() {
           <button
             onClick={toggleFullscreen}
             title="Full Screen"
-            style={{
-              background: tabBg, border: `1px solid ${accent}`, color: accent,
-              borderRadius: 8, padding: '0.38rem 0.85rem', fontSize: '0.78rem',
-              fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center',
-              gap: 6, fontFamily, transition: 'all 0.2s',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-            }}
+            className="dash-fullscreen-btn"
+            style={{ background: tabBg, border: `1px solid ${accent}`, color: accent, fontFamily }}
           >
             <i className="bi bi-arrows-fullscreen" style={{ fontSize: '0.82rem' }} />
             Full Screen

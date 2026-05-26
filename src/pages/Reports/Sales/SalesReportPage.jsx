@@ -8,7 +8,6 @@ import { useSalesFilterStore } from '../../../store/salesFilterStore';
 import {
   getMultiYearSales,
   getMonthwiseFiltersDist,
-  getMonthwiseFiltersNew,
   getCatgroupForCategory,
   getThirdLevelDispatch,
   getFourthLevelDispatch,
@@ -17,6 +16,7 @@ import {
 import { fmt, fmtDate } from '../../../utils/salesFormatters';
 import { useAuth } from '../../../context/AuthContext';
 import { CheckOption } from './filters/salesSelectUtils';
+import { appLog } from '../../../config/appConfig';
 
 const GROUPS = [
   { months: [
@@ -49,6 +49,36 @@ const ALL_NUM_KEYS = [
   'Q1','Q2','Q3','Q4','Q1_last','Q2_last','Q3_last','Q4_last',
   'ttltonnage_crnt','ttltonnage_crntwy','ttltonnagewy','currentmonthtonnage','currentmonthtonnage_last',
 ];
+
+// Keys summed during grouping (superset of ALL_NUM_KEYS — adds ttltonnage and lastmonthtonnage)
+const GROUP_SUM_KEYS = [...ALL_NUM_KEYS, 'ttltonnage', 'lastmonthtonnage'];
+
+const MONTH_KEYS_FOR_MINMAX = [
+  'jantonnage','febtonnage','martonnage','aprtonnage','maytonnage','juntonnage',
+  'jultonnage','augtonnage','septonnage','octtonnage','novtonnage','dectonnage','currentmonthtonnage',
+];
+
+// Groups a flat API response by groupField and sums all numeric tonnage fields — mirrors Angular datafilter_new()
+function groupByField(rows, groupField) {
+  const map = {};
+  for (const row of rows) {
+    const key = String(row[groupField] ?? '').trim();
+    if (!key) continue;
+    if (!map[key]) {
+      map[key] = { ...row, id: key };
+      GROUP_SUM_KEYS.forEach(k => { map[key][k] = 0; });
+    }
+    GROUP_SUM_KEYS.forEach(k => { map[key][k] += parseFloat(row[k]) || 0; });
+  }
+  return Object.values(map)
+    .sort((a, b) => String(a[groupField]).localeCompare(String(b[groupField])))
+    .map(row => {
+      const vals = MONTH_KEYS_FOR_MINMAX.map(k => row[k]).filter(v => v > 0);
+      row.maxvalue = vals.length ? Math.max(...vals) : '';
+      row.minvalue = vals.length ? Math.min(...vals) : '';
+      return row;
+    });
+}
 
 const TABS = [
   { id: 'summary',      label: 'YoY Summary' },
@@ -320,7 +350,7 @@ export default function SalesReportPage() {
   const [toastVisible, setToastVisible] = useState(false);
   const toastTimeoutRef = useRef(null);
 
-  const [rows, setRows]         = useState([]);
+  const [rawRows,    setRawRows]    = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
   const [activeTab, setActiveTab] = useState('summary');
@@ -334,31 +364,15 @@ export default function SalesReportPage() {
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
 
-  const [filterDists,     setFilterDists]     = useState([]);
-  const [filterCatgroups, setFilterCatgroups] = useState([]);
-  const [filterAsms,      setFilterAsms]      = useState([]);
-  const [filterSoffs,     setFilterSoffs]     = useState([]);
-
-  const [fdist,      setFdist]      = useState('');
+  // Tab-specific filter state — cleared on tab switch
   const [fCatgroup,  setFCatgroup]  = useState('');
+  const [fCategory,  setFCategory]  = useState('');
+  const [fItemType,  setFItemType]  = useState('');
+  const [fItem,      setFItem]      = useState('');
+  const [fDistName,  setFDistName]  = useState('');
   const [fAsm,       setFAsm]       = useState('');
+  const [fAreaName,  setFAreaName]  = useState('');
   const [fSoff,      setFSoff]      = useState('');
-  const [fSoffAsm,   setFSoffAsm]   = useState('');
-
-  useEffect(() => {
-    if (!employeename) return;
-    Promise.all([
-      getMonthwiseFiltersDist({ employeename, selectedyear: multiyear[0] }).catch(() => []),
-      getMonthwiseFiltersNew({ jsonData: JSON.stringify({ type: 'catgroup', employeename, multiyear }) }).catch(() => []),
-      getMonthwiseFiltersNew({ jsonData: JSON.stringify({ type: 'asm',      employeename, multiyear }) }).catch(() => []),
-      getMonthwiseFiltersNew({ jsonData: JSON.stringify({ type: 'soff',     employeename, multiyear }) }).catch(() => []),
-    ]).then(([dists, cats, asms, soffs]) => {
-      setFilterDists(Array.isArray(dists) ? dists : []);
-      setFilterCatgroups(Array.isArray(cats) ? cats : []);
-      setFilterAsms(Array.isArray(asms) ? asms : []);
-      setFilterSoffs(Array.isArray(soffs) ? soffs : []);
-    });
-  }, [employeename, multiyear]);
 
   useEffect(() => {
     return () => { if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current); };
@@ -432,25 +446,13 @@ export default function SalesReportPage() {
     setDrillLoading({});
 
     try {
-      let fetchMain;
       const baseParams = { multiyear, employeename, monthwisecompany, monthwisedisttype };
-
-      if (activeTab === 'summary') {
-        fetchMain = getMultiYearSales(baseParams);
-      } else if (activeTab === 'distributors') {
-        fetchMain = getMonthwiseFiltersDist({ ...baseParams, selectedyear: multiyear[0], disttype: monthwisedisttype });
-      } else {
-        fetchMain = getMonthwiseFiltersNew({
-          jsonData: JSON.stringify({ ...baseParams, view: activeTab }),
-        });
-      }
-
-      const [data, dates] = await Promise.all([
-        fetchMain,
-        getLastUpdatedDates(employeename),
-      ]);
-      setRows(Array.isArray(data) ? data.filter(r => !isGrandTotal(r)) : []);
-      setLastUpdate(Array.isArray(dates) ? dates[0] : dates);
+      // All non-summary tabs use getMonthwiseFiltersDist (same data, grouped client-side by different field)
+      const data = await (activeTab === 'summary'
+        ? getMultiYearSales(baseParams)
+        : getMonthwiseFiltersDist({ selectedyear: multiyear[0], employeename, monthwisecompany, disttype: monthwisedisttype })
+      );
+      setRawRows(Array.isArray(data) ? data.filter(r => !isGrandTotal(r)) : []);
     } catch (err) {
       const msg = err?.response?.data?.error || err?.message || 'Failed to load data';
       setError(msg);
@@ -461,6 +463,15 @@ export default function SalesReportPage() {
   }, [activeTab, multiyear, monthwisecompany, monthwisedisttype, employeename]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Fetch last-updated dates once on mount — never on tab or filter change
+  useEffect(() => {
+    if (!employeename) return;
+    appLog('[INIT] Fetching last updated dates — runs once on mount');
+    getLastUpdatedDates(employeename)
+      .then(d => setLastUpdate(Array.isArray(d) ? d[0] : d))
+      .catch(() => null);
+  }, [employeename]);
 
   const handleExpand = useCallback(async (row, id, level) => {
     const key = `${level}_${id}`;
@@ -528,6 +539,56 @@ export default function SalesReportPage() {
   const lastUpdateDate = lastUpdate ? fmtDate(lastUpdate.dispatchlastupdate) : null;
   const isDrillLoading = Object.values(drillLoading).some(Boolean);
 
+  // Filter option arrays — derived from raw API response (unique sorted values)
+  const optCatgroups  = useMemo(() => [...new Set(rawRows.map(r => r.catgroup).filter(Boolean))].sort(), [rawRows]);
+  const optCategories = useMemo(() => [...new Set(rawRows.map(r => r.category).filter(Boolean))].sort(), [rawRows]);
+  const optItemTypes  = useMemo(() => [...new Set(rawRows.map(r => r.method).filter(Boolean))].sort(), [rawRows]);
+  const optItems      = useMemo(() => [...new Set(rawRows.map(r => r.description).filter(Boolean))].sort(), [rawRows]);
+  const optDistNames  = useMemo(() => [...new Set(rawRows.map(r => r.distname).filter(Boolean))].sort(), [rawRows]);
+  const optAsms       = useMemo(() => [...new Set(rawRows.map(r => r.asm).filter(Boolean))].sort(), [rawRows]);
+  const optAreaNames  = useMemo(() => [...new Set(rawRows.map(r => r.areaname).filter(Boolean))].sort(), [rawRows]);
+  const optSoffs      = useMemo(() => [...new Set(rawRows.map(r => r.soff).filter(Boolean))].sort(), [rawRows]);
+
+  // Filter rawRows FIRST, then group — mirrors Angular's datafilter_new() on the raw response
+  const displayRows = useMemo(() => {
+    if (activeTab === 'summary') return rawRows;
+    let f = rawRows;
+    if (activeTab === 'distributors') {
+      if (fDistName) f = f.filter(r => r.distname === fDistName);
+      if (fCatgroup) f = f.filter(r => r.catgroup === fCatgroup);
+      if (fCategory) f = f.filter(r => r.category === fCategory);
+      if (fItemType) f = f.filter(r => r.method === fItemType);
+      if (fItem)     f = f.filter(r => r.description === fItem);
+      return groupByField(f, 'distname');
+    }
+    if (activeTab === 'catgroup') {
+      if (fCatgroup) f = f.filter(r => r.catgroup === fCatgroup);
+      if (fCategory) f = f.filter(r => r.category === fCategory);
+      if (fItemType) f = f.filter(r => r.method === fItemType);
+      if (fItem)     f = f.filter(r => r.description === fItem);
+      if (fDistName) f = f.filter(r => r.distname === fDistName);
+      return groupByField(f, 'catgroup');
+    }
+    if (activeTab === 'asm') {
+      if (fAsm)      f = f.filter(r => r.asm === fAsm);
+      if (fAreaName) f = f.filter(r => r.areaname === fAreaName);
+      if (fCatgroup) f = f.filter(r => r.catgroup === fCatgroup);
+      if (fCategory) f = f.filter(r => r.category === fCategory);
+      if (fItem)     f = f.filter(r => r.description === fItem);
+      return groupByField(f, 'asm');
+    }
+    if (activeTab === 'soff') {
+      if (fAsm)      f = f.filter(r => r.asm === fAsm);
+      if (fSoff)     f = f.filter(r => r.soff === fSoff);
+      if (fDistName) f = f.filter(r => r.distname === fDistName);
+      if (fCatgroup) f = f.filter(r => r.catgroup === fCatgroup);
+      if (fCategory) f = f.filter(r => r.category === fCategory);
+      if (fItem)     f = f.filter(r => r.description === fItem);
+      return groupByField(f, 'soff');
+    }
+    return rawRows;
+  }, [rawRows, activeTab, fCatgroup, fCategory, fItemType, fItem, fDistName, fAsm, fAreaName, fSoff]);
+
   const accent     = selectedAccent?.primary   || '#1a237e';
   const accent2    = selectedAccent?.secondary  || '#283593';
   const accentDark = `color-mix(in srgb, ${accent} 52%, #0a1628)`;
@@ -539,7 +600,7 @@ export default function SalesReportPage() {
       borderColor: state.isFocused ? accent : (isDarkMode ? '#334155' : '#cbd5e1'),
       boxShadow: state.isFocused ? `0 0 0 2px ${accent}30` : 'none',
       '&:hover': { borderColor: accent }, borderRadius: 7, cursor: 'pointer',
-      background: isDarkMode ? '#0f172a' : 'white', minWidth: 110,
+      background: isDarkMode ? '#0f172a' : 'white', minWidth: 130,
     }),
     valueContainer: (base) => ({ ...base, padding: '0 0.6rem' }),
     indicatorsContainer: (base) => ({ ...base, height: 32 }),
@@ -601,7 +662,7 @@ export default function SalesReportPage() {
         {TABS.map(t => (
           <button
             key={t.id}
-            onClick={() => { setActiveTab(t.id); setExpanded({}); setDrillData({}); }}
+            onClick={() => { setActiveTab(t.id); setExpanded({}); setDrillData({}); setFCatgroup(''); setFCategory(''); setFItemType(''); setFItem(''); setFDistName(''); setFAsm(''); setFAreaName(''); setFSoff(''); }}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               fontWeight: activeTab === t.id ? 700 : 500,
@@ -615,21 +676,14 @@ export default function SalesReportPage() {
         ))}
       </motion.div>
 
-      {/* Tab-specific filter rows */}
+      {/* Tab-specific filter rows — options derived from rawRows unique values */}
       {activeTab === 'distributors' && (
         <div style={tabFilterRowStyle}>
-          <div style={tabFiltGroupStyle}>
-            <label style={tabFiltLblStyle(isDarkMode, accent)}>Distributor</label>
-            <Select options={[{value:'',label:'All'},...filterDists.map(d=>({value:d.distname,label:d.distname}))]}
-              value={{value:fdist,label:fdist||'All'}} onChange={s=>setFdist(s.value)}
-              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" components={{ Option: CheckOption }} />
-          </div>
-          <div style={tabFiltGroupStyle}>
-            <label style={tabFiltLblStyle(isDarkMode, accent)}>Cat Group</label>
-            <Select options={[{value:'',label:'All'},...filterCatgroups.map(c=>({value:c.catgroup,label:c.catgroup}))]}
-              value={{value:fCatgroup,label:fCatgroup||'All'}} onChange={s=>setFCatgroup(s.value)}
-              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" components={{ Option: CheckOption }} />
-          </div>
+          <TabFilter label="Distributor"    value={fDistName}  onChange={setFDistName}  options={optDistNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+          <TabFilter label="Category Group" value={fCatgroup}  onChange={setFCatgroup}  options={optCatgroups}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+          <TabFilter label="Category"       value={fCategory}  onChange={setFCategory}  options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+          <TabFilter label="Item Type"      value={fItemType}  onChange={setFItemType}  options={optItemTypes}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+          <TabFilter label="Item"           value={fItem}      onChange={setFItem}      options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
           <button onClick={fetchData} disabled={loading} style={tabFiltApplyStyle(accent, accent2)}>
             <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />{loading ? 'Loading…' : 'Apply'}
           </button>
@@ -638,12 +692,11 @@ export default function SalesReportPage() {
 
       {activeTab === 'catgroup' && (
         <div style={tabFilterRowStyle}>
-          <div style={tabFiltGroupStyle}>
-            <label style={tabFiltLblStyle(isDarkMode, accent)}>Category Group</label>
-            <Select options={[{value:'',label:'All'},...filterCatgroups.map(c=>({value:c.catgroup,label:c.catgroup}))]}
-              value={{value:fCatgroup,label:fCatgroup||'All'}} onChange={s=>setFCatgroup(s.value)}
-              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" components={{ Option: CheckOption }} />
-          </div>
+          <TabFilter label="Category Group" value={fCatgroup}  onChange={setFCatgroup}  options={optCatgroups}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+          <TabFilter label="Category"       value={fCategory}  onChange={setFCategory}  options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+          <TabFilter label="Item Type"      value={fItemType}  onChange={setFItemType}  options={optItemTypes}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+          <TabFilter label="Item"           value={fItem}      onChange={setFItem}      options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+          <TabFilter label="Distributor"    value={fDistName}  onChange={setFDistName}  options={optDistNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
           <button onClick={fetchData} disabled={loading} style={tabFiltApplyStyle(accent, accent2)}>
             <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />{loading ? 'Loading…' : 'Apply'}
           </button>
@@ -652,12 +705,11 @@ export default function SalesReportPage() {
 
       {activeTab === 'asm' && (
         <div style={tabFilterRowStyle}>
-          <div style={tabFiltGroupStyle}>
-            <label style={tabFiltLblStyle(isDarkMode, accent)}>ASM Name</label>
-            <Select options={[{value:'',label:'All'},...filterAsms.map(a=>({value:a.asm,label:a.asm}))]}
-              value={{value:fAsm,label:fAsm||'All'}} onChange={s=>setFAsm(s.value)}
-              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" components={{ Option: CheckOption }} />
-          </div>
+          <TabFilter label="ASM Name"       value={fAsm}       onChange={setFAsm}       options={optAsms}       styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+          <TabFilter label="Area Name"      value={fAreaName}  onChange={setFAreaName}  options={optAreaNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+          <TabFilter label="Category Group" value={fCatgroup}  onChange={setFCatgroup}  options={optCatgroups}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+          <TabFilter label="Category"       value={fCategory}  onChange={setFCategory}  options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+          <TabFilter label="Item"           value={fItem}      onChange={setFItem}      options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
           <button onClick={fetchData} disabled={loading} style={tabFiltApplyStyle(accent, accent2)}>
             <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />{loading ? 'Loading…' : 'Apply'}
           </button>
@@ -666,18 +718,12 @@ export default function SalesReportPage() {
 
       {activeTab === 'soff' && (
         <div style={tabFilterRowStyle}>
-          <div style={tabFiltGroupStyle}>
-            <label style={tabFiltLblStyle(isDarkMode, accent)}>ASM Name</label>
-            <Select options={[{value:'',label:'All'},...filterAsms.map(a=>({value:a.asm,label:a.asm}))]}
-              value={{value:fSoffAsm,label:fSoffAsm||'All'}} onChange={s=>setFSoffAsm(s.value)}
-              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" components={{ Option: CheckOption }} />
-          </div>
-          <div style={tabFiltGroupStyle}>
-            <label style={tabFiltLblStyle(isDarkMode, accent)}>Sales Officer</label>
-            <Select options={[{value:'',label:'All'},...filterSoffs.map(s=>({value:s.soff,label:s.soff}))]}
-              value={{value:fSoff,label:fSoff||'All'}} onChange={s=>setFSoff(s.value)}
-              styles={tabSelStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" components={{ Option: CheckOption }} />
-          </div>
+          <TabFilter label="ASM Name"      value={fAsm}      onChange={setFAsm}      options={optAsms}       styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+          <TabFilter label="Sales Officer" value={fSoff}     onChange={setFSoff}     options={optSoffs}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+          <TabFilter label="Distributor"   value={fDistName} onChange={setFDistName} options={optDistNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+          <TabFilter label="Category Group" value={fCatgroup} onChange={setFCatgroup} options={optCatgroups} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+          <TabFilter label="Category"      value={fCategory} onChange={setFCategory} options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+          <TabFilter label="Item"          value={fItem}     onChange={setFItem}     options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
           <button onClick={fetchData} disabled={loading} style={tabFiltApplyStyle(accent, accent2)}>
             <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />{loading ? 'Loading…' : 'Apply'}
           </button>
@@ -758,14 +804,14 @@ export default function SalesReportPage() {
                     <i className="bi bi-arrow-clockwise" style={{ fontSize: '1.2rem', marginRight: 8 }} />Loading…
                   </td>
                 </tr>
-              ) : rows.length === 0 ? (
+              ) : displayRows.length === 0 ? (
                 <tr>
                   <td colSpan={TOTAL_COLS} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8', background: cardBg }}>No data</td>
                 </tr>
               ) : (
                 <>
                   <DrillRows
-                    rows={rows} level={0} parentRows={rows}
+                    rows={displayRows} level={0} parentRows={displayRows}
                     expandedQuarters={expandedQuarters} isSummary={isSummary} showTillLast={showTillLast}
                     monthwisecompany={monthwisecompany} monthwisedisttype={monthwisedisttype} employeename={employeename}
                     expanded={expanded} drillData={drillData} drillLoading={drillLoading}
@@ -773,8 +819,8 @@ export default function SalesReportPage() {
                     getLabel={getLabel} l0Bg={L0_BG[activeTab] ?? '#fffde7'}
                     isDarkMode={isDarkMode}
                   />
-                  {rows.length > 1 && (
-                    <GrandTotalRow rows={rows} expandedQuarters={expandedQuarters} isSummary={isSummary} showTillLast={showTillLast} accent={accent} />
+                  {displayRows.length > 1 && (
+                    <GrandTotalRow rows={displayRows} expandedQuarters={expandedQuarters} isSummary={isSummary} showTillLast={showTillLast} accent={accent} />
                   )}
                 </>
               )}
@@ -782,9 +828,9 @@ export default function SalesReportPage() {
           </table>
         </div>
 
-        {!loading && rows.length > 0 && (
+        {!loading && displayRows.length > 0 && (
           <div style={{ padding: '0.5rem 1rem', borderTop: `1px solid ${isDarkMode ? '#334155' : '#f1f5f9'}`, fontSize: '0.72rem', color: '#94a3b8' }}>
-            {rows.length} row{rows.length > 1 ? 's' : ''} · Click ▶/▼ on Q headers to expand months · Click ▼ on rows to drill down
+            {displayRows.length} row{displayRows.length > 1 ? 's' : ''} · Click ▶/▼ on Q headers to expand months · Click ▼ on rows to drill down
           </div>
         )}
       </motion.div>
@@ -813,6 +859,24 @@ export default function SalesReportPage() {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function TabFilter({ label, value, onChange, options, styles, isDarkMode, accent }) {
+  return (
+    <div style={tabFiltGroupStyle}>
+      <label style={tabFiltLblStyle(isDarkMode, accent)}>{label}</label>
+      <Select
+        options={[{ value: '', label: 'All' }, ...options.map(o => ({ value: o, label: o }))]}
+        value={{ value, label: value || 'All' }}
+        onChange={s => onChange(s.value)}
+        styles={styles}
+        isSearchable
+        menuPortalTarget={document.body}
+        menuPosition="fixed"
+        components={{ Option: CheckOption }}
+      />
     </div>
   );
 }

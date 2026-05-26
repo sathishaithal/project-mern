@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import FilterBar from './filters/FilterBar';
 import { useSalesFilterStore } from '../../../store/salesFilterStore';
 import { getDaywiseSalesReport, getLastUpdatedDates } from '../../../services/salesDashboardApi';
+import { appLog } from '../../../config/appConfig';
 import { fmtAmt, fmtDate } from '../../../utils/salesFormatters';
 import { useAuth } from '../../../context/AuthContext';
 import { useColorMode } from '../../../theme/ThemeContext';
@@ -57,16 +58,12 @@ export default function DayWisePage() {
     setThirdLevel({});
 
     try {
-      const [data, dates] = await Promise.all([
-        getDaywiseSalesReport({
-          employeename, company: daywisecompany,
-          disttype: daywisedisttype,
-          year: daywiseyear, month: daywisemonth,
-        }),
-        getLastUpdatedDates(employeename),
-      ]);
+      const data = await getDaywiseSalesReport({
+        employeename, company: daywisecompany,
+        disttype: daywisedisttype,
+        year: daywiseyear, month: daywisemonth,
+      });
       setRows(Array.isArray(data) ? data : []);
-      setLastUpdate(Array.isArray(dates) ? dates[0] : dates);
     } catch (err) {
       setError(err?.response?.data?.error || err?.message || 'Failed to load day-wise data');
     } finally {
@@ -75,6 +72,15 @@ export default function DayWisePage() {
   }, [daywiseyear, daywisemonth, daywisecompany, daywisedisttype, employeename]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Fetch last-updated dates once on mount — never on filter change
+  useEffect(() => {
+    if (!employeename) return;
+    appLog('[INIT] Fetching last updated dates (DayWise) — runs once on mount');
+    getLastUpdatedDates(employeename)
+      .then(d => setLastUpdate(Array.isArray(d) ? d[0] : d))
+      .catch(() => null);
+  }, [employeename]);
 
   const handleExpand = async (row) => {
     const id = row.id;
@@ -130,17 +136,7 @@ export default function DayWisePage() {
         </h2>
       </motion.div>
 
-      <FilterBar
-        mode="daywise"
-        onApply={fetchData}
-        isLoading={loading}
-        lastUpdateDate={lastUpdate ? fmtDate(lastUpdate.daywisesaleslastupdate) : null}
-      >
-        <label style={{ fontWeight: 600, fontSize: '0.78rem', color: mutedClr, display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-          <input type="checkbox" checked={showValue} onChange={e => setShowValue(e.target.checked)} style={{ marginRight: 4 }} />
-          Show Value
-        </label>
-      </FilterBar>
+ 
 
       {error && (
         <div style={{ padding: '0.75rem 1rem', marginBottom: '1rem', background: isDarkMode ? '#2d1515' : '#fff5f5', border: '1px solid #fecaca', borderRadius: 8, color: '#ef4444', fontSize: '0.82rem' }}>

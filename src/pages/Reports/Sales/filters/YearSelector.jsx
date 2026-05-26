@@ -15,12 +15,6 @@ const YearSelector = ({ mode = 'monthwise' }) => {
   const accent  = selectedAccent?.primary   || '#2563eb';
   const accent2 = selectedAccent?.secondary || '#1e40af';
 
-  const labelStyle = {
-    fontWeight: 700, fontSize: '0.72rem',
-    color: isDarkMode ? '#94a3b8' : accent,
-    whiteSpace: 'nowrap', letterSpacing: '0.02em',
-  };
-
   const baseSelectStyles = {
     control: (base, state) => ({
       ...base,
@@ -51,8 +45,8 @@ const YearSelector = ({ mode = 'monthwise' }) => {
   if (mode === 'daywise') {
     const dyValue = DAYWISE_YEAR_OPTIONS.find(o => o.value === daywiseyear) || DAYWISE_YEAR_OPTIONS[0];
     return (
-      <div style={wrapStyle}>
-        <label style={labelStyle}>Year :</label>
+      <div className="sr-sel-wrap">
+        <label className="sr-filter-label" style={{ color: isDarkMode ? '#94a3b8' : accent }}>Year :</label>
         <div style={{ minWidth: 90 }}>
           <Select
             options={DAYWISE_YEAR_OPTIONS}
@@ -74,8 +68,8 @@ const YearSelector = ({ mode = 'monthwise' }) => {
   const value = YEAR_OPTIONS.filter((o) => multiyear.includes(o.value));
 
   return (
-    <div style={wrapStyle}>
-      <label style={labelStyle}>Select Years :</label>
+    <div className="sr-sel-wrap">
+      <label className="sr-filter-label" style={{ color: isDarkMode ? '#94a3b8' : accent }}>Select Years :</label>
       <div style={{ minWidth: 200 }}>
         <Select
           isMulti
@@ -97,7 +91,5 @@ const YearSelector = ({ mode = 'monthwise' }) => {
     </div>
   );
 };
-
-const wrapStyle = { display: 'flex', flexDirection: 'column', gap: '0.25rem' };
 
 export default YearSelector;
