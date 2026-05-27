@@ -16,6 +16,7 @@ import {
 import { fmt, fmtDate } from '../../../utils/salesFormatters';
 import { useAuth } from '../../../context/AuthContext';
 import { CheckOption } from './filters/salesSelectUtils';
+import { useSalesSelectStyles } from './filters/useSalesSelectStyles';
 import { appLog } from '../../../config/appConfig';
 
 const GROUPS = [
@@ -133,7 +134,7 @@ const subDiff = (row, key, lyKey) => {
 const MonthCell = ({ row, rows, rowIdx, level, mKey, mLyKey }) => {
   const diff = level === 0 ? l0diff(rows, rowIdx, mKey) : subDiff(row, mKey, mLyKey);
   return (
-    <td style={{ ...tdStyle }}>
+    <td className="sr-td" title={`This year: ${fmt(row[mKey])}, Last year: ${fmt(row[mLyKey])}`}>
       <div style={{ fontWeight: 500, color: 'var(--sales-text, #1e293b)' }}>{fmt(row[mKey])}</div>
       <ArrowIcon diff={diff} />
     </td>
@@ -143,7 +144,8 @@ const MonthCell = ({ row, rows, rowIdx, level, mKey, mLyKey }) => {
 const QuarterCell = ({ row, rows, rowIdx, level, qKey }) => {
   const diff = level === 0 ? l0diff(rows, rowIdx, qKey) : subDiff(row, qKey, qKey + '_last');
   return (
-    <td style={{ ...tdStyle, fontWeight: 700, textAlign: 'center' }}>
+    <td className="sr-td" style={{ fontWeight: 700, textAlign: 'center' }}
+      title={`This year: ${fmt(row[qKey])}, Last year: ${fmt(row[qKey + '_last'])}`}>
       <div>{fmt(row[qKey])}</div>
       <ArrowIcon diff={diff} />
     </td>
@@ -170,40 +172,44 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast }) => {
   else if (level > 0) yoyGr = yoyVal - (parseFloat(row.ttltonnagewy) || 0);
   const yoyPct  = (yoyGr !== null && ytdBase !== 0) ? (yoyGr / Math.abs(ytdBase) * 100) : null;
 
+  const TOOLTIP_FORMULA = 'current year tonnage till this month - previous year tonnage till this month';
+  const TOOLTIP_PCT     = 'Formula: ((Current Value till this month - Previous Value till this month) / Previous Value till this month) × 100';
+
   return (
     <>
       {showTillLast && (
-        <td style={{ ...tdStyle, fontWeight: 600 }}>
+        <td className="sr-td" style={{ fontWeight: 600 }}>
           <div style={{ color: 'var(--sales-text, #1e293b)' }}>{fmt(tillLast)}</div>
         </td>
       )}
-      <td style={{ ...tdStyle, fontWeight: 600 }}>
+      <td className="sr-td" style={{ fontWeight: 600 }}
+        title={`This year: ${fmt(row.currentmonthtonnage)} | Last year: ${fmt(row.currentmonthtonnage_last)}`}>
         <div style={{ color: 'var(--sales-text, #1e293b)' }}>{fmt(row.currentmonthtonnage)}</div>
         {<ArrowIcon diff={level === 0 ? l0diff(rows, rowIdx, 'currentmonthtonnage') : subDiff(row, 'currentmonthtonnage', 'currentmonthtonnage_last')} />}
       </td>
-      <td style={{ ...tdStyle, fontWeight: 700 }}>
+      <td className="sr-td" style={{ fontWeight: 700 }}>
         <div style={{ color: 'var(--sales-text, #1e293b)' }}>{fmt(row.ttltonnage_crnt)}</div>
         {ytdGr !== null && <ArrowIcon diff={ytdGr} />}
       </td>
-      <td style={{ ...tdStyle }}>
+      <td className="sr-td" title={TOOLTIP_FORMULA}>
         <div style={{ color: numColor(ytdGr) }}>{ytdGr !== null ? `${ytdGr >= 0 ? '+' : ''}${fmt(ytdGr)}` : '—'}</div>
       </td>
-      <td style={{ ...tdStyle }}>
+      <td className="sr-td" title={TOOLTIP_PCT}>
         <div style={{ color: numColor(ytdPct) }}>
           {ytdPct !== null ? `${ytdPct.toFixed(1)}%` : '—'}
           {ytdPct !== null && <ArrowIcon diff={ytdPct} />}
         </div>
       </td>
-      <td style={{ ...tdStyle, fontWeight: 700 }}>
+      <td className="sr-td" style={{ fontWeight: 700 }}>
         <div style={{ color: 'var(--sales-text, #1e293b)' }}>{fmt(yoyVal)}</div>
       </td>
-      <td style={{ ...tdStyle }}>
+      <td className="sr-td" title={TOOLTIP_FORMULA}>
         <div style={{ color: numColor(yoyGr) }}>
           {yoyGr !== null ? `${yoyGr >= 0 ? '+' : ''}${fmt(yoyGr)}` : '—'}
           {yoyGr !== null && <ArrowIcon diff={yoyGr} />}
         </div>
       </td>
-      <td style={{ ...tdStyle }}>
+      <td className="sr-td" title={TOOLTIP_PCT}>
         <div style={{ color: numColor(yoyPct) }}>
           {yoyPct !== null ? `${yoyPct.toFixed(1)}%` : '—'}
           {yoyPct !== null && <ArrowIcon diff={yoyPct} />}
@@ -252,35 +258,37 @@ function DrillRows({ rows, level, parentRows, expandedQuarters, isSummary, showT
           onMouseEnter={e => { e.currentTarget.style.background = isDarkMode ? '#1e2d45' : '#eff6ff'; }}
           onMouseLeave={e => { e.currentTarget.style.background = rowBg; }}
         >
-          <td style={{ ...tdStyle, position: 'sticky', left: 0, background: 'inherit', textAlign: 'center', width: 28 }}>
+          <td className="sr-td" style={{ position: 'sticky', left: 0, background: 'inherit', textAlign: 'center', width: 28 }}>
             {canDrill && !isLoading && !isOpen && (
-              <button onClick={() => onExpand(row, rowId, level)} style={expandBtnStyle} title="expand">
+              <button onClick={() => onExpand(row, rowId, level)} className="sr-expand-btn" title="expand">
                 <i className="bi bi-chevron-down" />
               </button>
             )}
             {canDrill && !isLoading && isOpen && (
-              <button onClick={() => onCollapse(stateKey)} style={expandBtnStyle} title="collapse">
+              <button onClick={() => onCollapse(stateKey)} className="sr-expand-btn" title="collapse">
                 <i className="bi bi-chevron-up" />
               </button>
             )}
             {isLoading && <i className="bi bi-arrow-clockwise" style={{ color: '#94a3b8', fontSize: '0.75rem' }} />}
           </td>
 
-          <td style={{
-            ...tdStyle,
-            position: 'sticky', left: 28, background: 'inherit',
-            fontWeight: level === 0 ? 700 : 600,
-            color: isDarkMode
-              ? (level === 0 ? '#e2e8f0' : level === 1 ? '#93c5fd' : level === 2 ? '#c4b5fd' : '#cbd5e1')
-              : (level === 0 ? '#1e293b' : level === 1 ? '#1d4ed8' : level === 2 ? '#7c3aed' : '#374151'),
-            textAlign: 'left', paddingLeft: `${8 + indentPx}px`, minWidth: 160,
-          }}>
+          <td
+            className="sr-td"
+            style={{
+              position: 'sticky', left: 28, background: 'inherit',
+              fontWeight: level === 0 ? 700 : 600,
+              color: isDarkMode
+                ? (level === 0 ? '#e2e8f0' : level === 1 ? '#93c5fd' : level === 2 ? '#c4b5fd' : '#cbd5e1')
+                : (level === 0 ? '#1e293b' : level === 1 ? '#1d4ed8' : level === 2 ? '#7c3aed' : '#374151'),
+              textAlign: 'left', paddingLeft: `${8 + indentPx}px`, minWidth: 160,
+            }}
+          >
             {level > 0 && <span style={{ color: '#94a3b8', marginRight: 4 }}>{'↳'.repeat(level)}</span>}
             {getLabel(row, level)}
           </td>
 
           {GROUPS.flatMap(g => [
-            ...(isSummary && expandedQuarters[g.qKey] ? g.months.map(m => (
+            ...(expandedQuarters[g.qKey] ? g.months.map(m => (
               <MonthCell key={m.key} row={row} rows={effectiveParent} rowIdx={i} level={level}
                 mKey={m.key} mLyKey={m.lyKey} />
             )) : []),
@@ -313,29 +321,29 @@ function GrandTotalRow({ rows, expandedQuarters, isSummary, showTillLast, accent
   }, [rows]);
 
   const tillLast = (gt.ttltonnage_crnt || 0) - (gt.currentmonthtonnage || 0);
-  const gtBg = accent ? `color-mix(in srgb, ${accent} 55%, #1a3a0e)` : '#2e7d32';
-  const gtBorder = accent ? `color-mix(in srgb, ${accent} 35%, #0d2006)` : '#1b5e20';
+  const gtBg     = accent ? `color-mix(in srgb, ${accent} 60%, #050505)` : '#1e293b';
+  const gtBorder = accent ? `color-mix(in srgb, ${accent} 40%, #000000)` : '#334155';
 
   return (
     <tr style={{ background: gtBg, borderTop: `2px solid ${gtBorder}`, borderBottom: `2px solid ${gtBorder}` }}>
-      <td style={{ ...tdStyle, position: 'sticky', left: 0, background: gtBg }} />
-      <td style={{ ...tdStyle, position: 'sticky', left: 28, background: gtBg, textAlign: 'left', fontWeight: 800, color: 'white', fontSize: '0.8rem', minWidth: 160 }}>
+      <td className="sr-td" style={{ position: 'sticky', left: 0, background: gtBg }} />
+      <td className="sr-td" style={{ position: 'sticky', left: 28, background: gtBg, textAlign: 'left', fontWeight: 800, color: 'white', fontSize: '0.8rem', minWidth: 160 }}>
         Grand Total
       </td>
       {GROUPS.flatMap(g => [
-        ...(isSummary && expandedQuarters[g.qKey] ? g.months.map(m => (
-          <td key={m.key} style={{ ...tdStyle, color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>{fmt(gt[m.key])}</td>
+        ...(expandedQuarters[g.qKey] ? g.months.map(m => (
+          <td key={m.key} className="sr-td" style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>{fmt(gt[m.key])}</td>
         )) : []),
-        <td key={g.qKey} style={{ ...tdStyle, background: 'rgba(0,0,0,0.18)', fontWeight: 800, color: 'white', textAlign: 'center' }}>{fmt(gt[g.qKey])}</td>,
+        <td key={g.qKey} className="sr-td" style={{ background: 'rgba(0,0,0,0.18)', fontWeight: 800, color: 'white', textAlign: 'center' }}>{fmt(gt[g.qKey])}</td>,
       ])}
-      {showTillLast && <td style={{ ...tdStyle, background: 'rgba(255,255,255,0.1)', color: 'white', fontWeight: 600 }}>{fmt(tillLast)}</td>}
-      <td style={{ ...tdStyle, background: 'rgba(255,255,255,0.1)', color: 'white', fontWeight: 600 }}>{fmt(gt.currentmonthtonnage)}</td>
-      <td style={{ ...tdStyle, background: 'rgba(255,255,255,0.1)', color: 'white', fontWeight: 800 }}>{fmt(gt.ttltonnage_crnt)}</td>
-      <td style={{ ...tdStyle, background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>—</td>
-      <td style={{ ...tdStyle, background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>—</td>
-      <td style={{ ...tdStyle, background: 'rgba(255,255,255,0.08)', color: 'white', fontWeight: 800 }}>{fmt(gt.ttltonnage_crntwy)}</td>
-      <td style={{ ...tdStyle, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}>—</td>
-      <td style={{ ...tdStyle, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}>—</td>
+      {showTillLast && <td className="sr-td" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', fontWeight: 600 }}>{fmt(tillLast)}</td>}
+      <td className="sr-td" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', fontWeight: 600 }}>{fmt(gt.currentmonthtonnage)}</td>
+      <td className="sr-td" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', fontWeight: 800 }}>{fmt(gt.ttltonnage_crnt)}</td>
+      <td className="sr-td" style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>—</td>
+      <td className="sr-td" style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>—</td>
+      <td className="sr-td" style={{ background: 'rgba(255,255,255,0.08)', color: 'white', fontWeight: 800 }}>{fmt(gt.ttltonnage_crntwy)}</td>
+      <td className="sr-td" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}>—</td>
+      <td className="sr-td" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}>—</td>
     </tr>
   );
 }
@@ -432,7 +440,7 @@ export default function SalesReportPage() {
 
   const isSummary     = activeTab === 'summary';
   const showTillLast  = TILL_LAST_MONTH_TABS[activeTab] ?? true;
-  const visibleMonthCount = isSummary ? GROUPS.reduce((n, g) => n + (expandedQuarters[g.qKey] ? 3 : 0), 0) : 0;
+  const visibleMonthCount = GROUPS.reduce((n, g) => n + (expandedQuarters[g.qKey] ? 3 : 0), 0);
   const TOTAL_COLS    = 2 + visibleMonthCount + 4 + (showTillLast ? 1 : 0) + 7;
 
   const toggleQuarter = (qKey) => setExpandedQuarters(p => ({ ...p, [qKey]: !p[qKey] }));
@@ -551,7 +559,12 @@ export default function SalesReportPage() {
 
   // Filter rawRows FIRST, then group — mirrors Angular's datafilter_new() on the raw response
   const displayRows = useMemo(() => {
-    if (activeTab === 'summary') return rawRows;
+    if (activeTab === 'summary') {
+      const selectedYearSet = new Set(
+        (Array.isArray(multiyear) ? multiyear : [multiyear]).map(y => String(y))
+      );
+      return rawRows.filter(r => selectedYearSet.has(String(r.year)));
+    }
     let f = rawRows;
     if (activeTab === 'distributors') {
       if (fDistName) f = f.filter(r => r.distname === fDistName);
@@ -591,30 +604,12 @@ export default function SalesReportPage() {
 
   const accent     = selectedAccent?.primary   || '#1a237e';
   const accent2    = selectedAccent?.secondary  || '#283593';
-  const accentDark = `color-mix(in srgb, ${accent} 52%, #0a1628)`;
+  const headerMain = accent;
+  const headerQ    = `color-mix(in srgb, ${accent} 55%, #000000)`;
+  const headerDark = `color-mix(in srgb, ${accent} 35%, #000000)`;
   const cardBg     = isDarkMode ? '#1e293b' : 'white';
 
-  const tabSelStyles = useMemo(() => ({
-    control: (base, state) => ({
-      ...base, minHeight: 32, height: 32, fontSize: '0.8rem', fontFamily: 'inherit',
-      borderColor: state.isFocused ? accent : (isDarkMode ? '#334155' : '#cbd5e1'),
-      boxShadow: state.isFocused ? `0 0 0 2px ${accent}30` : 'none',
-      '&:hover': { borderColor: accent }, borderRadius: 7, cursor: 'pointer',
-      background: isDarkMode ? '#0f172a' : 'white', minWidth: 130,
-    }),
-    valueContainer: (base) => ({ ...base, padding: '0 0.6rem' }),
-    indicatorsContainer: (base) => ({ ...base, height: 32 }),
-    menuPortal: (base) => ({ ...base, zIndex: 99999 }),
-    menu: (base) => ({ ...base, fontSize: '0.8rem', fontFamily: 'inherit', background: isDarkMode ? '#1e293b' : 'white' }),
-    option: (base, state) => ({
-      ...base,
-      background: state.isSelected ? accent : state.isFocused ? (isDarkMode ? '#334155' : '#eff6ff') : (isDarkMode ? '#1e293b' : 'white'),
-      color: state.isSelected ? 'white' : (isDarkMode ? '#e2e8f0' : '#1e293b'), cursor: 'pointer',
-    }),
-    singleValue: (base) => ({ ...base, color: isDarkMode ? '#e2e8f0' : '#1e293b' }),
-    dropdownIndicator: (base) => ({ ...base, color: accent, padding: '0 6px' }),
-    indicatorSeparator: () => ({ display: 'none' }),
-  }), [accent, isDarkMode]);
+  const tabSelStyles = useSalesSelectStyles({ minHeight: 32, height: 32, fontSize: '0.8rem', borderRadius: 7, minWidth: 130 });
   const borderClr  = isDarkMode ? '#334155' : 'rgba(148,163,184,0.15)';
   const textClr    = isDarkMode ? '#e2e8f0' : '#1e293b';
   const mutedClr   = isDarkMode ? '#94a3b8' : '#64748b';
@@ -631,102 +626,120 @@ export default function SalesReportPage() {
         '--sales-text': textClr,
       }}
     >
-      {/* Title */}
-      <motion.div
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.38 }}
-        style={{ marginBottom: '1rem' }}
-      >
-        <h2 style={{ fontWeight: 800, fontSize: '1.3rem', color: textClr, margin: 0 }}>
-          Month-wise Sales Report
-        </h2>
-      </motion.div>
+      {/* ── Contained section: title, filters, tabs — overflow:hidden keeps these from spilling ── */}
+      <div style={{ overflow: 'hidden', width: '100%' }}>
+        {/* Title */}
+        <motion.div
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.38 }}
+          style={{ marginBottom: '1rem' }}
+        >
+          <h2 style={{ fontWeight: 800, fontSize: '1.3rem', color: textClr, margin: 0 }}>
+            Month-wise Sales Report
+          </h2>
+        </motion.div>
 
-      <FilterBar mode="monthwise" onApply={fetchData} isLoading={loading} lastUpdateDate={lastUpdateDate} />
+        <FilterBar mode="monthwise" onApply={fetchData} isLoading={loading} lastUpdateDate={lastUpdateDate} />
 
-      {error && (
-        <div style={{ padding: '0.75rem 1rem', marginBottom: '1rem', background: isDarkMode ? '#2d1515' : '#fff5f5', border: '1px solid #fecaca', borderRadius: 8, color: '#ef4444', fontSize: '0.82rem' }}>
-          <i className="bi bi-exclamation-triangle" style={{ marginRight: 6 }} />{error}
-        </div>
-      )}
+        {error && (
+          <div style={{ padding: '0.75rem 1rem', marginBottom: '1rem', background: isDarkMode ? '#2d1515' : '#fff5f5', border: '1px solid #fecaca', borderRadius: 8, color: '#ef4444', fontSize: '0.82rem' }}>
+            <i className="bi bi-exclamation-triangle" style={{ marginRight: 6 }} />{error}
+          </div>
+        )}
 
-      {/* Sub-tabs */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3, delay: 0.1 }}
-        className="sr-tabs"
-        style={{ marginBottom: 0, borderBottom: `2px solid ${isDarkMode ? '#334155' : '#e2e8f0'}` }}
-      >
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => { setActiveTab(t.id); setExpanded({}); setDrillData({}); setFCatgroup(''); setFCategory(''); setFItemType(''); setFItem(''); setFDistName(''); setFAsm(''); setFAreaName(''); setFSoff(''); }}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              fontWeight: activeTab === t.id ? 700 : 500,
-              color: activeTab === t.id ? accent : mutedClr,
-              borderBottom: activeTab === t.id ? `2px solid ${accent}` : '2px solid transparent',
-              marginBottom: -2, fontFamily: 'inherit', transition: 'color 0.15s',
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
-      </motion.div>
+        {/* Sub-tabs */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="sr-tabs"
+          style={{ marginBottom: 0, borderBottom: `2px solid ${isDarkMode ? '#334155' : '#e2e8f0'}` }}
+        >
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              onClick={() => { setActiveTab(t.id); setExpanded({}); setDrillData({}); setFCatgroup(''); setFCategory(''); setFItemType(''); setFItem(''); setFDistName(''); setFAsm(''); setFAreaName(''); setFSoff(''); }}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontWeight: activeTab === t.id ? 700 : 500,
+                color: activeTab === t.id ? accent : mutedClr,
+                borderBottom: activeTab === t.id ? `2px solid ${accent}` : '2px solid transparent',
+                marginBottom: -2, fontFamily: 'inherit', transition: 'color 0.15s',
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </motion.div>
 
-      {/* Tab-specific filter rows — options derived from rawRows unique values */}
-      {activeTab === 'distributors' && (
-        <div style={tabFilterRowStyle}>
-          <TabFilter label="Distributor"    value={fDistName}  onChange={setFDistName}  options={optDistNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <TabFilter label="Category Group" value={fCatgroup}  onChange={setFCatgroup}  options={optCatgroups}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <TabFilter label="Category"       value={fCategory}  onChange={setFCategory}  options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <TabFilter label="Item Type"      value={fItemType}  onChange={setFItemType}  options={optItemTypes}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <TabFilter label="Item"           value={fItem}      onChange={setFItem}      options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <button onClick={fetchData} disabled={loading} style={tabFiltApplyStyle(accent, accent2)}>
-            <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />{loading ? 'Loading…' : 'Apply'}
-          </button>
-        </div>
-      )}
+        {/* Tab-specific filter rows — options derived from rawRows unique values */}
+        {activeTab === 'distributors' && (
+          <div className="sr-tab-filter-row">
+            <TabFilter label="Distributor"    value={fDistName}  onChange={setFDistName}  options={optDistNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Category Group" value={fCatgroup}  onChange={setFCatgroup}  options={optCatgroups}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Category"       value={fCategory}  onChange={setFCategory}  options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Item Type"      value={fItemType}  onChange={setFItemType}  options={optItemTypes}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Item"           value={fItem}      onChange={setFItem}      options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <button onClick={fetchData} disabled={loading} className="sr-apply-btn" style={{ background: `linear-gradient(135deg, ${accent}, ${accent2})` }}>
+              <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />{loading ? 'Loading…' : 'Apply'}
+            </button>
+          </div>
+        )}
 
-      {activeTab === 'catgroup' && (
-        <div style={tabFilterRowStyle}>
-          <TabFilter label="Category Group" value={fCatgroup}  onChange={setFCatgroup}  options={optCatgroups}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <TabFilter label="Category"       value={fCategory}  onChange={setFCategory}  options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <TabFilter label="Item Type"      value={fItemType}  onChange={setFItemType}  options={optItemTypes}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <TabFilter label="Item"           value={fItem}      onChange={setFItem}      options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <TabFilter label="Distributor"    value={fDistName}  onChange={setFDistName}  options={optDistNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <button onClick={fetchData} disabled={loading} style={tabFiltApplyStyle(accent, accent2)}>
-            <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />{loading ? 'Loading…' : 'Apply'}
-          </button>
-        </div>
-      )}
+        {activeTab === 'catgroup' && (
+          <div className="sr-tab-filter-row">
+            <TabFilter label="Category Group" value={fCatgroup}  onChange={setFCatgroup}  options={optCatgroups}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Category"       value={fCategory}  onChange={setFCategory}  options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Item Type"      value={fItemType}  onChange={setFItemType}  options={optItemTypes}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Item"           value={fItem}      onChange={setFItem}      options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Distributor"    value={fDistName}  onChange={setFDistName}  options={optDistNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <button onClick={fetchData} disabled={loading} className="sr-apply-btn" style={{ background: `linear-gradient(135deg, ${accent}, ${accent2})` }}>
+              <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />{loading ? 'Loading…' : 'Apply'}
+            </button>
+          </div>
+        )}
 
-      {activeTab === 'asm' && (
-        <div style={tabFilterRowStyle}>
-          <TabFilter label="ASM Name"       value={fAsm}       onChange={setFAsm}       options={optAsms}       styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <TabFilter label="Area Name"      value={fAreaName}  onChange={setFAreaName}  options={optAreaNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <TabFilter label="Category Group" value={fCatgroup}  onChange={setFCatgroup}  options={optCatgroups}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <TabFilter label="Category"       value={fCategory}  onChange={setFCategory}  options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <TabFilter label="Item"           value={fItem}      onChange={setFItem}      options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <button onClick={fetchData} disabled={loading} style={tabFiltApplyStyle(accent, accent2)}>
-            <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />{loading ? 'Loading…' : 'Apply'}
-          </button>
-        </div>
-      )}
+        {activeTab === 'asm' && (
+          <div className="sr-tab-filter-row">
+            <TabFilter label="ASM Name"       value={fAsm}       onChange={setFAsm}       options={optAsms}       styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Area Name"      value={fAreaName}  onChange={setFAreaName}  options={optAreaNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Category Group" value={fCatgroup}  onChange={setFCatgroup}  options={optCatgroups}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Category"       value={fCategory}  onChange={setFCategory}  options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Item"           value={fItem}      onChange={setFItem}      options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <button onClick={fetchData} disabled={loading} className="sr-apply-btn" style={{ background: `linear-gradient(135deg, ${accent}, ${accent2})` }}>
+              <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />{loading ? 'Loading…' : 'Apply'}
+            </button>
+          </div>
+        )}
 
-      {activeTab === 'soff' && (
-        <div style={tabFilterRowStyle}>
-          <TabFilter label="ASM Name"      value={fAsm}      onChange={setFAsm}      options={optAsms}       styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <TabFilter label="Sales Officer" value={fSoff}     onChange={setFSoff}     options={optSoffs}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <TabFilter label="Distributor"   value={fDistName} onChange={setFDistName} options={optDistNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <TabFilter label="Category Group" value={fCatgroup} onChange={setFCatgroup} options={optCatgroups} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <TabFilter label="Category"      value={fCategory} onChange={setFCategory} options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <TabFilter label="Item"          value={fItem}     onChange={setFItem}     options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-          <button onClick={fetchData} disabled={loading} style={tabFiltApplyStyle(accent, accent2)}>
-            <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />{loading ? 'Loading…' : 'Apply'}
-          </button>
+        {activeTab === 'soff' && (
+          <div className="sr-tab-filter-row">
+            <TabFilter label="ASM Name"      value={fAsm}      onChange={setFAsm}      options={optAsms}       styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Sales Officer" value={fSoff}     onChange={setFSoff}     options={optSoffs}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Distributor"   value={fDistName} onChange={setFDistName} options={optDistNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Category Group" value={fCatgroup} onChange={setFCatgroup} options={optCatgroups} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Category"      value={fCategory} onChange={setFCategory} options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Item"          value={fItem}     onChange={setFItem}     options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <button onClick={fetchData} disabled={loading} className="sr-apply-btn" style={{ background: `linear-gradient(135deg, ${accent}, ${accent2})` }}>
+              <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />{loading ? 'Loading…' : 'Apply'}
+            </button>
+          </div>
+        )}
+      </div>
+      {/* ── End contained section — table card below has no overflow:hidden ancestor ── */}
+
+      {loading && (
+        <div className="sr-loader-overlay">
+          <div className={`sr-loader-card${isDarkMode ? ' sr-loader-card-dark' : ''}`}>
+            <div className="sr-loader-spinner" style={{ borderTopColor: accent }} />
+            <div className="sr-loader-text">Generating Report</div>
+            <div className="sr-loader-dots">
+              <span style={{ background: accent }} />
+              <span style={{ background: accent }} />
+              <span style={{ background: accent }} />
+            </div>
+          </div>
         </div>
       )}
 
@@ -736,65 +749,52 @@ export default function SalesReportPage() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.05 }}
-        style={{ background: cardBg, borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 12px rgba(37,99,235,0.06)', border: `1px solid ${borderClr}`, width: '100%', marginTop: '0.75rem', position: 'relative' }}
+        style={{ background: cardBg, borderRadius: 14, boxShadow: '0 2px 12px rgba(37,99,235,0.06)', border: `1px solid ${borderClr}`, width: '100%', marginTop: '0.75rem', position: 'relative' }}
       >
-        {/* FIX 7: Drill-down loading overlay */}
         {isDrillLoading && (
-          <div style={{
-            position: 'absolute', inset: 0, zIndex: 20, borderRadius: 14,
-            background: isDarkMode ? 'rgba(15,23,42,0.72)' : 'rgba(255,255,255,0.72)',
-            backdropFilter: 'blur(2px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <div style={{
-              background: isDarkMode ? '#1e293b' : 'white',
-              border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
-              borderRadius: 12, padding: '1.5rem 2rem', textAlign: 'center',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-            }}>
-              <i className={`bi bi-arrow-clockwise sr-spin`} style={{ fontSize: '1.8rem', color: accent, display: 'block', marginBottom: 8 }} />
-              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: textClr }}>Generating Report</div>
-              <div style={{ color: mutedClr, fontSize: '0.78rem', marginTop: 4 }}>Fetching sales data…</div>
+          <div className="sr-drill-overlay" style={{ background: isDarkMode ? 'rgba(15,23,42,0.72)' : 'rgba(255,255,255,0.72)' }}>
+            <div className={`sr-loader-card${isDarkMode ? ' sr-loader-card-dark' : ''}`}>
+              <div className="sr-loader-spinner" style={{ borderTopColor: accent }} />
+              <div className="sr-loader-text">Generating Report</div>
+              <div className="sr-loader-dots">
+                <span style={{ background: accent }} />
+                <span style={{ background: accent }} />
+                <span style={{ background: accent }} />
+              </div>
             </div>
           </div>
         )}
-        <div className="sr-table-wrap" style={{ maxHeight: '65vh' }}>
+        <div className="sr-table-wrap" style={{ maxHeight: '65vh', borderRadius: 14 }}>
           <table className="sr-table">
             <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-              <tr style={{ background: accent, color: 'white' }}>
-                <th style={{ ...thStyle, position: 'sticky', left: 0, background: accent, width: 28, minWidth: 28, zIndex: 11, padding: '0.55rem 0.2rem' }} />
-                <th style={{ ...thStyle, position: 'sticky', left: 28, background: accent, minWidth: 160, textAlign: 'left', zIndex: 11 }}>
+              <tr style={{ background: headerMain, color: 'white' }}>
+                <th className="sr-th" style={{ position: 'sticky', left: 0, background: headerMain, width: 28, minWidth: 28, zIndex: 11, padding: '0.55rem 0.2rem' }} />
+                <th className="sr-th" style={{ position: 'sticky', left: 28, background: headerMain, minWidth: 160, textAlign: 'left', zIndex: 11 }}>
                   {FIRST_COL_LABEL[activeTab] || 'Name'}
                 </th>
                 {GROUPS.flatMap(g => [
-                  ...(isSummary && expandedQuarters[g.qKey] ? g.months.map(m => (
-                    <th key={m.key} style={{ ...thStyle, background: accent }}>{m.label}</th>
+                  ...(expandedQuarters[g.qKey] ? g.months.map(m => (
+                    <th key={m.key} className="sr-th" style={{ background: headerMain }}>{m.label}</th>
                   )) : []),
-                  isSummary ? (
-                    <th key={g.qKey}
-                      style={{ ...thStyle, background: accent2, minWidth: 70, cursor: 'pointer', userSelect: 'none', textAlign: 'center', verticalAlign: 'middle' }}
-                      onClick={() => toggleQuarter(g.qKey)}
-                      title={expandedQuarters[g.qKey] ? 'Collapse months' : 'Expand months'}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                        <span>{expandedQuarters[g.qKey] ? '▼' : '▶'}</span>
-                        <span>{g.qLabel}</span>
-                      </div>
-                    </th>
-                  ) : (
-                    <th key={g.qKey} style={{ ...thStyle, background: accent2, minWidth: 70, textAlign: 'center', verticalAlign: 'middle' }}>
-                      {g.qLabel}
-                    </th>
-                  ),
+                  <th key={g.qKey}
+                    className="sr-th" style={{ background: headerQ, minWidth: 70, cursor: 'pointer', userSelect: 'none', textAlign: 'center', verticalAlign: 'middle' }}
+                    onClick={() => toggleQuarter(g.qKey)}
+                    title={expandedQuarters[g.qKey] ? 'Collapse months' : 'Expand months'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                      <span>{expandedQuarters[g.qKey] ? '▼' : '▶'}</span>
+                      <span>{g.qLabel}</span>
+                    </div>
+                  </th>,
                 ])}
-                {showTillLast && <th style={{ ...thStyle, background: accentDark, minWidth: 70 }}>Till Last<br />Month</th>}
-                <th style={{ ...thStyle, background: accentDark, minWidth: 70 }}>Current<br />tonnage</th>
-                <th style={{ ...thStyle, background: accentDark, minWidth: 75 }}>Total<br />(YTD)</th>
-                <th style={{ ...thStyle, background: accentDark, minWidth: 75 }}>YTD Gr/<br />Degr</th>
-                <th style={{ ...thStyle, background: accentDark, minWidth: 60 }}>YTD<br />%</th>
-                <th style={{ ...thStyle, background: accentDark, minWidth: 75 }}>Total<br />(YOY)</th>
-                <th style={{ ...thStyle, background: accentDark, minWidth: 75 }}>YOY Gr/<br />Degr</th>
-                <th style={{ ...thStyle, background: accentDark, minWidth: 60 }}>YOY<br />%</th>
+                {showTillLast && <th className="sr-th" style={{ background: headerDark, minWidth: 70 }}>Till Last<br />Month</th>}
+                <th className="sr-th" style={{ background: headerDark, minWidth: 70 }}>Current<br />tonnage</th>
+                <th className="sr-th" style={{ background: headerDark, minWidth: 75 }}>Total<br />(YTD)</th>
+                <th className="sr-th" style={{ background: headerDark, minWidth: 75 }}>YTD Gr/<br />Degr</th>
+                <th className="sr-th" style={{ background: headerDark, minWidth: 60 }}>YTD<br />%</th>
+                <th className="sr-th" style={{ background: headerDark, minWidth: 75 }}>Total<br />(YOY)</th>
+                <th className="sr-th" style={{ background: headerDark, minWidth: 75 }}>YOY Gr/<br />Degr</th>
+                <th className="sr-th" style={{ background: headerDark, minWidth: 60 }}>YOY<br />%</th>
               </tr>
             </thead>
             <tbody>
@@ -865,8 +865,8 @@ export default function SalesReportPage() {
 
 function TabFilter({ label, value, onChange, options, styles, isDarkMode, accent }) {
   return (
-    <div style={tabFiltGroupStyle}>
-      <label style={tabFiltLblStyle(isDarkMode, accent)}>{label}</label>
+    <div className="sr-filter-group">
+      <label className="sr-filter-label" style={{ color: isDarkMode ? '#94a3b8' : (accent || '#1e3a5f') }}>{label}</label>
       <Select
         options={[{ value: '', label: 'All' }, ...options.map(o => ({ value: o, label: o }))]}
         value={{ value, label: value || 'All' }}
@@ -881,10 +881,3 @@ function TabFilter({ label, value, onChange, options, styles, isDarkMode, accent
   );
 }
 
-const thStyle = { padding: '0.55rem 0.6rem', fontWeight: 700, fontSize: '0.71rem', color: 'white', textAlign: 'right', whiteSpace: 'nowrap', minWidth: 60 };
-const tdStyle = { padding: '0.35rem 0.6rem', textAlign: 'right', whiteSpace: 'nowrap', fontSize: '0.77rem', color: 'var(--sales-text-muted, #475569)' };
-const expandBtnStyle = { background: 'none', border: '1px solid #e2e8f0', borderRadius: 5, cursor: 'pointer', width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.68rem', color: '#64748b', padding: 0 };
-const tabFilterRowStyle = { display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end', padding: '0.6rem 0', marginBottom: 0 };
-const tabFiltGroupStyle = { display: 'flex', flexDirection: 'column', gap: '0.2rem' };
-const tabFiltLblStyle   = (dark, accent) => ({ fontWeight: 600, fontSize: '0.72rem', color: dark ? '#94a3b8' : (accent || '#1e3a5f'), whiteSpace: 'nowrap', letterSpacing: '0.02em' });
-const tabFiltApplyStyle  = (a1, a2) => ({ height: 32, background: `linear-gradient(135deg, ${a1 || '#2563eb'}, ${a2 || '#1e40af'})`, color: 'white', border: 'none', borderRadius: 7, padding: '0 0.9rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', fontFamily: 'inherit', alignSelf: 'flex-end' });

@@ -4,6 +4,8 @@ import {
   PieChart, Pie, Legend, ResponsiveContainer,
 } from 'recharts';
 import Select from 'react-select';
+import './Sales.css';
+import { useSalesSelectStyles } from './filters/useSalesSelectStyles';
 import SummaryCards from './SummaryCards';
 import FilterBar from './filters/FilterBar';
 import { useSalesFilterStore } from '../../../store/salesFilterStore';
@@ -77,7 +79,7 @@ function ChartCard({ title, onZoom, children, style = {} }) {
   return (
     <div style={{ flex: 1, background: 'white', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'visible', boxShadow: '0 2px 10px rgba(37,99,235,0.07)', ...style }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.55rem 1rem', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', borderRadius: '12px 12px 0 0' }}>
-        <span style={{ fontWeight: 700, fontSize: '0.75rem', color: '#1e293b', lineHeight: 1.3 }}>{title}</span>
+        <span style={{ fontWeight: 700, fontSize: '0.75rem', color: '#1e293b', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>{title}</span>
         <button onClick={onZoom} title="Expand" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1565c0', fontSize: '1rem', lineHeight: 1, padding: 0, flexShrink: 0 }}>⛶</button>
       </div>
       <div style={{ padding: '0.8rem 1rem' }}>{children}</div>
@@ -120,42 +122,8 @@ const VIEW_OPTIONS = [
   { value: 'Quarterly', label: 'Quarterly' },
 ];
 
-function useSelStyles() {
-  const { isDarkMode, selectedAccent } = useColorMode();
-  const accent = selectedAccent?.primary || '#2563eb';
-  return {
-    accent,
-    styles: {
-      control: (base, state) => ({
-        ...base,
-        minHeight: 30, height: 30,
-        fontSize: '0.78rem', fontFamily: "'Manrope',sans-serif",
-        borderColor: state.isFocused ? accent : (isDarkMode ? '#334155' : '#cbd5e1'),
-        boxShadow: state.isFocused ? `0 0 0 2px ${accent}30` : 'none',
-        '&:hover': { borderColor: accent },
-        borderRadius: 6, cursor: 'pointer',
-        background: isDarkMode ? '#0f172a' : 'white',
-        minWidth: 130,
-      }),
-      valueContainer: (base) => ({ ...base, padding: '0 0.5rem' }),
-      indicatorsContainer: (base) => ({ ...base, height: 30 }),
-      menuPortal: (base) => ({ ...base, zIndex: 99999 }),
-      menu: (base) => ({ ...base, fontSize: '0.78rem', fontFamily: "'Manrope',sans-serif", background: isDarkMode ? '#1e293b' : 'white' }),
-      option: (base, state) => ({
-        ...base,
-        background: state.isSelected ? accent : state.isFocused ? (isDarkMode ? '#334155' : '#eff6ff') : (isDarkMode ? '#1e293b' : 'white'),
-        color: state.isSelected ? 'white' : (isDarkMode ? '#e2e8f0' : '#1e293b'),
-        cursor: 'pointer',
-      }),
-      singleValue: (base) => ({ ...base, color: isDarkMode ? '#e2e8f0' : '#1e293b' }),
-      dropdownIndicator: (base) => ({ ...base, color: accent, padding: '0 4px' }),
-      indicatorSeparator: () => ({ display: 'none' }),
-    },
-  };
-}
-
 function BarChartCard({ title, data, viewMode, onViewModeChange, onBarClick, onZoom }) {
-  const { styles: selStyles } = useSelStyles();
+  const selStyles = useSalesSelectStyles({ minHeight: 30, height: 30, fontSize: '0.78rem', borderRadius: 6, minWidth: 130 });
   const chart = (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data} onClick={onBarClick} style={{ cursor: 'pointer' }} margin={{ top: 22, right: 10, left: 0, bottom: 0 }}>
@@ -189,7 +157,7 @@ function BarChartCard({ title, data, viewMode, onViewModeChange, onBarClick, onZ
 }
 
 function PieChartCard({ title, data, viewMode, onViewModeChange, onPieClick, onZoom }) {
-  const { styles: selStyles } = useSelStyles();
+  const selStyles = useSalesSelectStyles({ minHeight: 30, height: 30, fontSize: '0.78rem', borderRadius: 6, minWidth: 130 });
   const nonZero = data.filter(d => d.value > 0);
   const chart = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -324,14 +292,6 @@ function MirroredHBarCard({ title, data, onZoom }) {
   );
 }
 
-function Spinner({ text = 'Loading…' }) {
-  return (
-    <div style={{ textAlign: 'center', padding: '2.5rem', color: '#94a3b8' }}>
-      <i className="bi bi-arrow-clockwise" style={{ marginRight: 6 }} />{text}
-    </div>
-  );
-}
-
 const SHOP_RESTRICTED_ROLES = ['Distributor', 'Sales Man', 'Sales Executive', 'Asst. Manager Sales'];
 
 const DW_DAYSEL_OPTIONS  = ['yesterday','today','7days','30days','month','lmonth'].map(v => ({ value: v, label: v }));
@@ -347,7 +307,10 @@ export default function ChartsPage({ loggedInRolex }) {
 
   const rolex = typeof loggedInRolex === 'string' ? loggedInRolex : (loggedInRolex?.designation || '');
   const showShopsOption = !SHOP_RESTRICTED_ROLES.includes(rolex);
-  const { styles: selStyles } = useSelStyles();
+  const { isDarkMode, selectedAccent } = useColorMode();
+  const accent = selectedAccent?.primary || '#1a237e';
+  const selStyles = useSalesSelectStyles({ minHeight: 30, height: 30, fontSize: '0.78rem', borderRadius: 6 });
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
   const [chartTab,     setChartTab]     = useState('monthwise');
   const [viewMode,     setViewMode]     = useState('Year');
@@ -384,6 +347,12 @@ export default function ChartsPage({ loggedInRolex }) {
   const [dwL3Loading,       setDwL3Loading]        = useState(false);
   const [dwClickedCatgroup, setDwClickedCatgroup]  = useState(null);
   const [dwClickedCategory, setDwClickedCategory]  = useState(null);
+
+  useEffect(() => {
+    const h = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
 
   useEffect(() => {
     if (isFullscreen) document.body.classList.add('is-fullscreen');
@@ -606,6 +575,20 @@ export default function ChartsPage({ loggedInRolex }) {
   const pieGroupLabel = clickedPieGroup === 2 ? 'institution'
     : clickedPieGroup === 3 ? 'Govt Orders' : 'Distribution';
 
+  const LoaderOverlay = ({ text = 'Loading Chart Data' }) => (
+    <div className="sr-loader-overlay">
+      <div className={`sr-loader-card${isDarkMode ? ' sr-loader-card-dark' : ''}`}>
+        <div className="sr-loader-spinner" style={{ borderTopColor: accent }} />
+        <div className="sr-loader-text">{text}</div>
+        <div className="sr-loader-dots">
+          <span style={{ background: accent }} />
+          <span style={{ background: accent }} />
+          <span style={{ background: accent }} />
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className={isFullscreen ? 'fullscreen-content' : ''} style={{ width: '100%' }}>
       {!isFullscreen && <SummaryCards />}
@@ -642,14 +625,21 @@ export default function ChartsPage({ loggedInRolex }) {
           )}
 
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '5rem', color: '#94a3b8' }}>
-              <i className="bi bi-arrow-clockwise" style={{ fontSize: '2rem' }} />
-              <p style={{ marginTop: 8 }}>Loading chart data…</p>
+            <div className="sr-loader-overlay">
+              <div className={`sr-loader-card${isDarkMode ? ' sr-loader-card-dark' : ''}`}>
+                <div className="sr-loader-spinner" style={{ borderTopColor: accent }} />
+                <div className="sr-loader-text">Generating Report</div>
+                <div className="sr-loader-dots">
+                  <span style={{ background: accent }} />
+                  <span style={{ background: accent }} />
+                  <span style={{ background: accent }} />
+                </div>
+              </div>
             </div>
           ) : (
             <>
               {/* SECTION 1 */}
-              <div id="section1" style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
+              <div id="section1" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16, marginBottom: 20 }}>
                 <BarChartCard title={graphTitle} data={monthlyBarData}
                   viewMode={viewMode} onViewModeChange={setViewMode}
                   onBarClick={handleBarClick} onZoom={handleZoom} />
@@ -665,8 +655,8 @@ export default function ChartsPage({ loggedInRolex }) {
                   <div style={{ fontWeight: 700, fontSize: '0.8rem', color: '#1e3a5f', marginBottom: 10 }}>
                     Category Group — {clickedMonth}
                   </div>
-                  {catgroupLoading ? <Spinner text="Loading category groups…" /> : (
-                    <div style={{ display: 'flex', gap: 16 }}>
+                  {catgroupLoading ? <LoaderOverlay text="Loading Category Groups" /> : (
+                    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
                       <DrillPieCard
                         title={`${companyLabel} ${clickedMonth} Month Wise Distribution Overview (tonnage)`}
                         data={distPie}
@@ -690,8 +680,8 @@ export default function ChartsPage({ loggedInRolex }) {
               {/* SECTION 3 + 3b */}
               {showSection3 && (
                 <div key={clickedCatgroup} id="section3" style={{ marginBottom: 20 }}>
-                  {categoryLoading ? <Spinner text="Loading categories…" /> : (
-                    <div style={{ display: 'flex', gap: 16 }}>
+                  {categoryLoading ? <LoaderOverlay text="Loading Categories" /> : (
+                    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
                       <HBarCard
                         title={`${companyLabel} ${clickedMonth} Month Wise ${pieGroupLabel} and ${clickedCatgroup} Overview (tonnage)`}
                         data={categoryData}
@@ -699,7 +689,7 @@ export default function ChartsPage({ loggedInRolex }) {
                         onZoom={handleZoom} />
                       {showSection3b && (
                         <div key={clickedCategory} id="section3b" style={{ flex: 1 }}>
-                          {codeLoading ? <Spinner text="Loading items…" /> : (
+                          {codeLoading ? <LoaderOverlay text="Loading Items" /> : (
                             <MirroredHBarCard
                               title={`${companyLabel} ${clickedMonth} Month Wise ${pieGroupLabel} and ${clickedCatgroup} with ${clickedCategory} Category Overview (tonnage)`}
                               data={codeData}
@@ -791,7 +781,7 @@ export default function ChartsPage({ loggedInRolex }) {
           {/* Day-Wise Level 1 */}
           {(dwL1Loading || dwLevel1.length > 0) && (
             <div id="dw-section1" style={{ marginBottom: 20 }}>
-              {dwL1Loading ? <Spinner text="Loading day-wise data…" /> : (
+              {dwL1Loading ? <LoaderOverlay text="Loading Day-Wise Data" /> : (
                 <HBarCard
                   title={`Day Wise — ${dwFilter} (${dwBasedon}) [${dwDaysel}]`}
                   data={sortedDwLevel1}
@@ -804,7 +794,7 @@ export default function ChartsPage({ loggedInRolex }) {
           {/* Day-Wise Level 2 */}
           {(dwL2Loading || dwLevel2.length > 0) && (
             <div id="dw-section2" style={{ marginBottom: 20 }}>
-              {dwL2Loading ? <Spinner text="Loading breakdown…" /> : (
+              {dwL2Loading ? <LoaderOverlay text="Loading Breakdown" /> : (
                 <HBarCard
                   title={`Day Wise — ${dwClickedCatgroup} breakdown (${dwBasedon})`}
                   data={sortedDwLevel2}
@@ -817,7 +807,7 @@ export default function ChartsPage({ loggedInRolex }) {
           {/* Day-Wise Level 3 */}
           {(dwL3Loading || dwLevel3.length > 0) && (
             <div id="dw-section3" style={{ marginBottom: 20 }}>
-              {dwL3Loading ? <Spinner text="Loading items…" /> : (
+              {dwL3Loading ? <LoaderOverlay text="Loading Items" /> : (
                 <HBarCard
                   title={`Day Wise — ${dwClickedCatgroup} → ${dwClickedCategory} items (${dwBasedon})`}
                   data={sortedDwLevel3}

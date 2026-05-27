@@ -6,13 +6,6 @@ import { useColorMode } from '../../../theme/ThemeContext';
 import { useSalesFilterStore } from '../../../store/salesFilterStore';
 import { appLog } from '../../../config/appConfig';
 
-const MIX_PAIRS = [
-  ['#b71c1c', '#880e4f'],
-  ['#e65100', '#bf360c'],
-  ['#4a148c', '#311b92'],
-  ['#004d40', '#1b5e20'],
-];
-
 const CARD_ICONS = [
   'bi-graph-up',
   'bi-exclamation-triangle',
@@ -20,13 +13,13 @@ const CARD_ICONS = [
   'bi-bar-chart-steps',
 ];
 
-export default function SummaryCards() {
+export default function SummaryCards({ accent: accentProp, accent2: accent2Prop }) {
   const { user } = useAuth();
   const employeename = user?.username;
   const { selectedAccent } = useColorMode();
   const { monthwisedisttype } = useSalesFilterStore();
-  const accent  = selectedAccent?.primary   || '#1a237e';
-  const accent2 = selectedAccent?.secondary || '#283593';
+  const accent  = accentProp  || selectedAccent?.primary   || '#1a237e';
+  const accent2 = accent2Prop || selectedAccent?.secondary || '#283593';
 
   const [datesData, setDatesData] = useState(null);
   const [headerTop, setHeaderTop] = useState(null);
@@ -43,9 +36,12 @@ export default function SummaryCards() {
     });
   }, [employeename]);
 
-  const cardBgs = MIX_PAIRS.map(([mix1, mix2]) =>
-    `linear-gradient(135deg, color-mix(in srgb, ${accent} 58%, ${mix1}), color-mix(in srgb, ${accent2} 52%, ${mix2}))`
-  );
+  const cardBgs = [
+    `linear-gradient(135deg, ${accent}, ${accent2})`,
+    `linear-gradient(135deg, color-mix(in srgb, ${accent} 80%, #b45309), color-mix(in srgb, ${accent2} 75%, #92400e))`,
+    `linear-gradient(135deg, color-mix(in srgb, ${accent} 70%, #4c1d95), color-mix(in srgb, ${accent2} 65%, #2e1065))`,
+    `linear-gradient(135deg, color-mix(in srgb, ${accent} 60%, #134e4a), color-mix(in srgb, ${accent2} 55%, #042f2e))`,
+  ];
 
   const fmt = (val) =>
     val == null ? '—' : parseFloat(val).toLocaleString('en-IN', { maximumFractionDigits: 3 });

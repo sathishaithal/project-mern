@@ -14,6 +14,78 @@
   display: inline-block;
 }
 
+/* ── Production-style loading overlay ────────────────────── */
+@keyframes srLoaderPulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50%       { opacity: 1;   transform: scale(1);   }
+}
+
+.sr-loader-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9998;
+}
+
+.sr-loader-card {
+  background: white;
+  padding: 32px 40px;
+  border-radius: 24px;
+  text-align: center;
+  box-shadow: 0 20px 35px -10px rgba(0,0,0,0.2);
+  min-width: 200px;
+}
+
+.sr-loader-card-dark {
+  background: #1e293b;
+}
+
+.sr-loader-spinner {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 20px auto;
+  border: 3px solid #e2e8f0;
+  border-radius: 50%;
+  animation: srSpin 1s linear infinite;
+}
+
+.sr-loader-text {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 16px;
+  color: #0f172a;
+}
+
+.sr-loader-card-dark .sr-loader-text {
+  color: #f1f5f9;
+}
+
+.sr-loader-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.sr-loader-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: srLoaderPulse 1.4s infinite;
+}
+
+.sr-loader-dots span:nth-child(2) { animation-delay: 0.2s; }
+.sr-loader-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+/* ── Summary card shimmer sweep ───────────────────────────── */
+@keyframes srShimmer {
+  0%   { transform: translateX(-100%) skewX(-15deg); }
+  100% { transform: translateX(300%)  skewX(-15deg); }
+}
+
 /* ── ShortSupply keyframes (moved from inline <style> tag) ── */
 @keyframes sspin { to { transform: rotate(360deg); } }
 @keyframes ssdot {
@@ -62,7 +134,6 @@
 .sr-page {
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
   box-sizing: border-box;
 }
 
@@ -95,8 +166,8 @@
 /* ── Data table ───────────────────────────────────────────── */
 .sr-table {
   border-collapse: collapse;
-  width: 100%;
-  min-width: max-content;
+  width: max-content;
+  min-width: 100%;
   font-size: 0.78rem;
 }
 
@@ -109,6 +180,7 @@
   text-align: right;
   white-space: nowrap;
   min-width: 60px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 
 /* ── Table data cells ─────────────────────────────────────── */
@@ -159,6 +231,8 @@
   font-size: 0.72rem;
   white-space: nowrap;
   letter-spacing: 0.02em;
+  color: var(--sr-label-clr, var(--sr-accent, #1a237e));
+  font-family: var(--sr-font, 'Manrope', sans-serif);
 }
 
 /* ── Apply button base ────────────────────────────────────── */
@@ -173,7 +247,7 @@
   cursor: pointer;
   display: flex;
   align-items: center;
-  font-family: inherit;
+  font-family: var(--sr-font, 'Manrope', sans-serif);
   align-self: flex-end;
 }
 
@@ -204,7 +278,6 @@
 .dash-outer {
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
   box-sizing: border-box;
 }
 
@@ -257,6 +330,11 @@
 .dash-report-tabs {
   display: flex;
   gap: 0;
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.07);
+  margin-bottom: 1.25rem;
+  max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
@@ -311,7 +389,7 @@
   padding: 0 1rem;
   font-weight: 700;
   font-size: 0.82rem;
-  font-family: 'Manrope', sans-serif;
+  font-family: var(--sr-font, 'Manrope', sans-serif);
   display: flex;
   align-items: center;
   gap: 2px;
@@ -334,6 +412,21 @@
   flex-direction: column;
   gap: 0.25rem;
 }
+
+.sr-check-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.sr-check-icon {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.sr-sel-narrow { min-width: 90px; }
+.sr-sel-wide   { min-width: 200px; }
 
 /* ══════════════════════════════════════════════════════════
    SummaryCards
@@ -359,7 +452,28 @@
   align-items: flex-start;
   gap: 0.9rem;
   color: white;
+  position: relative;
 }
+
+.sc-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.18) 50%,
+    transparent 100%
+  );
+  animation: srShimmer 3s ease-in-out infinite;
+  pointer-events: none;
+}
+.sc-card:nth-child(2)::after { animation-delay: 0.75s; }
+.sc-card:nth-child(3)::after { animation-delay: 1.5s; }
+.sc-card:nth-child(4)::after { animation-delay: 2.25s; }
 
 .sc-card-icon {
   width: 46px;
@@ -435,9 +549,8 @@
 
 .ss-filter-row {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 0.5rem;
   padding: 0.6rem 1rem;
   margin-bottom: 8px;

@@ -5,6 +5,7 @@ import { AppDatePicker } from '../../../components/FormControls';
 import { useAuth } from '../../../context/AuthContext';
 import { useColorMode } from '../../../theme/ThemeContext';
 import { appLog } from '../../../config/appConfig';
+import './Sales.css';
 
 const ROWS_PER_PAGE = 50;
 
@@ -26,47 +27,6 @@ const initDateStr = () => {
   return toYMD(new Date(d.getFullYear(), d.getMonth() - 1, d.getDate()));
 };
 
-const ANIM_CSS = `
-  @keyframes sspin { to { transform: rotate(360deg); } }
-  @keyframes ssdot {
-    0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
-    40%           { transform: scale(1);   opacity: 1;   }
-  }
-  @keyframes ssprogress { from { width: 100%; } to { width: 0%; } }
-
-  .ss-pg-btn {
-    background: linear-gradient(135deg, var(--ss-accent, #1a237e), var(--ss-accent2, #283593));
-    color: white;
-    border: none;
-    border-radius: 7px;
-    height: 30px;
-    padding: 0 14px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
-    white-space: nowrap;
-  }
-  .ss-pg-btn:not(:disabled):hover {
-    transform: translateY(-2px) scale(1.04);
-    box-shadow: 0 5px 16px rgba(0,0,0,0.22);
-  }
-  .ss-pg-btn:not(:disabled):active {
-    transform: translateY(0) scale(0.97);
-    box-shadow: none;
-  }
-  .ss-pg-btn:disabled {
-    background: linear-gradient(135deg, #94a3b8, #64748b);
-    opacity: 0.42;
-    cursor: not-allowed;
-  }
-
-  /* Flip calendar popup to open leftward — used for right-side table near viewport edge */
-  .ss-flip-picker .appDateMenu {
-    right: 0;
-    left: auto;
-  }
-`;
-
 function ShortSupplyTable({
   title, data, loading, error,
   fromDate, toDate, setFromDate, setToDate, onApply,
@@ -85,34 +45,21 @@ function ShortSupplyTable({
 
   const totalPages = Math.max(1, Math.ceil(data.length / ROWS_PER_PAGE));
   const pagedRows  = data.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
-
-  const thS = {
-    padding: '0.5rem 0.6rem', fontWeight: 700, fontSize: '0.71rem',
-    color: 'white', textAlign: 'right', whiteSpace: 'nowrap',
-  };
-  const tdS = {
-    padding: '0.4rem 0.6rem', textAlign: 'right',
-    fontSize: '0.75rem', color: mutedClr,
-  };
   const totalRowBg = `color-mix(in srgb, ${accent} 18%, ${isDarkMode ? '#1e293b' : '#e8eaf6'})`;
+
   const labelStyle = {
     fontWeight: 600, fontSize: '0.72rem', color: mutedClr,
     whiteSpace: 'nowrap', display: 'block', marginBottom: 2,
   };
-  // Styling handled by .ss-pg-btn CSS class (accent via CSS variable on parent)
 
   return (
-    <div style={{ width: '100%' }}>
+    <div style={{ width: '100%', '--ss-muted': mutedClr }}>
 
       {/* ── Filter row — OUTSIDE the card so calendar popup is never clipped ── */}
-      {/* ss-flip-picker reverses popup direction when table is near the right viewport edge */}
-      <div className={flipPicker ? 'ss-flip-picker' : ''} style={{
-        display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between',
-        alignItems: 'center', gap: '0.5rem',
-        padding: '0.6rem 1rem', marginBottom: 8,
-        background: isDarkMode ? '#0f172a' : '#f8fafc',
-        border: `1px solid ${borderClr}`, borderRadius: 12,
-      }}>
+      <div
+        className={`ss-filter-row${flipPicker ? ' ss-flip-picker' : ''}`}
+        style={{ background: isDarkMode ? '#0f172a' : '#f8fafc', border: `1px solid ${borderClr}` }}
+      >
         <span style={{ fontWeight: 700, fontSize: '0.82rem', color: textClr, display: 'flex', alignItems: 'center', gap: 6 }}>
           <i className="bi bi-table" style={{ color: accent }} />
           {title}
@@ -135,43 +82,35 @@ function ShortSupplyTable({
               min={strToDate(fromDate)}
             />
           </div>
-          {/* Invisible spacer label above Apply so it aligns with the date inputs, not the labels */}
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ ...labelStyle, visibility: 'hidden' }}>x</span>
-            <button
-              onClick={onApply}
-              disabled={loading}
-              style={{
-                height: 32,
-                background: `linear-gradient(135deg,${accent},${accent2})`,
-                color: 'white', border: 'none', borderRadius: 7,
-                padding: '0 0.9rem', fontWeight: 700, fontSize: '0.78rem',
-                cursor: loading ? 'not-allowed' : 'pointer', fontFamily,
-                opacity: loading ? 0.7 : 1,
-              }}
-            >
-              <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />
-              {loading ? 'Loading…' : 'Apply'}
-            </button>
-          </div>
+          <button
+            onClick={onApply}
+            disabled={loading}
+            className="sr-apply-btn"
+            style={{
+              background: `linear-gradient(135deg,${accent},${accent2})`,
+              opacity: loading ? 0.7 : 1,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontFamily,
+              alignSelf: 'flex-end',
+            }}
+          >
+            <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />
+            {loading ? 'Loading…' : 'Apply'}
+          </button>
         </div>
       </div>
 
       {/* ── Table card — overflow: hidden is safe here (no dropdowns inside) ── */}
-      <div style={{
-        background: cardBg, borderRadius: 12,
-        border: `1px solid ${borderClr}`, overflow: 'hidden',
-        boxShadow: '0 2px 10px rgba(37,99,235,0.07)',
-        position: 'relative',
-      }}>
+      <div
+        className="ss-table-card"
+        style={{ background: cardBg, border: `1px solid ${borderClr}` }}
+      >
         {/* Loading overlay */}
         {loading && (
-          <div style={{
-            position: 'absolute', inset: 0, zIndex: 20,
-            background: isDarkMode ? 'rgba(15,23,42,0.82)' : 'rgba(255,255,255,0.84)',
-            backdropFilter: 'blur(2px)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          }}>
+          <div
+            className="ss-loading-overlay"
+            style={{ background: isDarkMode ? 'rgba(15,23,42,0.82)' : 'rgba(255,255,255,0.84)' }}
+          >
             <div style={{
               width: 52, height: 52, borderRadius: '50%', marginBottom: 16,
               border: `3px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
@@ -202,18 +141,18 @@ function ShortSupplyTable({
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.76rem' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
                 <tr style={{ background: accent }}>
-                  <th style={{ ...thS, textAlign: 'center', width: 36 }}>#</th>
-                  <th style={{ ...thS, textAlign: 'left', minWidth: 180 }}>Description</th>
-                  <th style={{ ...thS, minWidth: 70 }}>Order</th>
-                  <th style={{ ...thS, minWidth: 70 }}>Supply</th>
-                  <th style={{ ...thS, minWidth: 80 }}>Shortsupply</th>
-                  <th style={{ ...thS, minWidth: 110 }}>Last Year<br />Shortsupply</th>
+                  <th className="ss-th" style={{ textAlign: 'center', width: 36 }}>#</th>
+                  <th className="ss-th" style={{ textAlign: 'left', minWidth: 180 }}>Description</th>
+                  <th className="ss-th" style={{ minWidth: 70 }}>Order</th>
+                  <th className="ss-th" style={{ minWidth: 70 }}>Supply</th>
+                  <th className="ss-th" style={{ minWidth: 80 }}>Shortsupply</th>
+                  <th className="ss-th" style={{ minWidth: 110 }}>Last Year<br />Shortsupply</th>
                 </tr>
               </thead>
               <tbody>
                 {data.length === 0 && !loading ? (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: mutedClr }}>No data</td>
+                    <td colSpan={6} className="ss-td" style={{ textAlign: 'center', padding: '3rem' }}>No data</td>
                   </tr>
                 ) : pagedRows.map((row, idx) => {
                   const globalNum = (page - 1) * ROWS_PER_PAGE + idx + 1;
@@ -227,14 +166,14 @@ function ShortSupplyTable({
                       onMouseEnter={e => e.currentTarget.style.background = isDarkMode ? '#1e2d45' : '#eff6ff'}
                       onMouseLeave={e => e.currentTarget.style.background = rowBg}
                     >
-                      <td style={{ ...tdS, textAlign: 'center' }}>{globalNum}</td>
-                      <td style={{ ...tdS, textAlign: 'left', color: textClr, fontWeight: 500, whiteSpace: 'normal' }}>
+                      <td className="ss-td" style={{ textAlign: 'center' }}>{globalNum}</td>
+                      <td className="ss-td" style={{ textAlign: 'left', color: textClr, fontWeight: 500, whiteSpace: 'normal' }}>
                         {row.description}
                       </td>
-                      <td style={tdS}>{parseFloat(row.ordertonnage          || 0).toFixed(3)}</td>
-                      <td style={tdS}>{parseFloat(row.supplytonnage          || 0).toFixed(3)}</td>
-                      <td style={tdS}>{parseFloat(row.shortsupplytonnage     || 0).toFixed(3)}</td>
-                      <td style={tdS}>{parseFloat(row.ly_shortsupplytonnage  || 0).toFixed(3)}</td>
+                      <td className="ss-td">{parseFloat(row.ordertonnage          || 0).toFixed(3)}</td>
+                      <td className="ss-td">{parseFloat(row.supplytonnage          || 0).toFixed(3)}</td>
+                      <td className="ss-td">{parseFloat(row.shortsupplytonnage     || 0).toFixed(3)}</td>
+                      <td className="ss-td">{parseFloat(row.ly_shortsupplytonnage  || 0).toFixed(3)}</td>
                     </tr>
                   );
                 })}
@@ -242,12 +181,12 @@ function ShortSupplyTable({
                 {/* Total row — always visible, outside pagination slice */}
                 {data.length > 0 && (
                   <tr style={{ background: totalRowBg, borderTop: `2px solid ${borderClr}`, fontWeight: 700 }}>
-                    <td style={{ ...tdS, textAlign: 'center', color: accent }}>{data.length + 1}</td>
-                    <td style={{ ...tdS, textAlign: 'left',   color: accent, fontWeight: 800 }}>Total</td>
-                    <td style={{ ...tdS, color: accent }}>{totals.order.toFixed(3)}</td>
-                    <td style={{ ...tdS, color: accent }}>{totals.supply.toFixed(3)}</td>
-                    <td style={{ ...tdS, color: accent }}>{totals.short.toFixed(3)}</td>
-                    <td style={{ ...tdS, color: accent }}>{totals.lastYear.toFixed(3)}</td>
+                    <td className="ss-td" style={{ textAlign: 'center', color: accent }}>{data.length + 1}</td>
+                    <td className="ss-td" style={{ textAlign: 'left', color: accent, fontWeight: 800 }}>Total</td>
+                    <td className="ss-td" style={{ color: accent }}>{totals.order.toFixed(3)}</td>
+                    <td className="ss-td" style={{ color: accent }}>{totals.supply.toFixed(3)}</td>
+                    <td className="ss-td" style={{ color: accent }}>{totals.short.toFixed(3)}</td>
+                    <td className="ss-td" style={{ color: accent }}>{totals.lastYear.toFixed(3)}</td>
                   </tr>
                 )}
               </tbody>
@@ -257,12 +196,10 @@ function ShortSupplyTable({
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            gap: 8, padding: '8px 12px',
-            borderTop: `1px solid ${borderClr}`,
-            background: isDarkMode ? '#0f172a' : '#f8fafc',
-          }}>
+          <div
+            className="ss-pagination"
+            style={{ borderTop: `1px solid ${borderClr}`, background: isDarkMode ? '#0f172a' : '#f8fafc' }}
+          >
             <button
               className="ss-pg-btn"
               onClick={() => setPage(p => Math.max(1, p - 1))}
@@ -319,6 +256,9 @@ export default function ShortSupplyPage() {
   const [rightData,    setRightData]    = useState([]);
   const [rightLoading, setRightLoading] = useState(true);
   const [rightError,   setRightError]   = useState(null);
+
+  // Shows full-page overlay only on the first load; Apply clicks use per-table overlay instead
+  const [initialLoad,  setInitialLoad]  = useState(true);
 
   // Toast
   const [toast,        setToast]        = useState({ show: false, title: '', message: '', type: 'info' });
@@ -389,6 +329,11 @@ export default function ShortSupplyPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.username]);
 
+  // Clear initialLoad once both fetches complete for the first time
+  useEffect(() => {
+    if (initialLoad && !leftLoading && !rightLoading) setInitialLoad(false);
+  }, [leftLoading, rightLoading, initialLoad]);
+
   const toastAccentMap = { success: '#10b981', error: '#ef4444', warning: '#f59e0b', info: accent };
   const toastIconMap   = { success: 'bi-check-circle-fill', error: 'bi-x-circle-fill', warning: 'bi-exclamation-triangle-fill', info: 'bi-info-circle-fill' };
   const toastAccent    = toastAccentMap[toast.type] || accent;
@@ -397,7 +342,6 @@ export default function ShortSupplyPage() {
 
   return (
     <div style={{ width: '100%', fontFamily, '--ss-accent': accent, '--ss-accent2': accent2 }}>
-      <style>{ANIM_CSS}</style>
 
       {/* Toast */}
       <AnimatePresence>
@@ -492,6 +436,20 @@ export default function ShortSupplyPage() {
           />
         </div>
       </motion.div>
+
+      {(leftLoading || rightLoading) && initialLoad && (
+        <div className="sr-loader-overlay">
+          <div className={`sr-loader-card${isDarkMode ? ' sr-loader-card-dark' : ''}`}>
+            <div className="sr-loader-spinner" style={{ borderTopColor: accent }} />
+            <div className="sr-loader-text">Generating Report</div>
+            <div className="sr-loader-dots">
+              <span style={{ background: accent }} />
+              <span style={{ background: accent }} />
+              <span style={{ background: accent }} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

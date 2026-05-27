@@ -13,7 +13,7 @@ import SummaryCards from './SummaryCards';
 const REPORT_TABS = [
   { id: 'monthwise',   label: 'Month Wise' },
   { id: 'daywise',     label: 'Day Wise' },
-  { id: 'shortsupply', label: 'SHORT SUPPLY' },
+  { id: 'shortsupply', label: 'Short Supply' },
 ];
 
 const TOP_TABS = [
@@ -51,6 +51,17 @@ export default function SalesDashboard() {
   const tabBorder   = isDarkMode ? '#334155' : 'rgba(148,163,184,0.18)';
   const inactiveClr = isDarkMode ? '#94a3b8' : '#475569';
   const fontFamily  = selectedFont?.body || "'Manrope', sans-serif";
+
+  const cssVars = {
+    '--sr-accent':    accent,
+    '--sr-accent2':   accent2,
+    '--sr-label-clr': isDarkMode ? '#94a3b8' : accent,
+    '--sr-text':      isDarkMode ? '#e2e8f0' : '#1e293b',
+    '--sr-muted':     isDarkMode ? '#94a3b8' : '#64748b',
+    '--sr-card-bg':   isDarkMode ? '#1e293b' : 'white',
+    '--sr-border':    isDarkMode ? '#334155' : 'rgba(148,163,184,0.15)',
+    '--sr-font':      fontFamily,
+  };
 
   const toggleFullscreen = () => setIsFullscreen(p => !p);
 
@@ -97,10 +108,10 @@ export default function SalesDashboard() {
         padding: '16px',
         boxSizing: 'border-box',
         fontFamily,
+        ...cssVars,
       } : {
         fontFamily,
-        '--sr-accent': accent,
-        '--sr-accent2': accent2,
+        ...cssVars,
       }}
     >
 
@@ -140,12 +151,8 @@ export default function SalesDashboard() {
         <div style={{ position: 'fixed', top: 14, right: 20, zIndex: 9999 }}>
           <button
             onClick={toggleFullscreen}
-            style={{
-              background: accent, border: 'none', color: 'white',
-              borderRadius: 8, padding: '0.42rem 1rem', fontSize: '0.78rem',
-              fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center',
-              gap: 6, boxShadow: '0 4px 18px rgba(0,0,0,0.28)', fontFamily,
-            }}
+            className="dash-exit-btn"
+            style={{ background: accent, color: 'white', fontFamily }}
           >
             <i className="bi bi-fullscreen-exit" style={{ fontSize: '0.82rem' }} />
             Close Full Screen
@@ -157,7 +164,7 @@ export default function SalesDashboard() {
       {topTab === 'reports' && (
         <>
           {/* Summary cards — hide in fullscreen */}
-          {!isFullscreen && <SummaryCards />}
+          {!isFullscreen && <SummaryCards accent={accent} accent2={accent2} />}
 
           {/* Report sub-tab pills — hide in fullscreen */}
           {!isFullscreen && (
@@ -166,11 +173,7 @@ export default function SalesDashboard() {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.28, delay: 0.08 }}
               className="dash-report-tabs"
-              style={{
-                background: tabBg, borderRadius: 10, padding: '4px',
-                boxShadow: '0 2px 8px rgba(37,99,235,0.07)', border: `1px solid ${tabBorder}`,
-                marginBottom: '1.25rem', maxWidth: '100%',
-              }}
+              style={{ background: tabBg, border: `1px solid ${tabBorder}` }}
             >
               {REPORT_TABS.map(t => (
                 <button key={t.id} onClick={() => setReportTab(t.id)} style={activeSubBtn(reportTab === t.id)}>

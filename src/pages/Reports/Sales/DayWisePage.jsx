@@ -7,6 +7,7 @@ import { appLog } from '../../../config/appConfig';
 import { fmtAmt, fmtDate } from '../../../utils/salesFormatters';
 import { useAuth } from '../../../context/AuthContext';
 import { useColorMode } from '../../../theme/ThemeContext';
+import './Sales.css';
 
 const daysInMonth = (year, month) => new Date(year, month, 0).getDate();
 
@@ -107,24 +108,10 @@ export default function DayWisePage() {
   };
 
   const MONTH_NAMES = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-  const thStyle = {
-    padding: '0.55rem 0.5rem', fontWeight: 700, fontSize: '0.72rem',
-    color: 'white', textAlign: 'right', whiteSpace: 'nowrap', minWidth: 52,
-  };
-  const tdStyle = {
-    padding: '0.35rem 0.5rem', textAlign: 'right', whiteSpace: 'nowrap',
-    fontSize: '0.75rem', color: mutedClr,
-  };
-  const expandBtnStyle = {
-    background: 'none', border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
-    borderRadius: 6, cursor: 'pointer', width: 20, height: 20,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: '0.7rem', color: mutedClr, padding: 0,
-  };
+  const lastUpdateDate = lastUpdate ? fmtDate(lastUpdate.dispatchlastupdate) : null;
 
   return (
-    <div style={{ width: '100%', fontFamily }}>
+    <div style={{ width: '100%', fontFamily, '--dw-muted': mutedClr }}>
       <motion.div
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -136,7 +123,7 @@ export default function DayWisePage() {
         </h2>
       </motion.div>
 
- 
+      <FilterBar mode="daywise" onApply={fetchData} isLoading={loading} lastUpdateDate={lastUpdateDate} />
 
       {error && (
         <div style={{ padding: '0.75rem 1rem', marginBottom: '1rem', background: isDarkMode ? '#2d1515' : '#fff5f5', border: '1px solid #fecaca', borderRadius: 8, color: '#ef4444', fontSize: '0.82rem' }}>
@@ -149,9 +136,13 @@ export default function DayWisePage() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.05 }}
-        style={{ background: cardBg, borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 12px rgba(37,99,235,0.06)', border: `1px solid ${borderClr}`, width: '100%' }}
+        className="dw-card"
+        style={{ background: cardBg, border: `1px solid ${borderClr}` }}
       >
-        <div style={{ padding: '0.6rem 1rem', background: infoBg, borderBottom: `1px solid ${infoBorder}`, fontSize: '0.8rem', color: mutedClr, fontWeight: 600 }}>
+        <div
+          className="dw-info-bar"
+          style={{ background: infoBg, borderBottom: `1px solid ${infoBorder}`, color: mutedClr }}
+        >
           <i className="bi bi-calendar3" style={{ marginRight: 6, color: accent }}></i>
           {MONTH_NAMES[daywisemonth]} {daywiseyear} · {daywisecompany} · {daywisedisttype}
           <span style={{ marginLeft: 8, background: `color-mix(in srgb, ${accent} 15%, transparent)`, color: accent, borderRadius: 6, padding: '0 6px', fontSize: '0.72rem' }}>
@@ -163,23 +154,23 @@ export default function DayWisePage() {
           <table style={{ borderCollapse: 'collapse', fontSize: '0.75rem', minWidth: days * 60 + 200 }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
               <tr style={{ background: accent, color: 'white' }}>
-                <th style={{ ...thStyle, position: 'sticky', left: 0, background: accent, zIndex: 11, width: 28 }}></th>
-                <th style={{ ...thStyle, position: 'sticky', left: 28, background: accent, zIndex: 11, textAlign: 'left', minWidth: 120 }}>
+                <th className="dw-th" style={{ position: 'sticky', left: 0, background: accent, zIndex: 11, width: 28 }}></th>
+                <th className="dw-th" style={{ position: 'sticky', left: 28, background: accent, zIndex: 11, textAlign: 'left', minWidth: 120 }}>
                   Dispatch Type
                 </th>
                 {dayNums.map(d => (
-                  <th key={d} style={{ ...thStyle, background: accent }}>{d}</th>
+                  <th key={d} className="dw-th" style={{ background: accent }}>{d}</th>
                 ))}
-                <th style={{ ...thStyle, background: totalColBg, minWidth: 70 }}>Total</th>
+                <th className="dw-th" style={{ background: totalColBg, minWidth: 70 }}>Total</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={days + 3} style={{ textAlign: 'center', padding: '2rem', color: mutedClr, background: cardBg }}>
+                <tr><td colSpan={days + 3} className="dw-td" style={{ textAlign: 'center', padding: '2rem', background: cardBg }}>
                   <i className="bi bi-arrow-clockwise" style={{ marginRight: 6 }}></i>Loading…
                 </td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={days + 3} style={{ textAlign: 'center', padding: '3rem', color: mutedClr, background: cardBg }}>No data</td></tr>
+                <tr><td colSpan={days + 3} className="dw-td" style={{ textAlign: 'center', padding: '3rem', background: cardBg }}>No data</td></tr>
               ) : rows.map((row, i) => {
                 const id = row.id;
                 const isGrand = row.disttype === 'Grand Total';
@@ -197,16 +188,20 @@ export default function DayWisePage() {
                       onMouseEnter={e => !isGrand && (e.currentTarget.style.background = hoverBg)}
                       onMouseLeave={e => !isGrand && (e.currentTarget.style.background = rowBg)}
                     >
-                      <td style={{ ...tdStyle, position: 'sticky', left: 0, background: 'inherit', textAlign: 'center' }}>
+                      <td className="dw-td" style={{ position: 'sticky', left: 0, background: 'inherit', textAlign: 'center' }}>
                         {!isGrand && (
-                          <button onClick={() => handleExpand(row)} style={expandBtnStyle}>
+                          <button
+                            onClick={() => handleExpand(row)}
+                            className="dw-expand-btn"
+                            style={{ border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`, color: mutedClr }}
+                          >
                             {thirdLoading[id]
                               ? <i className="bi bi-arrow-clockwise"></i>
                               : <i className={`bi ${isOpen ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>}
                           </button>
                         )}
                       </td>
-                      <td style={{ ...tdStyle, position: 'sticky', left: 28, background: 'inherit', fontWeight: isGrand ? 800 : 600, color: isGrand ? (isDarkMode ? '#fbbf24' : '#b7791f') : textClr, textAlign: 'left' }}>
+                      <td className="dw-td" style={{ position: 'sticky', left: 28, background: 'inherit', fontWeight: isGrand ? 800 : 600, color: isGrand ? (isDarkMode ? '#fbbf24' : '#b7791f') : textClr, textAlign: 'left' }}>
                         {row.disttype}
                       </td>
                       {dayNums.map(d => {
@@ -215,7 +210,7 @@ export default function DayWisePage() {
                         const isMax = tv > 0 && tv === parseFloat(row.maxvalue);
                         const isMin = tv > 0 && tv === parseFloat(row.minvalue);
                         return (
-                          <td key={d} style={{ ...tdStyle, background: isMax ? 'rgba(16,185,129,0.12)' : isMin ? 'rgba(239,68,68,0.08)' : undefined }}>
+                          <td key={d} className="dw-td" style={{ background: isMax ? 'rgba(16,185,129,0.12)' : isMin ? 'rgba(239,68,68,0.08)' : undefined }}>
                             {tv > 0 ? (
                               <>
                                 <div style={{ fontWeight: 500, color: textClr }}>{tv.toFixed(2)}</div>
@@ -225,7 +220,7 @@ export default function DayWisePage() {
                           </td>
                         );
                       })}
-                      <td style={{ ...tdStyle, background: isGrand ? (isDarkMode ? '#2a1e08' : '#fef3c7') : (isDarkMode ? `color-mix(in srgb, ${accent} 18%, #1e293b)` : '#fff8f8'), fontWeight: 700, color: isGrand ? (isDarkMode ? '#fbbf24' : '#92400e') : '#c0392b' }}>
+                      <td className="dw-td" style={{ background: isGrand ? (isDarkMode ? '#2a1e08' : '#fef3c7') : (isDarkMode ? `color-mix(in srgb, ${accent} 18%, #1e293b)` : '#fff8f8'), fontWeight: 700, color: isGrand ? (isDarkMode ? '#fbbf24' : '#92400e') : '#c0392b' }}>
                         {total > 0 ? total.toFixed(2) : '—'}
                       </td>
                     </tr>
@@ -234,19 +229,19 @@ export default function DayWisePage() {
                       const subTotal = sumTonnage(sub, days);
                       return (
                         <tr key={`sub-${si}`} style={{ background: subRowBg, borderBottom: `1px solid ${isDarkMode ? '#1e3a5f' : '#e0e8ff'}` }}>
-                          <td style={{ ...tdStyle, position: 'sticky', left: 0, background: subRowBg }}></td>
-                          <td style={{ ...tdStyle, position: 'sticky', left: 28, background: subRowBg, color: accent, fontWeight: 600, textAlign: 'left', paddingLeft: '1.5rem' }}>
+                          <td className="dw-td" style={{ position: 'sticky', left: 0, background: subRowBg }}></td>
+                          <td className="dw-td" style={{ position: 'sticky', left: 28, background: subRowBg, color: accent, fontWeight: 600, textAlign: 'left', paddingLeft: '1.5rem' }}>
                             ↳ {sub.disttype}
                           </td>
                           {dayNums.map(d => {
                             const tv = parseFloat(sub[`tonnage${d}`]) || 0;
                             return (
-                              <td key={d} style={tdStyle}>
+                              <td key={d} className="dw-td">
                                 {tv > 0 ? <span style={{ color: textClr }}>{tv.toFixed(2)}</span> : <span style={{ color: isDarkMode ? '#475569' : '#e2e8f0' }}>—</span>}
                               </td>
                             );
                           })}
-                          <td style={{ ...tdStyle, background: `color-mix(in srgb, ${accent} 20%, ${subRowBg})`, fontWeight: 600, color: accent }}>
+                          <td className="dw-td" style={{ background: `color-mix(in srgb, ${accent} 20%, ${subRowBg})`, fontWeight: 600, color: accent }}>
                             {subTotal > 0 ? subTotal.toFixed(2) : '—'}
                           </td>
                         </tr>
@@ -259,6 +254,20 @@ export default function DayWisePage() {
           </table>
         </div>
       </motion.div>
+
+      {loading && (
+        <div className="sr-loader-overlay">
+          <div className={`sr-loader-card${isDarkMode ? ' sr-loader-card-dark' : ''}`}>
+            <div className="sr-loader-spinner" style={{ borderTopColor: accent }} />
+            <div className="sr-loader-text">Generating Report</div>
+            <div className="sr-loader-dots">
+              <span style={{ background: accent }} />
+              <span style={{ background: accent }} />
+              <span style={{ background: accent }} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -37,10 +37,14 @@ const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateD
         )}
 
         <div className="fb-actions">
-          {lastUpdateDate && (
+          {lastUpdateDate ? (
             <span className="fb-last-update" style={{ color: isDarkMode ? '#94a3b8' : '#64748b' }}>
               Last update on:&nbsp;
               <strong style={{ color: accent, fontWeight: 700 }}>{lastUpdateDate}</strong>
+            </span>
+          ) : (
+            <span className="fb-last-update" style={{ color: isDarkMode ? '#94a3b8' : '#64748b', fontSize: '0.7rem' }}>
+              Last update: unavailable
             </span>
           )}
           {onApply && (

@@ -44,6 +44,7 @@ build/
 # Logs
 logs
 *.log
+SALES_CHANGELOG.md
 
 # OS
 .DS_Store

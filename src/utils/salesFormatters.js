@@ -28,11 +28,18 @@ export const growthIcon = (pct) => {
   return pct >= 0 ? 'bi-arrow-up-short' : 'bi-arrow-down-short';
 };
 
-export const fmtDate = (d) => {
-  if (!d) return '—';
+export const fmtDate = (val) => {
+  if (!val || val === 'Invalid Date' || val === 'null' || val === 'undefined') return null;
   try {
-    return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-  } catch { return d; }
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleString('en-IN', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    });
+  } catch {
+    return null;
+  }
 };
 
 export const sumFields = (row, keys) =>

@@ -3,6 +3,7 @@ import Select from 'react-select';
 import { CheckOption } from './salesSelectUtils';
 import { useSalesFilterStore, YEAR_OPTIONS } from '../../../../store/salesFilterStore';
 import { useColorMode } from '../../../../theme/ThemeContext';
+import { useSalesSelectStyles } from './useSalesSelectStyles';
 
 const DAYWISE_YEAR_OPTIONS = Array.from({ length: 8 }, (_, i) => {
   const y = new Date().getFullYear() - i;
@@ -12,47 +13,22 @@ const DAYWISE_YEAR_OPTIONS = Array.from({ length: 8 }, (_, i) => {
 const YearSelector = ({ mode = 'monthwise' }) => {
   const { multiyear, setMultiyear, daywiseyear, setDaywiseYear } = useSalesFilterStore();
   const { isDarkMode, selectedAccent } = useColorMode();
-  const accent  = selectedAccent?.primary   || '#2563eb';
-  const accent2 = selectedAccent?.secondary || '#1e40af';
+  const accent = selectedAccent?.primary || '#2563eb';
 
-  const baseSelectStyles = {
-    control: (base, state) => ({
-      ...base,
-      minHeight: 34, fontSize: '0.82rem', fontFamily: "'Manrope', sans-serif",
-      borderColor: state.isFocused ? accent : (isDarkMode ? '#334155' : '#cbd5e1'),
-      boxShadow: state.isFocused ? `0 0 0 2px ${accent}30` : 'none',
-      '&:hover': { borderColor: accent }, borderRadius: 8, cursor: 'pointer',
-      background: isDarkMode ? '#0f172a' : 'white',
-    }),
-    menuPortal: (base) => ({ ...base, zIndex: 99999 }),
-    menu: (base) => ({ ...base, fontSize: '0.82rem', fontFamily: "'Manrope', sans-serif", background: isDarkMode ? '#1e293b' : 'white' }),
-    option: (base, state) => ({
-      ...base,
-      background: state.isSelected ? accent : state.isFocused ? (isDarkMode ? '#334155' : '#eff6ff') : (isDarkMode ? '#1e293b' : 'white'),
-      color: state.isSelected ? 'white' : (isDarkMode ? '#e2e8f0' : '#1e293b'),
-      cursor: 'pointer',
-    }),
-    multiValue: (base) => ({ ...base, background: isDarkMode ? '#334155' : '#eff6ff', borderRadius: 6 }),
-    multiValueLabel: (base) => ({ ...base, color: accent, fontWeight: 600, fontSize: '0.78rem' }),
-    multiValueRemove: (base) => ({ ...base, color: accent, ':hover': { background: isDarkMode ? '#475569' : '#dbeafe', color: accent2 } }),
-    placeholder: (base) => ({ ...base, color: '#94a3b8', fontSize: '0.8rem' }),
-    singleValue: (base) => ({ ...base, color: isDarkMode ? '#e2e8f0' : '#1e293b' }),
-    input: (base) => ({ ...base, color: isDarkMode ? '#e2e8f0' : '#1e293b' }),
-    dropdownIndicator: (base) => ({ ...base, color: accent, padding: '0 6px' }),
-    indicatorSeparator: () => ({ display: 'none' }),
-  };
+  const daywiseStyles   = useSalesSelectStyles({ minWidth: 90 });
+  const monthwiseStyles = useSalesSelectStyles();
 
   if (mode === 'daywise') {
     const dyValue = DAYWISE_YEAR_OPTIONS.find(o => o.value === daywiseyear) || DAYWISE_YEAR_OPTIONS[0];
     return (
       <div className="sr-sel-wrap">
         <label className="sr-filter-label" style={{ color: isDarkMode ? '#94a3b8' : accent }}>Year :</label>
-        <div style={{ minWidth: 90 }}>
+        <div className="sr-sel-narrow">
           <Select
             options={DAYWISE_YEAR_OPTIONS}
             value={dyValue}
             onChange={(sel) => setDaywiseYear(sel.value)}
-            styles={{ ...baseSelectStyles, control: (base, state) => ({ ...baseSelectStyles.control(base, state), minWidth: 90 }) }}
+            styles={daywiseStyles}
             isSearchable={false}
             menuPortalTarget={document.body}
             menuPosition="fixed"
@@ -63,14 +39,14 @@ const YearSelector = ({ mode = 'monthwise' }) => {
     );
   }
 
-  const selectStyles = baseSelectStyles;
+  const selectStyles = monthwiseStyles;
 
   const value = YEAR_OPTIONS.filter((o) => multiyear.includes(o.value));
 
   return (
     <div className="sr-sel-wrap">
       <label className="sr-filter-label" style={{ color: isDarkMode ? '#94a3b8' : accent }}>Select Years :</label>
-      <div style={{ minWidth: 200 }}>
+      <div className="sr-sel-wide">
         <Select
           isMulti
           options={YEAR_OPTIONS}
