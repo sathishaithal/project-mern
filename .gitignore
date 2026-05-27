@@ -10,7 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
-dist_new_one
+dist_new_one.zip
 
 *.local
 
@@ -45,6 +45,7 @@ build/
 logs
 *.log
 SALES_CHANGELOG.md
+CLAUDE.md
 
 # OS
 .DS_Store
