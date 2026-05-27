@@ -432,8 +432,8 @@ export default function SalesReportPage() {
       default:
         if (level === 0) return fyToCalYear(row.year) || '—';
         if (level === 1) return row.catgroup || row.disttype || '—';
-        if (level === 2) return row.distname || '—';
-        if (level === 3) return row.catgroup || '—';
+        if (level === 2) return row.category || row.distname || '—';
+        if (level === 3) return row.description || row.distname || row.catgroup || '—';
         return '—';
     }
   }, [activeTab]);
@@ -507,22 +507,38 @@ export default function SalesReportPage() {
         // Level 0 for non-summary tabs, or Level 1 for summary (catgroup row → distributor list)
         // Angular: getsecondlevel → thirdleveldispatch_vn_AR4_SVS.php
         // params: id, distpatchtype, disttype, selectedyear, monthwisecompany, employeename
+        // Summary Level 1: row is a catgroup row — disttype = catgroup name, id built from disttype+company+catgroup+0+year
+        const isL1Summary = (tab === 'summary' && level === 1);
+        const catgroup    = row.catgroup || '';
         data = await getThirdLevelDispatch({
-          id: rowId,
-          distpatchtype: row.disttype || monthwisedisttype,
-          disttype: row.disttype || monthwisedisttype,
+          id: isL1Summary
+            ? `${monthwisedisttype}_${monthwisecompany}_${catgroup}_0_${selectedyear}`
+            : rowId,
+          distpatchtype: monthwisedisttype,
+          disttype: isL1Summary ? catgroup : (row.disttype || monthwisedisttype),
           selectedyear,
           monthwisecompany,
           employeename,
         });
       } else {
-        // Level 2+ (distributor row → item list)
-        // Angular: catgroup_for_cat → fourthleveldispatch_all_AR4_SVS.php
-        // params: id, dispatchtype, disttype, selectedyear, monthwisecompany, employeename
+        // Level 2+ (category/distributor row → next drill list)
+        // Angular: fourthleveldispatch_all_AR4_SVS.php
+        // Summary L2: id uses category, dispatchtype = monthwisedisttype, disttype = category
+        // Summary L3: id uses distname, dispatchtype = monthwisedisttype, disttype = distname
+        const isSummaryDeep = (tab === 'summary' && level >= 2);
+        const categoryVal   = row.category || '';
+        const distnameVal   = row.distname  || '';
+        const deepLabel     = level === 2 ? categoryVal : (distnameVal || categoryVal);
         data = await getFourthLevelDispatch({
-          id: rowId,
-          dispatchtype: row.disttype || monthwisedisttype,
-          disttype: row.disttype || monthwisedisttype,
+          id: isSummaryDeep
+            ? `${monthwisedisttype}_${monthwisecompany}_${deepLabel}_0_${selectedyear}`
+            : rowId,
+          dispatchtype: isSummaryDeep
+            ? monthwisedisttype
+            : (row.disttype || monthwisedisttype),
+          disttype: isSummaryDeep
+            ? deepLabel
+            : (row.disttype || monthwisedisttype),
           selectedyear,
           monthwisecompany,
           employeename,

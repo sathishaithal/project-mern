@@ -190,7 +190,12 @@ export default function SalesDashboard() {
       )}
 
       {/* ── CHARTS tab ──────────────────────────────────────────────────── */}
-      {topTab === 'charts' && <ChartsPage loggedInRolex={loggedInRolex} />}
+      {topTab === 'charts' && (
+        <>
+          {!isFullscreen && <SummaryCards accent={accent} accent2={accent2} />}
+          <ChartsPage loggedInRolex={loggedInRolex} />
+        </>
+      )}
     </div>
   );
 }
