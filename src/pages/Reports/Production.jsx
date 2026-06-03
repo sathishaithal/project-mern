@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import ThemedTooltip from "../../components/ui/Tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import {
@@ -1571,17 +1572,19 @@ case "pie":
                 className={`${styles.tableSubRow} ${i % 2 === 0 ? styles.tableSubRowEven : styles.tableSubRowOdd}`}
               >
                 <td className={`${styles.tableCellDescription} ${styles.tableCellBold}`}>{row.name}</td>
-                <td
-                  className={styles.tableCellNumber}
-                  title={row.hasData ? row.qtyLabel : ""}
-                >
-                  {row.hasData ? formatIndianNumber(row.qty) : "-"}
+                <td className={styles.tableCellNumber}>
+                  {row.hasData ? (
+                    <ThemedTooltip content={row.qtyLabel}>
+                      <span>{formatIndianNumber(row.qty)}</span>
+                    </ThemedTooltip>
+                  ) : "-"}
                 </td>
-                <td
-                  className={styles.tableCellNumber}
-                  title={row.hasData ? row.pctTooltip : ""}
-                >
-                  {row.hasData ? calcPct(row.qty) : "-"}
+                <td className={styles.tableCellNumber}>
+                  {row.hasData ? (
+                    <ThemedTooltip content={row.pctTooltip}>
+                      <span>{calcPct(row.qty)}</span>
+                    </ThemedTooltip>
+                  ) : "-"}
                 </td>
               </tr>
             ))}

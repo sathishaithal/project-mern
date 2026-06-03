@@ -50,6 +50,12 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
   };
 
   const handleNavigate = (link) => {
+    if (window.salesReportBusy) {
+      const ok = window.confirm(
+        'Sales Report data is still loading.\n\nClick OK to navigate away, or Cancel to wait.'
+      );
+      if (!ok) return;
+    }
     navigate(link);
     if (isMobile && onClose) onClose();
   };

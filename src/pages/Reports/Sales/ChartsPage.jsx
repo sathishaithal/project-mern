@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import ThemedTooltip from '../../../components/ui/Tooltip';
 import { motion } from 'framer-motion';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, LabelList,
@@ -75,7 +76,9 @@ function ChartCard({ title, onZoom, children, style = {} }) {
     <div style={{ flex: 1, background: cardBg, borderRadius: 12, border: `1px solid ${borderClr}`, overflow: 'visible', boxShadow: '0 2px 10px rgba(37,99,235,0.07)', ...style }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.55rem 1rem', borderBottom: `1px solid ${borderClr}`, background: headerBg, borderRadius: '12px 12px 0 0' }}>
         <span style={{ fontWeight: 700, fontSize: '0.75rem', color: titleClr, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>{title}</span>
-        <button onClick={onZoom} title="Expand" style={{ background: 'none', border: 'none', cursor: 'pointer', color: accent, fontSize: '1rem', lineHeight: 1, padding: 0, flexShrink: 0 }}>⛶</button>
+        <ThemedTooltip content="Expand">
+          <button onClick={onZoom} style={{ background: 'none', border: 'none', cursor: 'pointer', color: accent, fontSize: '1rem', lineHeight: 1, padding: 0, flexShrink: 0 }}>⛶</button>
+        </ThemedTooltip>
       </div>
       <div style={{ padding: '0.8rem 1rem' }}>{children}</div>
     </div>

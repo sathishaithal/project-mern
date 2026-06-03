@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Tooltip from '../../../components/ui/Tooltip';
 import { motion } from 'framer-motion';
 import { useColorMode } from '../../../theme/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -134,15 +135,16 @@ export default function SalesDashboard() {
             ))}
           </div>
 
-          <button
-            onClick={toggleFullscreen}
-            title="Full Screen"
-            className="dash-fullscreen-btn"
-            style={{ background: tabBg, border: `1px solid ${accent}`, color: accent, fontFamily }}
-          >
-            <i className="bi bi-arrows-fullscreen" style={{ fontSize: '0.82rem' }} />
+          <Tooltip content="Full Screen">
+            <button
+              onClick={toggleFullscreen}
+              className="dash-fullscreen-btn"
+              style={{ background: tabBg, border: `1px solid ${accent}`, color: accent, fontFamily }}
+            >
+              <i className="bi bi-arrows-fullscreen" style={{ fontSize: '0.82rem' }} />
             Full Screen
-          </button>
+            </button>
+          </Tooltip>
         </motion.div>
       )}
 

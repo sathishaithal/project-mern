@@ -193,19 +193,131 @@
 }
 
 /* ── Expand/collapse button ───────────────────────────────── */
-.sr-expand-btn {
-  background: none;
-  border: 1px solid #e2e8f0;
-  border-radius: 5px;
-  cursor: pointer;
-  width: 20px;
-  height: 20px;
+@keyframes srRowFadeIn {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+
+.sr-drill-row {
+  animation: srRowFadeIn 0.18s ease-out;
+}
+
+.sr-level-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  margin-right: 5px;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  vertical-align: middle;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+@keyframes srTooltipIn {
+  from { opacity: 0; transform: scale(0.92) translateY(4px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);   }
+}
+
+.sr-tooltip-card {
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.28), 0 0 0 1px var(--tt-accent, #1a237e);
+  min-width: 200px;
+  max-width: 260px;
+  overflow: hidden;
+  animation: srTooltipIn 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: inherit;
+  text-align: center;
+}
+
+.sr-tooltip-header {
+  padding: 6px 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.sr-tooltip-body {
+  padding: 8px 12px;
+  text-align: center;
+}
+
+.sr-tooltip-compare {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 6px;
+  justify-content: center;
+  text-align: center;
+}
+
+.sr-tooltip-year {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  text-align: center;
+}
+
+.sr-tooltip-label {
+  font-size: 0.62rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+}
+
+.sr-tooltip-val {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.sr-tooltip-formula {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(148,163,184,0.2);
   font-size: 0.68rem;
-  color: #64748b;
+  line-height: 1.55;
+  white-space: pre-line;
+  text-align: center;
+}
+
+.sr-expand-btn {
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
   padding: 0;
+  transition: background 0.15s, transform 0.15s;
+}
+.sr-expand-btn:hover {
+  background: rgba(128,128,128,0.18);
+  transform: scale(1.15);
+}
+.sr-expand-btn .bi {
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-block;
+}
+.sr-expand-btn.expanded .bi {
+  transform: rotate(180deg);
+}
+.sr-expand-placeholder {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
 }
 
 /* ── Tab filter row ───────────────────────────────────────── */

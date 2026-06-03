@@ -1,7 +1,8 @@
 export const fmt = (val) => {
+  if (val === null || val === undefined || val === '') return '0.00';
   const n = parseFloat(val);
-  if (isNaN(n) || n === 0) return '—';
-  return n.toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+  if (isNaN(n)) return '0.00';
+  return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 export const fmtAmt = (val) => {

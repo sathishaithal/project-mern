@@ -231,24 +231,18 @@ export async function getMonthwiseFiltersDist(params) {
 
 export async function getMonthwiseFiltersNew(params) {
   const url = `${BASE}/monthwise-filters-new`;
-  appLog('[API] getMonthwiseFiltersNew → REQUEST ', url, '\nPARAMS', params);
+  // Accept flat params OR legacy { jsonData: {...} } wrapper — always POST (matches Angular behavior)
+  const raw  = (params?.jsonData && typeof params.jsonData === 'object') ? params.jsonData : params;
+  const body = {
+    ...raw,
+    multiyear: Array.isArray(raw?.multiyear)
+      ? raw.multiyear
+      : String(raw?.multiyear ?? '').split(',').filter(Boolean),
+  };
+  appLog('[API] getMonthwiseFiltersNew → REQUEST (POST)', url, '\nBODY', body);
   try {
-    if (params?.method === 'POST') {
-      const { jsonData } = params;
-      const res = await axios.post(
-        url,
-        { jsonData },
-        { headers: authHeaders() },
-      );
-      appLog('[API] getMonthwiseFiltersNew (POST) → RESPONSE', res.data);
-      return res.data.list ?? res.data;
-    }
-    const { jsonData } = params;
-    const res = await axios.get(url, {
-      params: { jsonData: typeof jsonData === 'string' ? jsonData : JSON.stringify(jsonData) },
-      headers: authHeaders(),
-    });
-    appLog('[API] getMonthwiseFiltersNew (GET) → RESPONSE', res.data);
+    const res = await axios.post(url, body, { headers: authHeaders() });
+    appLog('[API] getMonthwiseFiltersNew → RESPONSE', res.data);
     return res.data.list ?? res.data;
   } catch (err) {
     appError('[API] getMonthwiseFiltersNew → ERROR', url, err?.response?.data || err.message);

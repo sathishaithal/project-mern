@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Tooltip from "../components/ui/Tooltip";
 import { motion } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useColorMode } from "../theme/ThemeContext";
@@ -145,13 +146,14 @@ const MainLayout = ({ children }) => {
 
             <div className={styles.headerRight}>
               <div className={styles.themeStudioWrap}>
-                <button
-                  className={styles.iconBtn}
-                  onClick={() => setThemeStudioOpen((prev) => !prev)}
-                  title="Theme Studio"
-                >
-                  <i className="bi bi-palette"></i>
-                </button>
+                <Tooltip content="Theme Studio">
+                  <button
+                    className={styles.iconBtn}
+                    onClick={() => setThemeStudioOpen((prev) => !prev)}
+                  >
+                    <i className="bi bi-palette"></i>
+                  </button>
+                </Tooltip>
 
                 {themeStudioOpen && (
                   <motion.div
@@ -196,20 +198,20 @@ const MainLayout = ({ children }) => {
                       <span className={styles.themeControlLabel}>Colors</span>
                       <div className={styles.colorGrid}>
                         {accentThemes.map((theme) => (
-                          <motion.button
-                            key={theme.id}
-                            type="button"
-                            className={`${styles.colorChip} ${selectedAccent.id === theme.id ? styles.colorChipActive : ""}`}
-                            onClick={() => setAccentTheme(theme.id)}
-                            whileHover={{ y: -2 }}
-                            whileTap={{ scale: 0.96 }}
-                            title={theme.name}
-                            style={{
-                              background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})`,
-                            }}
-                          >
-                            {selectedAccent.id === theme.id && <i className="bi bi-check2"></i>}
-                          </motion.button>
+                          <Tooltip key={theme.id} content={theme.name}>
+                            <motion.button
+                              type="button"
+                              className={`${styles.colorChip} ${selectedAccent.id === theme.id ? styles.colorChipActive : ""}`}
+                              onClick={() => setAccentTheme(theme.id)}
+                              whileHover={{ y: -2 }}
+                              whileTap={{ scale: 0.96 }}
+                              style={{
+                                background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})`,
+                              }}
+                            >
+                              {selectedAccent.id === theme.id && <i className="bi bi-check2"></i>}
+                            </motion.button>
+                          </Tooltip>
                         ))}
                       </div>
                     </div>
@@ -237,17 +239,17 @@ const MainLayout = ({ children }) => {
                       <span className={styles.themeControlLabel}>Sidebar</span>
                       <div className={styles.optionGrid}>
                         {sidebarModes.map((option) => (
-                          <motion.button
-                            key={option.id}
-                            type="button"
-                            className={`${styles.optionButton} ${sidebarMode === option.id ? styles.optionButtonActive : ""}`}
-                            onClick={() => setSidebarMode(option.id)}
-                            whileHover={{ y: -1 }}
-                            whileTap={{ scale: 0.98 }}
-                            title={option.description}
-                          >
-                            {option.name}
-                          </motion.button>
+                          <Tooltip key={option.id} content={option.description}>
+                            <motion.button
+                              type="button"
+                              className={`${styles.optionButton} ${sidebarMode === option.id ? styles.optionButtonActive : ""}`}
+                              onClick={() => setSidebarMode(option.id)}
+                              whileHover={{ y: -1 }}
+                              whileTap={{ scale: 0.98 }}
+                            >
+                              {option.name}
+                            </motion.button>
+                          </Tooltip>
                         ))}
                       </div>
                     </div>
