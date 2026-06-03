@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ThemedTooltip from '../../../components/ui/Tooltip';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, LabelList,
   PieChart, Pie, Legend, ResponsiveContainer,
@@ -140,7 +140,7 @@ function BarChartCard({ title, data, viewMode, onViewModeChange, onZoom,
         <CartesianGrid strokeDasharray="3 3" stroke={gridClr} />
         <XAxis dataKey="name" tick={{ fontSize: 11, fill: axisClr }} />
         <YAxis tick={{ fontSize: 10, fill: axisClr }} />
-        <Tooltip formatter={(v) => [`${v} T`, 'Tonnage']} {...tooltipStyle} />
+        <Tooltip enabled={false} />
         <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={40} isAnimationActive animationDuration={600}>
           {data.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
           <LabelList dataKey="value" content={topLabel} />
@@ -184,8 +184,9 @@ function BarChartCard({ title, data, viewMode, onViewModeChange, onZoom,
   );
 }
 
-// PieChartCard — hides viewMode dropdown in multi-year mode
-function PieChartCard({ title, data, viewMode, onViewModeChange, onZoom, onPieClick, isMultiYear }) {
+// PieChartCard — shows same filters as BarChartCard
+function PieChartCard({ title, data, viewMode, onViewModeChange, onZoom, onPieClick, isMultiYear, 
+  yrFilterMode, yrFilterSub, yrSubOptions, onYrModeChange, onYrSubChange }) {
   const { isDarkMode, selectedAccent } = useColorMode();
   const accent   = selectedAccent?.primary   || '#1a237e';
   const accent2  = selectedAccent?.secondary || '#283593';
@@ -194,6 +195,9 @@ function PieChartCard({ title, data, viewMode, onViewModeChange, onZoom, onPieCl
   const legendClr  = isDarkMode ? '#94a3b8' : '#475569';
   const nonZero    = data.filter(d => d.value > 0);
   const total      = nonZero.reduce((s, d) => s + d.value, 0);
+  const yrSubSelOpts = (yrSubOptions || []).map(v => ({ value: v, label: v }));
+  
+  // Disable Tooltip to remove black box
   const tooltipStyle = {
     contentStyle: { backgroundColor: isDarkMode ? '#1e293b' : '#fff', borderColor: isDarkMode ? '#334155' : '#e2e8f0', color: isDarkMode ? '#e2e8f0' : '#1e293b' },
     itemStyle:    { color: isDarkMode ? '#e2e8f0' : '#1e293b' },
@@ -211,7 +215,7 @@ function PieChartCard({ title, data, viewMode, onViewModeChange, onZoom, onPieCl
             return <Cell key={d.name} fill={colors[origIdx % colors.length]} />;
           })}
         </Pie>
-        <Tooltip formatter={(v) => [`${v} T`, 'Tonnage']} {...tooltipStyle} />
+        <Tooltip enabled={false} />
         <Legend layout="horizontal" align="center" verticalAlign="bottom" iconSize={9}
           wrapperStyle={{ fontSize: '0.67rem', paddingTop: 8, maxWidth: '100%', lineHeight: '18px', color: legendClr }}
           formatter={(value, entry) => {
@@ -225,8 +229,26 @@ function PieChartCard({ title, data, viewMode, onViewModeChange, onZoom, onPieCl
   );
   return (
     <ChartCard title={title} onZoom={() => onZoom(title, chart)}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
-        {!isMultiYear && (
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+        {isMultiYear ? (
+          <>
+            <Select
+              options={YR_FILTER_OPTIONS}
+              value={YR_FILTER_OPTIONS.find(o => o.value === yrFilterMode) || YR_FILTER_OPTIONS[0]}
+              onChange={sel => { onYrModeChange(sel.value); onYrSubChange('-Select-'); }}
+              styles={selStyles} isSearchable={false}
+              menuPortalTarget={document.body} menuPosition="fixed"
+            />
+            <Select
+              options={yrSubSelOpts}
+              value={yrSubSelOpts.find(o => o.value === yrFilterSub) || yrSubSelOpts[0]}
+              onChange={sel => onYrSubChange(sel.value)}
+              isDisabled={yrSubSelOpts.length <= 1}
+              styles={selStyles} isSearchable={false}
+              menuPortalTarget={document.body} menuPosition="fixed"
+            />
+          </>
+        ) : (
           <Select options={VIEW_OPTIONS}
             value={VIEW_OPTIONS.find(o => o.value === viewMode) || VIEW_OPTIONS[0]}
             onChange={sel => onViewModeChange(sel.value)}
@@ -265,7 +287,7 @@ function DrillPieCard({ title, data, onSliceClick, onZoom }) {
           wrapperStyle={{ fontSize: '0.66rem', paddingTop: 8, maxWidth: '100%', lineHeight: '18px', color: legendClr }}
           formatter={(value, entry) => `${value}: ${Math.round(entry.payload.value)} (${total > 0 ? ((entry.payload.value / total) * 100).toFixed(1) : 0}%)`}
         />
-        <Tooltip formatter={(v) => [`${v} T (${total > 0 ? ((v / total) * 100).toFixed(1) : 0}%)`, 'Tonnage']} {...tooltipStyle} />
+        <Tooltip enabled={false} />
       </PieChart>
     </ResponsiveContainer>
   );
@@ -309,7 +331,7 @@ function HBarCard({ title, data, onBarClick, onZoom }) {
         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridClr} />
         <XAxis type="number" tick={{ fontSize: 10, fill: axisClr }} />
         <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 10, fill: textClr, fontWeight: 500 }} />
-        <Tooltip formatter={(v) => [`${v} T (${total > 0 ? ((v / total) * 100).toFixed(1) : 0}%)`, 'Tonnage']} {...tooltipStyle} />
+        <Tooltip enabled={false} />
         <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={24} isAnimationActive animationDuration={600}>
           {data.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
           <LabelList dataKey="value" content={hbarLabel} />
@@ -346,15 +368,7 @@ function MirroredHBarCard({ title, data, onZoom }) {
         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridClr} />
         <XAxis type="number" tick={{ fontSize: 9, fill: axisClr }} tickFormatter={v => v < 0 ? Math.abs(v) : `${v.toFixed(1)}L`} />
         <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 9, fill: textClr, fontWeight: 500 }} />
-        <Tooltip
-          formatter={(v, name, props) => {
-            const row = props.payload;
-            if (name === 'tonnage') return [`${row._tonnage} T`, 'Tonnage'];
-            if (name === 'amount')  return [`${(row._amount / 100000).toFixed(2)} Lacs`, 'Amount'];
-            return [Math.abs(v), name];
-          }}
-          {...tooltipStyle}
-        />
+        <Tooltip enabled={false} />
         <Bar dataKey="tonnage" fill="#FF00CC" stackId="m" maxBarSize={22} isAnimationActive />
         <Bar dataKey="amount"  fill="#FF6600" stackId="m" maxBarSize={22} isAnimationActive />
       </BarChart>
@@ -474,6 +488,22 @@ export default function ChartsPage({ loggedInRolex }) {
   const [clickedPieNum,   setClickedPieNum]   = useState(null);
   const [hbarTitle,       setHbarTitle]       = useState('');
   const [hbar2Title,      setHbar2Title]      = useState('');
+
+  // Toast notification state
+  const [toast, setToast] = useState({ show: false, message: '', type: 'info', title: '' });
+  const [toastVisible, setToastVisible] = useState(false);
+  const toastTimeoutRef = useRef(null);
+
+  const showToast = useCallback((title, message, type = 'info') => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast({ show: true, message, type, title });
+    setToastVisible(true);
+    const duration = type === 'success' ? 3000 : 5000;
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastVisible(false);
+      setTimeout(() => setToast({ show: false, message: '', type: 'info', title: '' }), 300);
+    }, duration);
+  }, []);
 
   // Refs — written synchronously before any await to avoid stale closures
   const mwMonthRef    = useRef(null);
@@ -708,6 +738,7 @@ export default function ChartsPage({ loggedInRolex }) {
   // Single-year pie/bar click — reads year from graphData
   const handlePieClick = useCallback((monthName) => {
     if (!monthName) return;
+    // For single year, we always have data so just proceed
     const year = graphData?.year || (Array.isArray(multiyear) ? multiyear[0] : multiyear);
     handlePieClickForYear(monthName, year);
   }, [graphData, multiyear, handlePieClickForYear]);
@@ -716,24 +747,21 @@ export default function ChartsPage({ loggedInRolex }) {
   const handleYearPieClick = useCallback((yearLabel) => {
     if (!yearLabel) return;
     const yearStr = String(yearLabel).slice(0, 4);
-    if (yrFilterMode === 'monthly' && yrFilterSub !== '-Select-') {
-      handlePieClickForYear(yrFilterSub, yearStr);
-    } else if (yrFilterMode === 'Quarterly' && yrFilterSub !== '-Select-') {
-      handlePieClickForYear(yrFilterSub, yearStr);
-    } else {
-      // No sub-filter: switch to single-year monthly view for the clicked year
-      const rows = graphDataAll
-        .map(item => (item && typeof item === 'object' && !item.dist) ? item : (item?.dist ?? item ?? {}))
-        .filter(r => r && r.year != null);
-      const row = rows.find(r => String(r.year) === yearStr);
-      if (row) {
-        setGraphData(row);
-        setViewMode('Year');
-        setPieData1([]); setPieData2([]); setPieData3([]);
-        setCategoryData([]); setCodeData([]);
+    
+    if (yrFilterMode === 'monthly' || yrFilterMode === 'Quarterly') {
+      // Filter mode IS selected
+      if (yrFilterSub !== '-Select-') {
+        // Both filter AND sub-filter selected: show level 2 (3 pies) for that month/year
+        handlePieClickForYear(yrFilterSub, yearStr);
+      } else {
+        // Filter mode selected but no sub yet: show notification
+        showToast('Selection Required', `Please select a ${yrFilterMode === 'monthly' ? 'month' : 'quarter'} to view detailed breakdown`, 'warning');
       }
+    } else {
+      // No filter mode selected: show notification
+      showToast('Filter Required', 'Please select "Monthly" or "Quarterly" filter to view detailed breakdown', 'info');
     }
-  }, [yrFilterMode, yrFilterSub, graphDataAll, handlePieClickForYear]);
+  }, [yrFilterMode, yrFilterSub, graphDataAll, handlePieClickForYear, showToast]);
 
   // DrillPie slice click → Level 2 HBar (reads month + year from refs)
   const handleCatgroupClick = useCallback(async (catgroupName, pieNum) => {
@@ -789,13 +817,24 @@ export default function ChartsPage({ loggedInRolex }) {
   const handlePie3Click = useCallback((name) => handleCatgroupClick(name, 3), [handleCatgroupClick]);
 
   // Year filter mode change — clears drill-down when reset to -Select-
+  // Year filter mode change — clears drill-down when mode changes
   const handleYrModeChange = useCallback((mode) => {
     setYrFilterMode(mode);
     setYrFilterSub('-Select-');
-    if (mode === '-Select-') {
-      setPieData1([]); setPieData2([]); setPieData3([]);
-      setCategoryData([]); setCodeData([]);
-    }
+    // Clear all level 2 data when filter mode changes
+    setPieData1([]); setPieData2([]); setPieData3([]);
+    setCategoryData([]); setCodeData([]);
+    setClickedMonth(null); setClickedCatgroup(null); setClickedCategory(null); setClickedPieNum(null);
+  }, []);
+
+  // Handle sub-filter (month/quarter) change: clear level 2 whenever it changes so it refreshes with new month/quarter when year is clicked
+  const handleYrSubChange = useCallback((sub) => {
+    setYrFilterSub(sub);
+    // Clear level 2 data when sub-filter changes (whether to '-Select-' or to a new month/quarter)
+    // This ensures clean state for next year click with new filter
+    setPieData1([]); setPieData2([]); setPieData3([]);
+    setCategoryData([]); setCodeData([]);
+    setClickedMonth(null); setClickedCatgroup(null); setClickedCategory(null); setClickedPieNum(null);
   }, []);
 
   const LoaderOverlay = ({ text = 'Loading Chart Data' }) => (
@@ -873,7 +912,7 @@ export default function ChartsPage({ loggedInRolex }) {
                   isMultiYear={isMultiYear}
                   yrFilterMode={yrFilterMode} yrFilterSub={yrFilterSub}
                   yrSubOptions={yrSubOptions}
-                  onYrModeChange={handleYrModeChange} onYrSubChange={setYrFilterSub}
+                  onYrModeChange={handleYrModeChange} onYrSubChange={handleYrSubChange}
                   onBarClick={isMultiYear ? handleYearPieClick : handlePieClick}
                 />
                 <PieChartCard
@@ -882,6 +921,9 @@ export default function ChartsPage({ loggedInRolex }) {
                   viewMode={viewMode} onViewModeChange={setViewMode}
                   onZoom={handleZoom}
                   isMultiYear={isMultiYear}
+                  yrFilterMode={yrFilterMode} yrFilterSub={yrFilterSub}
+                  yrSubOptions={yrSubOptions}
+                  onYrModeChange={handleYrModeChange} onYrSubChange={handleYrSubChange}
                   onPieClick={isMultiYear ? handleYearPieClick : handlePieClick}
                 />
               </div>
@@ -1026,6 +1068,44 @@ export default function ChartsPage({ loggedInRolex }) {
       )}
 
       {zoomChart && <ZoomModal chart={zoomChart} onClose={() => setZoomChart(null)} />}
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast.show && toastVisible && (
+          <motion.div
+            initial={{ opacity: 0, y: -24, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -24, scale: 0.96 }}
+            transition={{ duration: 0.28 }}
+            style={{ position: 'fixed', top: 20, right: 24, zIndex: 9999, minWidth: 300, maxWidth: 420 }}
+          >
+            <div style={{ 
+              background: isDarkMode ? '#1e293b' : 'white', 
+              border: `1px solid ${toast.type === 'error' ? '#fca5a5' : toast.type === 'warning' ? '#fbbf24' : toast.type === 'success' ? '#86efac' : '#93c5fd'}`, 
+              borderRadius: 12, 
+              padding: '0.9rem 1rem', 
+              boxShadow: '0 8px 32px rgba(0,0,0,0.18)', 
+              display: 'flex', 
+              alignItems: 'flex-start', 
+              gap: 10 
+            }}>
+              <i className={`bi bi-${toast.type === 'success' ? 'check-circle-fill' : toast.type === 'error' ? 'exclamation-triangle-fill' : toast.type === 'warning' ? 'exclamation-circle-fill' : 'info-circle-fill'}`}
+                style={{ 
+                  color: toast.type === 'error' ? '#ef4444' : toast.type === 'warning' ? '#f59e0b' : toast.type === 'success' ? '#10b981' : '#3b82f6',
+                  minWidth: 20,
+                  marginTop: 2,
+                  fontSize: '1.1rem'
+                }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: '0.82rem', color: isDarkMode ? '#e2e8f0' : '#1e293b' }}>{toast.title}</div>
+                <div style={{ fontSize: '0.78rem', color: isDarkMode ? '#94a3b8' : '#64748b', marginTop: 2 }}>{toast.message}</div>
+              </div>
+              <button onClick={() => setToastVisible(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isDarkMode ? '#94a3b8' : '#9ca3af', fontSize: '1.2rem', padding: 0 }}>×</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

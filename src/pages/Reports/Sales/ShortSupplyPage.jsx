@@ -64,8 +64,8 @@ function ShortSupplyTable({
           <i className="bi bi-table" style={{ color: accent }} />
           {title}
         </span>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div>
+        <div style={{ display: 'flex', flexDirection: 'row', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <label style={labelStyle}>From Date</label>
             {/* state holds YYYY-MM-DD string; AppDatePicker receives a Date object */}
             <AppDatePicker
@@ -74,7 +74,7 @@ function ShortSupplyTable({
               max={strToDate(toDate)}
             />
           </div>
-          <div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <label style={labelStyle}>To Date</label>
             <AppDatePicker
               value={strToDate(toDate)}
@@ -92,6 +92,7 @@ function ShortSupplyTable({
               cursor: loading ? 'not-allowed' : 'pointer',
               fontFamily,
               alignSelf: 'flex-end',
+              height: 36,
             }}
           >
             <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />

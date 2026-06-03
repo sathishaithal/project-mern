@@ -469,37 +469,39 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
           onMouseEnter={e => { e.currentTarget.style.background = isDarkMode ? '#1e2d45' : '#eff6ff'; }}
           onMouseLeave={e => { e.currentTarget.style.background = rowBg; }}
         >
-          <td className="sr-td" style={{ position: 'sticky', left: 0, background: 'inherit', textAlign: 'center', width: 50, minWidth: 50, padding: '0 2px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-            {showExpandBtn && (
-              <Tooltip content={isOpen ? 'Collapse' : 'Expand'}>
-                <button
-                  onClick={() => {
-                    if (isOpen) { onCollapse(stateKey); }
-                    else { if (yearOpen) onYearCollapse(stateKey); onExpand(row, stateKey, level); }
-                  }}
-                  className={`sr-expand-btn${isOpen ? ' expanded' : ''}`}
-                  style={{ color: accent }}
-                >
-                  <i className="bi bi-chevron-down" />
-                </button>
-              </Tooltip>
-            )}
-            {showYearBtn && (
-              <Tooltip content={yearOpen ? 'Collapse years' : 'Year breakdown'}>
-                <button
-                  onClick={() => {
-                    if (yearOpen) { onYearCollapse(stateKey); }
-                    else { if (isOpen) onCollapse(stateKey); onYearExpand(row, stateKey); }
-                  }}
-                  className="sr-expand-btn"
-                  style={{ color: accent, opacity: 0.75 }}
-                >
-                  <i className={yearOpen ? 'bi bi-chevron-double-up' : 'bi bi-chevron-double-down'} />
-                </button>
-              </Tooltip>
-            )}
-            {!showExpandBtn && !showYearBtn && !isLoading && <span className="sr-expand-placeholder" />}
-            {isLoading && <i className="bi bi-arrow-clockwise sr-spin" style={{ color: '#94a3b8', fontSize: '0.75rem' }} />}
+          <td className="sr-td" style={{ position: 'sticky', left: 0, background: 'inherit', textAlign: 'center', verticalAlign: 'middle', width: 50, minWidth: 50, padding: '0 2px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+              {showExpandBtn && (
+                <Tooltip content={isOpen ? 'Collapse' : 'Expand'}>
+                  <button
+                    onClick={() => {
+                      if (isOpen) { onCollapse(stateKey); }
+                      else { if (yearOpen) onYearCollapse(stateKey); onExpand(row, stateKey, level); }
+                    }}
+                    className={`sr-expand-btn${isOpen ? ' expanded' : ''}`}
+                    style={{ color: accent }}
+                  >
+                    <i className="bi bi-chevron-down" />
+                  </button>
+                </Tooltip>
+              )}
+              {showYearBtn && (
+                <Tooltip content={yearOpen ? 'Collapse years' : 'Year breakdown'}>
+                  <button
+                    onClick={() => {
+                      if (yearOpen) { onYearCollapse(stateKey); }
+                      else { if (isOpen) onCollapse(stateKey); onYearExpand(row, stateKey); }
+                    }}
+                    className="sr-expand-btn"
+                    style={{ color: accent, opacity: 0.75 }}
+                  >
+                    <i className={yearOpen ? 'bi bi-chevron-double-up' : 'bi bi-chevron-double-down'} />
+                  </button>
+                </Tooltip>
+              )}
+              {!showExpandBtn && !showYearBtn && !isLoading && <span className="sr-expand-placeholder" />}
+              {isLoading && <i className="bi bi-arrow-clockwise sr-spin" style={{ color: '#94a3b8', fontSize: '0.75rem' }} />}
+            </div>
           </td>
 
           <td
@@ -602,7 +604,46 @@ function GrandTotalRow({ rows, expandedQuarters, isSummary, showTillLast, accent
   );
 }
 
-export default function SalesReportPage() {
+const COLOR_LEGEND = [
+  { bg: 'green',      label: 'All 4 quarters growing vs last year' },
+  { bg: 'lightgreen', label: '3 quarters growing (1 declining)' },
+  { bg: 'yellow',     label: '2 quarters growing, 2 declining' },
+  { bg: 'red',        label: '3 or more quarters declining' },
+];
+
+function ColorLegend({ accent, isDarkMode }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12, padding: '6px 12px',
+      marginBottom: 6, borderRadius: 8, flexWrap: 'wrap',
+      background: isDarkMode ? 'rgba(30,41,59,0.55)' : '#f8fafc',
+      border: `1px solid ${accent}22`,
+    }}>
+      <span style={{
+        fontSize: '0.72rem', fontWeight: 700, color: accent,
+        display: 'flex', alignItems: 'center', gap: 4,
+        animation: 'colorLegendPulse 2s ease-in-out infinite',
+        flexShrink: 0,
+      }}>
+        <i className="bi bi-info-circle-fill" />
+        Row colors indicate quarterly performance:
+      </span>
+      {COLOR_LEGEND.map(({ bg, label }) => (
+        <div key={bg} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{
+            display: 'inline-block', width: 14, height: 14, borderRadius: 3,
+            background: bg, border: '1px solid rgba(0,0,0,0.15)', flexShrink: 0,
+          }} />
+          <span style={{ fontSize: '0.7rem', color: isDarkMode ? '#94a3b8' : '#475569' }}>
+            {label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function SalesReportPage({ loggedInRole = null, loggedInRolex = null }) {
   const { user } = useAuth();
   const employeename = user?.username;
   const { multiyear, monthwisecompany, monthwisedisttype } = useSalesFilterStore();
@@ -636,6 +677,7 @@ export default function SalesReportPage() {
 
   // Pre-grouped results for each non-summary tab — populated via setTimeout chain after fetch
   const groupedCacheRef = useRef({});
+  const groupingRef     = useRef(false); // guard: prevents concurrent preGroupAll chains
   const [grouping, setGrouping] = useState(false);
 
   // Single page-level tooltip (replaces per-cell useState — eliminates ~1560 state instances)
@@ -726,9 +768,25 @@ export default function SalesReportPage() {
   const visibleMonthCount = GROUPS.reduce((n, g) => n + (expandedQuarters[g.qKey] ? 3 : 0), 0);
   const TOTAL_COLS    = 2 + visibleMonthCount + 4 + (showTillLast ? 1 : 0) + 7;
 
+  // Mirrors Angular *ngIf on tab li elements — role + method based visibility
+  // ASM:  monthwisedisttype !== 'Shops' && loggedInRole !== 'Distributor' && loggedInRolex !== 'Sales Man' && loggedInRolex !== 'Sales Executive'
+  // Soff: monthwisedisttype !== 'Shops' && loggedInRole !== 'Distributor'
+  const visibleTabs = useMemo(() => {
+    const isShops   = monthwisedisttype === 'Shops';
+    const isDist    = loggedInRole === 'Distributor';
+    const isSalesMn = loggedInRolex === 'Sales Man' || loggedInRolex === 'Sales Executive';
+    return TABS.filter(t => {
+      if (t.id === 'asm')  return !isShops && !isDist && !isSalesMn;
+      if (t.id === 'soff') return !isShops && !isDist;
+      return true;
+    });
+  }, [monthwisedisttype, loggedInRole, loggedInRolex]);
+
   const toggleQuarter = (qKey) => setExpandedQuarters(p => ({ ...p, [qKey]: !p[qKey] }));
 
   const preGroupAll = useCallback((baseRows) => {
+    if (groupingRef.current) return;
+    groupingRef.current = true;
     groupedCacheRef.current = {};
     setGrouping(true);
     setTimeout(() => {
@@ -739,6 +797,7 @@ export default function SalesReportPage() {
           groupedCacheRef.current.asm = groupByField(baseRows, 'asm');
           setTimeout(() => {
             groupedCacheRef.current.soff = groupByField(baseRows, 'soff');
+            groupingRef.current = false;
             setGrouping(false);
           }, 0);
         }, 0);
@@ -1019,6 +1078,18 @@ export default function SalesReportPage() {
     setExpandedYear(p => ({ ...p, [stateKey]: false }));
   }, []);
 
+  // Auto-switch to first visible tab if active tab becomes hidden by role/method change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const ids = visibleTabs.map(t => t.id);
+    if (!ids.includes(activeTab)) {
+      setActiveTab(ids[0] || 'summary');
+      setExpanded({});
+      setDrillData({});
+      setExpandedYear({});
+    }
+  }, [visibleTabs, activeTab]);
+
   const lastUpdateDate = lastUpdate ? fmtDate(lastUpdate.dispatchlastupdate) : null;
   const isDrillLoading = Object.values(drillLoading).some(Boolean);
 
@@ -1096,15 +1167,23 @@ export default function SalesReportPage() {
   const ROW_HEIGHT = 38; // px — matches sr-td padding
   const tableWrapRef  = useRef(null);
   const scrollTopRef  = useRef(0);
+  const rafRef        = useRef(null);
   const [visibleRange, setVisibleRange] = useState({ start: 0, end: 60 });
 
+  // RAF-debounced scroll handler: batches to one update per animation frame;
+  // equality check prevents re-renders when start/end haven't changed.
   const handleScroll = useCallback((e) => {
-    const scrollTop       = e.currentTarget.scrollTop;
-    scrollTopRef.current  = scrollTop;
-    const containerHeight = e.currentTarget.clientHeight;
-    const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 10);
-    const end   = Math.min(displayRows.length, Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + 10);
-    setVisibleRange({ start, end });
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    const scrollTop = e.currentTarget.scrollTop;
+    const clientH   = e.currentTarget.clientHeight;
+    scrollTopRef.current = scrollTop;
+    rafRef.current = requestAnimationFrame(() => {
+      const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 10);
+      const end   = Math.min(displayRows.length, Math.ceil((scrollTop + clientH) / ROW_HEIGHT) + 10);
+      setVisibleRange(prev =>
+        prev.start === start && prev.end === end ? prev : { start, end }
+      );
+    });
   }, [displayRows.length]);
 
   // Reset scroll and visible range when tab changes or data refreshes
@@ -1171,7 +1250,7 @@ export default function SalesReportPage() {
           className="sr-tabs"
           style={{ marginBottom: 0, borderBottom: `2px solid ${isDarkMode ? '#334155' : '#e2e8f0'}` }}
         >
-          {TABS.map(t => (
+          {visibleTabs.map(t => (
             <button
               key={t.id}
               onClick={() => { setActiveTab(t.id); setExpanded({}); setDrillData({}); setExpandedYear({}); setFCatgroup([]); setFCategory([]); setFItemType([]); setFItem([]); setFDistName([]); setFAsm([]); setFAreaName([]); setFSoff([]); }}
@@ -1244,6 +1323,11 @@ export default function SalesReportPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Color legend — only for tabs with traffic-light row colors */}
+      {activeTab !== 'summary' && (
+        <ColorLegend accent={accent} isDarkMode={isDarkMode} />
       )}
 
       {/* Table card — animates in, re-animates on tab change */}

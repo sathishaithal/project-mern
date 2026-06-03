@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useColorMode } from "../theme/ThemeContext";
 import styles from "./Sidebar.module.css";
@@ -9,9 +9,11 @@ const expandedWidth = 220;
 const collapsedWidth = 70;
 
 const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => {
-  const navigate = useNavigate();
-  const { logout } = useAuth();
-  const { isDarkMode } = useColorMode();
+  const navigate    = useNavigate();
+  const location    = useLocation();
+  const { logout }  = useAuth();
+  const { isDarkMode, selectedAccent } = useColorMode();
+  const accentColor = selectedAccent?.primary || '#3b82f6';
 
   const [openMenu, setOpenMenu] = useState({
     reports: false,
@@ -79,7 +81,7 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
   const drawerContent = (
     <div
       className={`${styles.sidebarContainer} ${isDarkMode ? styles.sidebarDark : ""}`}
-      style={{ width: collapsed ? collapsedWidth : expandedWidth }}
+      style={{ width: collapsed ? collapsedWidth : expandedWidth, '--sidebar-accent': accentColor }}
     >
       {/* Header */}
       <div className={styles.sidebarHeader} style={{ minHeight: collapsed ? 64 : 90 }}>
@@ -110,7 +112,7 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
       {/* Navigation */}
       <div className={styles.navList}>
         {/* Dashboard */}
-        <div className={styles.navItem} onClick={() => handleNavigate("/dashboard")}>
+        <div className={`${styles.navItem} ${location.pathname === '/dashboard' ? styles.navItemActive : ''}`} onClick={() => handleNavigate("/dashboard")}>
           <div className={styles.navIcon}>
             <i className="bi bi-speedometer2"></i>
           </div>
@@ -126,7 +128,7 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
             onMouseLeave={handleMouseLeave}
           >
             <div
-              className={styles.navItem}
+              className={`${styles.navItem} ${location.pathname.startsWith(`/${menu}`) ? styles.navItemActive : ''}`}
               onClick={() => {
                 if (menu === "reports") {
                   handleNavigate("/reports");
@@ -160,7 +162,7 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
                 {menuMap[menu].map((item, idx) => (
                   <div
                     key={idx}
-                    className={styles.subMenuItem}
+                    className={`${styles.subMenuItem} ${location.pathname === item.link ? styles.subMenuItemActive : ''}`}
                     onClick={() => handleNavigate(item.link)}
                   >
                     <div className={styles.subMenuIcon}>{item.icon}</div>
@@ -224,7 +226,7 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
               {menuMap[hoverMenu].map((item, idx) => (
                 <div
                   key={idx}
-                  className={styles.hoverMenuItem}
+                  className={`${styles.hoverMenuItem} ${location.pathname === item.link ? styles.hoverMenuItemActive : ''}`}
                   onClick={() => {
                     handleNavigate(item.link);
                     setHoverMenu(null);

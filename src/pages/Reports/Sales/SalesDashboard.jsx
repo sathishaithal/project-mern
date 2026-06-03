@@ -185,7 +185,7 @@ export default function SalesDashboard() {
             </motion.div>
           )}
 
-          {reportTab === 'monthwise'   && <SalesReportPage />}
+          {reportTab === 'monthwise'   && <SalesReportPage loggedInRole={loggedInRole} loggedInRolex={loggedInRolex} />}
           {reportTab === 'daywise'     && <DayWisePage />}
           {reportTab === 'shortsupply' && <ShortSupplyPage />}
         </>
