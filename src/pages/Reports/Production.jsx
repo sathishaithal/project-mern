@@ -84,6 +84,22 @@ const Production = () => {
   const [chartType, setChartType] = useState("bar");
   const [dataView, setDataView] = useState("produced");
 
+  const [periodType, setPeriodType] = useState('custom');
+  const [customFrom, setCustomFrom] = useState(new Date());
+  const [customTo,   setCustomTo]   = useState(new Date());
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
+  const [selectedQuarter, setSelectedQuarter] = useState(() => {
+    const m = new Date().getMonth();
+    if (m < 3)  return 'Q4';
+    if (m < 6)  return 'Q1';
+    if (m < 9)  return 'Q2';
+    return 'Q3';
+  });
+
   // Toast notification state
   const [toast, setToast] = useState({
     show: false,
@@ -132,6 +148,83 @@ const Production = () => {
       document.body.classList.remove("production-report-fullscreen");
     };
   }, []);
+
+  const computeDateRange = (type, opts = {}) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const d = (y, m, day) => new Date(y, m, day);
+
+    switch (type) {
+      case 'today':
+        return { from: new Date(today), to: new Date(today) };
+
+      case 'yesterday': {
+        const y = new Date(today);
+        y.setDate(y.getDate() - 1);
+        return { from: y, to: new Date(y) };
+      }
+
+      case 'thisweek': {
+        const day = today.getDay();
+        const mon = new Date(today);
+        mon.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+        return { from: mon, to: new Date(today) };
+      }
+
+      case 'thismonth':
+        return { from: d(today.getFullYear(), today.getMonth(), 1), to: new Date(today) };
+
+      case 'lastmonth': {
+        const first = d(today.getFullYear(), today.getMonth() - 1, 1);
+        const last  = d(today.getFullYear(), today.getMonth(), 0);
+        return { from: first, to: last };
+      }
+
+      case 'quarter': {
+        const fy   = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
+        const qMap = {
+          Q1: { from: d(fy,     3, 1), to: d(fy,     5, 30) },
+          Q2: { from: d(fy,     6, 1), to: d(fy,     8, 30) },
+          Q3: { from: d(fy,     9, 1), to: d(fy,    11, 31) },
+          Q4: { from: d(fy + 1, 0, 1), to: d(fy + 1,  2, 31) },
+        };
+        return qMap[opts.quarter] || qMap['Q1'];
+      }
+
+      case 'financialyear': {
+        const fy = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
+        return { from: d(fy, 3, 1), to: d(fy + 1, 2, 31) };
+      }
+
+      case 'year': {
+        const yr = parseInt(opts.year || today.getFullYear(), 10);
+        return { from: d(yr, 0, 1), to: d(yr, 11, 31) };
+      }
+
+      case 'month': {
+        const [yr, mo] = (opts.month || '').split('-').map(Number);
+        if (!yr || !mo) return { from: new Date(today), to: new Date(today) };
+        return { from: d(yr, mo - 1, 1), to: d(yr, mo, 0) };
+      }
+
+      case 'custom':
+      default:
+        return { from: opts.customFrom || new Date(today), to: opts.customTo || new Date(today) };
+    }
+  };
+
+  useEffect(() => {
+    const { from, to } = computeDateRange(periodType, {
+      quarter:    selectedQuarter,
+      year:       selectedYear,
+      month:      selectedMonth,
+      customFrom: customFrom,
+      customTo:   customTo,
+    });
+    setFromDate(from);
+    setToDate(to);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodType, selectedQuarter, selectedYear, selectedMonth, customFrom, customTo]);
 
   const showToast = (title, message, type = "info") => {
     if (toastTimeoutRef.current) {
@@ -1841,7 +1934,7 @@ case "pie":
               ]}
             />
           </motion.div>
-          {/* From Date */}
+          {/* Period Type */}
           <motion.div
             className={styles.filterItem}
             initial={{ opacity: 0, y: 18 }}
@@ -1850,32 +1943,145 @@ case "pie":
             whileHover={{ y: -2 }}
           >
             <label className={styles.filterLabel}>
-              <i className="bi bi-calendar3"></i> From Date
+              <i className="bi bi-calendar-range"></i> Period
             </label>
-            <AppDatePicker
-              value={fromDate}
-              onChange={setFromDate}
-              max={toDate}
+            <AppSelect
+              value={periodType}
+              onChange={setPeriodType}
+              options={[
+                { value: 'today',         label: 'Today' },
+                { value: 'yesterday',     label: 'Yesterday' },
+                { value: 'thisweek',      label: 'This Week' },
+                { value: 'thismonth',     label: 'This Month' },
+                { value: 'lastmonth',     label: 'Last Month' },
+                { value: 'quarter',       label: 'Quarter' },
+                { value: 'financialyear', label: 'Financial Year' },
+                { value: 'year',          label: 'Year' },
+                { value: 'month',         label: 'Month' },
+                { value: 'custom',        label: 'Custom Range' },
+              ]}
             />
           </motion.div>
 
-          {/* To Date */}
-          <motion.div
-            className={styles.filterItem}
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.15 }}
-            whileHover={{ y: -2 }}
-          >
-            <label className={styles.filterLabel}>
-              <i className="bi bi-calendar3"></i> To Date
-            </label>
-            <AppDatePicker
-              value={toDate}
-              onChange={setToDate}
-              min={fromDate}
-            />
-          </motion.div>
+          {/* Quarter sub-selector */}
+          {periodType === 'quarter' && (
+            <motion.div
+              className={styles.filterItem}
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              whileHover={{ y: -2 }}
+            >
+              <label className={styles.filterLabel}>
+                <i className="bi bi-pie-chart"></i> Quarter
+              </label>
+              <AppSelect
+                value={selectedQuarter}
+                onChange={setSelectedQuarter}
+                options={[
+                  { value: 'Q1', label: 'Q1 (Apr – Jun)' },
+                  { value: 'Q2', label: 'Q2 (Jul – Sep)' },
+                  { value: 'Q3', label: 'Q3 (Oct – Dec)' },
+                  { value: 'Q4', label: 'Q4 (Jan – Mar)' },
+                ]}
+              />
+            </motion.div>
+          )}
+
+          {/* Year sub-selector */}
+          {periodType === 'year' && (
+            <motion.div
+              className={styles.filterItem}
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              whileHover={{ y: -2 }}
+            >
+              <label className={styles.filterLabel}>
+                <i className="bi bi-calendar2"></i> Year
+              </label>
+              <AppSelect
+                value={selectedYear}
+                onChange={setSelectedYear}
+                options={(() => {
+                  const curr = new Date().getFullYear();
+                  return Array.from({ length: 10 }, (_, i) => {
+                    const y = String(curr - i);
+                    return { value: y, label: y };
+                  });
+                })()}
+              />
+            </motion.div>
+          )}
+
+          {/* Month sub-selector */}
+          {periodType === 'month' && (
+            <motion.div
+              className={styles.filterItem}
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              whileHover={{ y: -2 }}
+            >
+              <label className={styles.filterLabel}>
+                <i className="bi bi-calendar3"></i> Month
+              </label>
+              <AppSelect
+                value={selectedMonth}
+                onChange={setSelectedMonth}
+                options={(() => {
+                  const opts = [];
+                  const now  = new Date();
+                  for (let i = 0; i < 24; i++) {
+                    const d   = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    const lbl = d.toLocaleString('default', { month: 'long', year: 'numeric' });
+                    opts.push({ value: val, label: lbl });
+                  }
+                  return opts;
+                })()}
+              />
+            </motion.div>
+          )}
+
+          {/* Custom Range — two date pickers */}
+          {periodType === 'custom' && (
+            <>
+              <motion.div
+                className={styles.filterItem}
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                whileHover={{ y: -2 }}
+              >
+                <label className={styles.filterLabel}>
+                  <i className="bi bi-calendar3"></i> From Date
+                </label>
+                <AppDatePicker
+                  value={customFrom}
+                  onChange={setCustomFrom}
+                  max={customTo}
+                />
+              </motion.div>
+
+              <motion.div
+                className={styles.filterItem}
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                whileHover={{ y: -2 }}
+              >
+                <label className={styles.filterLabel}>
+                  <i className="bi bi-calendar3"></i> To Date
+                </label>
+                <AppDatePicker
+                  value={customTo}
+                  onChange={setCustomTo}
+                  min={customFrom}
+                />
+              </motion.div>
+            </>
+          )}
 
           {/* Generate Button */}
           <motion.div
@@ -1884,6 +2090,19 @@ case "pie":
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.2 }}
           >
+            {periodType !== 'custom' && (
+              <div style={{
+                fontSize: '0.7rem',
+                color: 'var(--production-accent)',
+                marginBottom: 4,
+                textAlign: 'center',
+                opacity: 0.8,
+              }}>
+                {fromDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                {' → '}
+                {toDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </div>
+            )}
             <motion.button
               className={styles.generateBtn}
               onClick={fetchReport}
