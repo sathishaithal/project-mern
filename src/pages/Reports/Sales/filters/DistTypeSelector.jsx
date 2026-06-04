@@ -5,7 +5,9 @@ import { useSalesFilterStore } from '../../../../store/salesFilterStore';
 import { useColorMode } from '../../../../theme/ThemeContext';
 import { useSalesSelectStyles } from './useSalesSelectStyles';
 
-const DistTypeSelector = ({ mode = 'monthwise' }) => {
+const ASM_SOFF_TABS = ['asm', 'soff'];
+
+const DistTypeSelector = ({ mode = 'monthwise', activeReportTab = '' }) => {
   const {
     monthwisedisttype, setMonthwiseDisttype, monthwisecompany,
     daywisedisttype, setDaywiseDisttype, daywisecompany,
@@ -20,7 +22,7 @@ const DistTypeSelector = ({ mode = 'monthwise' }) => {
 
   const options = [
     { value: 'Distribution', label: 'Distribution' },
-    ...(showShops ? [{ value: 'Shops', label: 'Shops' }] : []),
+    ...(showShops && !ASM_SOFF_TABS.includes(activeReportTab) ? [{ value: 'Shops', label: 'Shops' }] : []),
   ];
   const value = options.find(o => o.value === disttype) || options[0];
 

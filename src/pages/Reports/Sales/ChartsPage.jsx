@@ -16,6 +16,7 @@ import {
   getGraphMonthwise,
   getGraphCatgroup,
   getGraphCategoryWithCode,
+  getGraphCategoryForCatgroup,
   getGraphSellingDataByCategory,
   getGraphSellingData,
   getGraphSellingDataByItem,
@@ -326,13 +327,13 @@ function HBarCard({ title, data, onBarClick, onZoom }) {
   const chart = (
     <ResponsiveContainer width="100%" height={barH}>
       <BarChart data={data} layout="vertical" margin={{ top: 0, right: 130, left: 10, bottom: 0 }}
-        onClick={onBarClick ? (d) => { const p = d?.activePayload?.[0]?.payload; if (p) onBarClick(p); } : undefined}
         style={{ cursor: onBarClick ? 'pointer' : 'default' }}>
         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridClr} />
         <XAxis type="number" tick={{ fontSize: 10, fill: axisClr }} />
         <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 10, fill: textClr, fontWeight: 500 }} />
         <Tooltip enabled={false} />
-        <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={24} isAnimationActive animationDuration={600}>
+        <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={24} isAnimationActive animationDuration={600}
+          onClick={onBarClick ? (barData) => { if (barData) onBarClick(barData); } : undefined}>
           {data.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
           <LabelList dataKey="value" content={hbarLabel} />
         </Bar>
@@ -466,6 +467,9 @@ export default function ChartsPage({ loggedInRolex }) {
   const [dwL3Loading,       setDwL3Loading]       = useState(false);
   const [dwClickedCatgroup, setDwClickedCatgroup] = useState(null);
   const [dwClickedCategory, setDwClickedCategory] = useState(null);
+  const [dwLevel4,          setDwLevel4]          = useState([]);
+  const [dwL4Loading,       setDwL4Loading]       = useState(false);
+  const [dwClickedItem,     setDwClickedItem]     = useState(null);
   const [graphDataAll,      setGraphDataAll]      = useState([]);
   const [yrFilterMode,      setYrFilterMode]      = useState('-Select-');
   const [yrFilterSub,       setYrFilterSub]       = useState('-Select-');
@@ -609,11 +613,18 @@ export default function ChartsPage({ loggedInRolex }) {
     return copy;
   }, [dwLevel3, dwSellingTab]);
 
+  const sortedDwLevel4 = useMemo(() => {
+    const copy = [...dwLevel4];
+    copy.sort((a, b) => dwSellingTab === 'lowview' ? a.value - b.value : b.value - a.value);
+    return copy;
+  }, [dwLevel4, dwSellingTab]);
+
   // ── Day Wise fetch + drill-down (keeps raw fields for full table) ────────────
   const fetchDwData = useCallback(async () => {
     setDwL1Loading(true);
-    setDwLevel1([]); setDwLevel2([]); setDwLevel3([]);
+    setDwLevel1([]); setDwLevel2([]); setDwLevel3([]); setDwLevel4([]);
     setDwClickedCatgroup(null); setDwClickedCategory(null);
+    setDwClickedItem(null);
     try {
       const result = await getGraphSellingData({ daysel: dwDaysel, method: dwMethod, company: dwCompany, basedon: dwBasedon, grdaiyfilter: dwFilter, employeename });
       const list = Array.isArray(result) ? result : (result?.list ?? []);
@@ -632,8 +643,8 @@ export default function ChartsPage({ loggedInRolex }) {
   const handleDwBarClick = useCallback(async (payload) => {
     if (!payload?.name) return;
     setDwClickedCatgroup(payload.name);
-    setDwLevel2([]); setDwLevel3([]);
-    setDwClickedCategory(null);
+    setDwLevel2([]); setDwLevel3([]); setDwLevel4([]);
+    setDwClickedCategory(null); setDwClickedItem(null);
     setDwL2Loading(true);
     try {
       const rows = await getGraphSellingDataByCategory({ label: payload.name, daysel: dwDaysel, method: dwMethod, company: dwCompany, basedon: dwBasedon });
@@ -653,7 +664,8 @@ export default function ChartsPage({ loggedInRolex }) {
   const handleDwCategoryClick = useCallback(async (payload) => {
     if (!payload?.name) return;
     setDwClickedCategory(payload.name);
-    setDwLevel3([]);
+    setDwLevel3([]); setDwLevel4([]);
+    setDwClickedItem(null);
     setDwL3Loading(true);
     try {
       const rows = await getGraphSellingDataByItem({ catgory: dwClickedCatgroup, label: payload.name, daysel: dwDaysel, method: dwMethod, company: dwCompany, basedon: dwBasedon });
@@ -668,6 +680,33 @@ export default function ChartsPage({ loggedInRolex }) {
     } catch { setDwLevel3([]); }
     setDwL3Loading(false);
     scrollTo('dw-section3');
+  }, [dwClickedCatgroup, dwDaysel, dwMethod, dwCompany, dwBasedon]);
+
+  const handleDwItemClick = useCallback(async (payload) => {
+    if (!payload?.name) return;
+    setDwClickedItem(payload.name);
+    setDwLevel4([]);
+    setDwL4Loading(true);
+    try {
+      const rows = await getGraphSellingDataByItem({
+        catgory: dwClickedCatgroup,
+        label:   payload.name,
+        daysel:  dwDaysel,
+        method:  dwMethod,
+        company: dwCompany,
+        basedon: dwBasedon,
+      });
+      setDwLevel4(Array.isArray(rows) ? rows.map(r => ({
+        name:       r.catgroup,
+        value:      parseFloat(dwBasedon === 'Tonnage' ? r.tonnage : r.amount) || 0,
+        tonnage:    parseFloat(r.tonnage)    || 0,
+        amount:     parseFloat(r.amount)     || 0,
+        ly_tonnage: parseFloat(r.ly_tonnage) || 0,
+        ly_amount:  parseFloat(r.ly_amount)  || 0,
+      })) : []);
+    } catch { setDwLevel4([]); }
+    setDwL4Loading(false);
+    scrollTo('dw-section4');
   }, [dwClickedCatgroup, dwDaysel, dwMethod, dwCompany, dwBasedon]);
 
   const handleZoom = (title, content) => setZoomChart({ title, content });
@@ -783,7 +822,7 @@ export default function ChartsPage({ loggedInRolex }) {
     setHbar2Title('');
     setCategoryLoading(true);
     try {
-      const rows = await getGraphCategoryWithCode({ selectedyear: year, month, catgroup: catgroupName, dataget: pieNum, monthwisedisttype, monthwisecompany, employeename });
+      const rows = await getGraphCategoryForCatgroup({ selectedyear: year, month, catgroup: catgroupName, dataget: pieNum, monthwisedisttype, monthwisecompany });
       setCategoryData(Array.isArray(rows) ? rows.map(r => ({ name: r.category ?? r.catgroup ?? r.name, value: parseFloat(r.monthval) || 0 })) : []);
     } catch { setCategoryData([]); }
     setCategoryLoading(false);
@@ -799,6 +838,15 @@ export default function ChartsPage({ loggedInRolex }) {
     const catgroup = mwCatgroupRef.current;
     const pieNum   = mwPieNumRef.current;
     const hTitle   = mwHbarTitle.current;
+
+    console.log('[handleCategoryClick] refs:', {
+      month, year, catgroup, pieNum, category: categoryName,
+    });
+
+    if (!catgroup || !month || !year || pieNum == null) {
+      console.warn('[handleCategoryClick] missing refs', { catgroup, month, year, pieNum });
+      return;
+    }
 
     setClickedCategory(categoryName);
     setCodeData([]);
@@ -944,21 +992,31 @@ export default function ChartsPage({ loggedInRolex }) {
             </motion.div>
           )}
 
-          {/* Section 3 — HBar (categories) → HBar (codes) */}
+          {/* Section 3 — category HBar, then code HBar below */}
           {(categoryLoading || categoryData.length > 0 || codeLoading || codeData.length > 0) && (
             <motion.div id="mw-section3" style={{ marginBottom: 20 }}
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
               {categoryLoading ? <LoaderOverlay text="Loading Categories" /> : (
                 categoryData.length > 0 && (
-                  <div style={{ marginBottom: 16 }}>
-                    <HBarCard title={hbarTitle} data={categoryData} onBarClick={handleCategoryClick} onZoom={handleZoom} />
-                  </div>
+                  <HBarCard
+                    title={hbarTitle}
+                    data={categoryData}
+                    onBarClick={handleCategoryClick}
+                    onZoom={handleZoom}
+                  />
                 )
               )}
-              {codeLoading ? <LoaderOverlay text="Loading Codes" /> : (
-                codeData.length > 0 && (
-                  <HBarCard title={hbar2Title} data={codeData} onZoom={handleZoom} />
-                )
+              {codeLoading && <LoaderOverlay text="Loading Codes" />}
+              {codeData.length > 0 && !codeLoading && (
+                <motion.div style={{ marginTop: 16 }}
+                  initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+                  <HBarCard
+                    title={hbar2Title}
+                    data={codeData}
+                    onBarClick={null}
+                    onZoom={handleZoom}
+                  />
+                </motion.div>
               )}
             </motion.div>
           )}
@@ -1053,7 +1111,29 @@ export default function ChartsPage({ loggedInRolex }) {
                     data={sortedDwLevel3} basedon={dwBasedon} />
                   <HBarCard
                     title={`Day Wise — ${dwClickedCatgroup} → ${dwClickedCategory} items (${dwBasedon})`}
-                    data={sortedDwLevel3} onBarClick={null} onZoom={handleZoom} />
+                    data={sortedDwLevel3} onBarClick={handleDwItemClick} onZoom={handleZoom} />
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* DW Level 4 — table + chart side by side */}
+          {(dwL4Loading || dwLevel4.length > 0) && (
+            <motion.div id="dw-section4" style={{ marginBottom: 20 }}
+              initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+              {dwL4Loading ? <LoaderOverlay text="Loading Items" /> : (
+                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
+                  <DwTableCard
+                    title={`${dwCompany} ${dwMethod} — ${dwClickedCatgroup} → ${dwClickedCategory} → ${dwClickedItem} Items (${dwDaysel})`}
+                    data={sortedDwLevel4}
+                    basedon={dwBasedon}
+                  />
+                  <HBarCard
+                    title={`Day Wise — ${dwClickedCatgroup} → ${dwClickedCategory} → ${dwClickedItem} (${dwBasedon})`}
+                    data={sortedDwLevel4}
+                    onBarClick={null}
+                    onZoom={handleZoom}
+                  />
                 </div>
               )}
             </motion.div>

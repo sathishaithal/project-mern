@@ -6,7 +6,7 @@ import DistTypeSelector from './DistTypeSelector';
 import MonthSelector from './MonthSelector';
 import '../Sales.css';
 
-const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateDate, children }) => {
+const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateDate, activeReportTab = '', children }) => {
   const { isDarkMode, selectedAccent } = useColorMode();
   const accent  = selectedAccent?.primary   || '#2563eb';
   const accent2 = selectedAccent?.secondary || '#1e40af';
@@ -24,7 +24,7 @@ const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateD
           <YearSelector mode={mode} />
           {mode === 'daywise' && <MonthSelector />}
           <CompanySelector mode={mode} />
-          <DistTypeSelector mode={mode} />
+          <DistTypeSelector mode={mode} activeReportTab={activeReportTab} />
         </div>
 
         {children && (

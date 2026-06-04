@@ -2,7 +2,12 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import FilterBar from './filters/FilterBar';
 import { useSalesFilterStore } from '../../../store/salesFilterStore';
-import { getDaywiseSalesReport, getLastUpdatedDates } from '../../../services/salesDashboardApi';
+import {
+  getDaywiseSalesReport,
+  getDaywiseSalesSecondLevel,
+  getDaywiseSalesThirdLevel,
+  getLastUpdatedDates,
+} from '../../../services/salesDashboardApi';
 import { appLog } from '../../../config/appConfig';
 import { fmtAmt, fmtDate } from '../../../utils/salesFormatters';
 import { useAuth } from '../../../context/AuthContext';
@@ -21,6 +26,10 @@ const priceKey = (row, d) =>
   (row.disttype === 'Distribution' || row.type === 'Distribution')
     ? `cobiprice${d}` : `basicprice${d}`;
 
+// Angular: second-level rows expandable only when type === 'Distribution' || type === 'SBL OTHERS'
+const canExpandToThird = (subRow) =>
+  subRow.type === 'Distribution' || subRow.type === 'SBL OTHERS';
+
 export default function DayWisePage() {
   const { user } = useAuth();
   const employeename = user?.username;
@@ -38,16 +47,25 @@ export default function DayWisePage() {
   const infoBg     = isDarkMode ? '#0f172a' : '#f8fafc';
   const infoBorder = isDarkMode ? '#334155' : '#e2e8f0';
   const subRowBg   = isDarkMode ? '#1a2440' : '#f0f4ff';
+  const sub2RowBg  = isDarkMode ? '#0f1e36' : '#e8f0fe';
   const fontFamily = selectedFont?.body || "'Manrope', sans-serif";
 
-  const [rows, setRows]               = useState([]);
-  const [loading, setLoading]         = useState(true);
-  const [error, setError]             = useState(null);
-  const [expanded, setExpanded]       = useState({});
-  const [thirdLevel, setThirdLevel]   = useState({});
-  const [thirdLoading, setThirdLoading] = useState({});
-  const [showValue, setShowValue]     = useState(false);
-  const [lastUpdate, setLastUpdate]   = useState(null);
+  // Level 0: main rows
+  const [rows, setRows]                   = useState([]);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState(null);
+  const [showValue, setShowValue]         = useState(false);
+  const [lastUpdate, setLastUpdate]       = useState(null);
+
+  // Level 1 (second level): expanded state per L0 row id
+  const [expandedL1, setExpandedL1]       = useState({});
+  const [secondLevel, setSecondLevel]     = useState({});
+  const [secondLoading, setSecondLoading] = useState({});
+
+  // Level 2 (third level): expanded state per L1 row key
+  const [expandedL2, setExpandedL2]       = useState({});
+  const [thirdLevel, setThirdLevel]       = useState({});
+  const [thirdLoading, setThirdLoading]   = useState({});
 
   const days    = daysInMonth(daywiseyear, daywisemonth);
   const dayNums = Array.from({ length: days }, (_, i) => i + 1);
@@ -55,8 +73,12 @@ export default function DayWisePage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setExpanded({});
+    setExpandedL1({});
+    setSecondLevel({});
+    setSecondLoading({});
+    setExpandedL2({});
     setThirdLevel({});
+    setThirdLoading({});
 
     try {
       const data = await getDaywiseSalesReport({
@@ -83,29 +105,66 @@ export default function DayWisePage() {
       .catch(() => null);
   }, [employeename]);
 
-  const handleExpand = async (row) => {
+  // L0 → L1: expand main row to show second-level data
+  // Angular Distribution: calls getdaywisethirdlevel DIRECTLY — skips SBL company level
+  // Angular Shops/other: calls getsalesreportsecondlevel
+  const handleExpandL1 = useCallback(async (row) => {
     const id = row.id;
-    if (expanded[id]) { setExpanded(p => ({ ...p, [id]: false })); return; }
-    if (thirdLevel[id]) { setExpanded(p => ({ ...p, [id]: true })); return; }
     if (row.disttype === 'Grand Total') return;
+    if (expandedL1[id]) { setExpandedL1(p => ({ ...p, [id]: false })); return; }
+    if (secondLevel[id]) { setExpandedL1(p => ({ ...p, [id]: true })); return; }
 
-    setThirdLoading(p => ({ ...p, [id]: true }));
+    setSecondLoading(p => ({ ...p, [id]: true }));
     try {
-      // Angular: getsalesreportsecondlevel(year, month, company, disttype, type, employeename)
-      // → daywisesalesreportsecondlevel_AR1.php?year=&month=&company=&disttype=&type=&employeename=
-      const data = await getDaywiseSalesReport({
+      let data;
+      if (row.disttype === 'Distribution') {
+        // Angular skips company level for Distribution — goes directly to distributor rows
+        data = await getDaywiseSalesThirdLevel({
+          year: daywiseyear, month: daywisemonth,
+          company: daywisecompany, disttype: daywisedisttype,
+          type: row.disttype, companytype: daywisecompany,
+          employeename,
+        });
+      } else {
+        data = await getDaywiseSalesSecondLevel({
+          year: daywiseyear, month: daywisemonth,
+          company: daywisecompany, disttype: daywisedisttype,
+          type: row.disttype, employeename,
+        });
+      }
+      setSecondLevel(p => ({ ...p, [id]: Array.isArray(data) ? data : [] }));
+      setExpandedL1(p => ({ ...p, [id]: true }));
+    } catch {
+      setExpandedL1(p => ({ ...p, [id]: true }));
+    } finally {
+      setSecondLoading(p => ({ ...p, [id]: false }));
+    }
+  }, [daywiseyear, daywisemonth, daywisecompany, daywisedisttype, employeename, expandedL1, secondLevel]);
+
+  // L1 → L2: expand second-level row to show third-level data
+  // Angular: getsalesreportthirdlevel(year, month, company, disttype, type=sub.type, companytype=sub.disttype, employeename)
+  // Only for rows where type === 'Distribution' || type === 'SBL OTHERS'
+  const handleExpandL2 = useCallback(async (mainRowId, subRow, subKey) => {
+    if (!canExpandToThird(subRow)) return;
+    if (expandedL2[subKey]) { setExpandedL2(p => ({ ...p, [subKey]: false })); return; }
+    if (thirdLevel[subKey]) { setExpandedL2(p => ({ ...p, [subKey]: true })); return; }
+
+    setThirdLoading(p => ({ ...p, [subKey]: true }));
+    try {
+      const data = await getDaywiseSalesThirdLevel({
         year: daywiseyear, month: daywisemonth,
         company: daywisecompany, disttype: daywisedisttype,
-        type: row.disttype, employeename,
+        type: subRow.type, companytype: subRow.disttype,
+        employeename,
       });
-      setThirdLevel(p => ({ ...p, [id]: Array.isArray(data) ? data : [] }));
-      setExpanded(p => ({ ...p, [id]: true }));
+      setThirdLevel(p => ({ ...p, [subKey]: Array.isArray(data) ? data : [] }));
+      setExpandedL2(p => ({ ...p, [subKey]: true }));
     } catch {
-      setExpanded(p => ({ ...p, [id]: true }));
+      setExpandedL2(p => ({ ...p, [subKey]: true }));
     } finally {
-      setThirdLoading(p => ({ ...p, [id]: false }));
+      setThirdLoading(p => ({ ...p, [subKey]: false }));
     }
-  };
+  }, [daywiseyear, daywisemonth, daywisecompany, daywisedisttype, employeename, expandedL2, thirdLevel]);
 
   const MONTH_NAMES = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const lastUpdateDate = lastUpdate ? fmtDate(lastUpdate.dispatchlastupdate) : null;
@@ -174,15 +233,17 @@ export default function DayWisePage() {
               ) : rows.map((row, i) => {
                 const id = row.id;
                 const isGrand = row.disttype === 'Grand Total';
-                const isOpen  = !!expanded[id];
+                const isOpenL1  = !!expandedL1[id];
                 const total   = sumTonnage(row, days);
                 const rowBg   = isGrand
                   ? (isDarkMode ? '#1c2410' : '#fef9e7')
                   : (isDarkMode ? (i % 2 === 0 ? '#1e293b' : '#192233') : (i % 2 === 0 ? 'white' : '#fafbfc'));
                 const hoverBg = isDarkMode ? '#1e2d45' : '#eff6ff';
 
-                return (
+                const isDistributionParent = row.disttype === 'Distribution';
+              return (
                   <React.Fragment key={i}>
+                    {/* ── L0: Main row ── */}
                     <tr
                       style={{ background: rowBg, borderBottom: `1px solid ${isDarkMode ? '#334155' : '#f1f5f9'}` }}
                       onMouseEnter={e => !isGrand && (e.currentTarget.style.background = hoverBg)}
@@ -191,13 +252,13 @@ export default function DayWisePage() {
                       <td className="dw-td" style={{ position: 'sticky', left: 0, background: 'inherit', textAlign: 'center' }}>
                         {!isGrand && (
                           <button
-                            onClick={() => handleExpand(row)}
+                            onClick={() => handleExpandL1(row)}
                             className="dw-expand-btn"
                             style={{ border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`, color: mutedClr }}
                           >
-                            {thirdLoading[id]
+                            {secondLoading[id]
                               ? <i className="bi bi-arrow-clockwise"></i>
-                              : <i className={`bi ${isOpen ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>}
+                              : <i className={`bi ${isOpenL1 ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>}
                           </button>
                         )}
                       </td>
@@ -207,44 +268,85 @@ export default function DayWisePage() {
                       {dayNums.map(d => {
                         const tv = parseFloat(row[`tonnage${d}`]) || 0;
                         const pv = showValue ? parseFloat(row[priceKey(row, d)]) || 0 : null;
-                        const isMax = tv > 0 && tv === parseFloat(row.maxvalue);
-                        const isMin = tv > 0 && tv === parseFloat(row.minvalue);
                         return (
-                          <td key={d} className="dw-td" style={{ background: isMax ? 'rgba(16,185,129,0.12)' : isMin ? 'rgba(239,68,68,0.08)' : undefined }}>
+                          <td key={d} className="dw-td">
                             {tv > 0 ? (
                               <>
                                 <div style={{ fontWeight: 500, color: textClr }}>{tv.toFixed(2)}</div>
                                 {pv !== null && pv > 0 && <div style={{ fontSize: '0.65rem', color: mutedClr }}>{fmtAmt(pv)}</div>}
                               </>
-                            ) : <span style={{ color: isDarkMode ? '#475569' : '#cbd5e1' }}>—</span>}
+                            ) : <span style={{ color: isDarkMode ? '#475569' : '#cbd5e1' }}>0.00</span>}
                           </td>
                         );
                       })}
-                      <td className="dw-td" style={{ background: isGrand ? (isDarkMode ? '#2a1e08' : '#fef3c7') : (isDarkMode ? `color-mix(in srgb, ${accent} 18%, #1e293b)` : '#fff8f8'), fontWeight: 700, color: isGrand ? (isDarkMode ? '#fbbf24' : '#92400e') : '#c0392b' }}>
-                        {total > 0 ? total.toFixed(2) : '—'}
+                      <td className="dw-td" style={{ background: isGrand ? (isDarkMode ? '#2a1e08' : '#fef3c7') : undefined, fontWeight: 700, color: isGrand ? (isDarkMode ? '#fbbf24' : '#92400e') : textClr }}>
+                        {total > 0 ? total.toFixed(2) : '0.00'}
                       </td>
                     </tr>
 
-                    {isOpen && (thirdLevel[id] || []).map((sub, si) => {
-                      const subTotal = sumTonnage(sub, days);
+                    {/* ── L1: Second-level rows ── */}
+                    {isOpenL1 && (secondLevel[id] || []).map((sub, si) => {
+                      const subKey    = `${id}__${si}`;
+                      const subTotal  = sumTonnage(sub, days);
+                      const isOpenL2  = !!expandedL2[subKey];
+                      const canExpand = !isDistributionParent && canExpandToThird(sub);
+
                       return (
-                        <tr key={`sub-${si}`} style={{ background: subRowBg, borderBottom: `1px solid ${isDarkMode ? '#1e3a5f' : '#e0e8ff'}` }}>
-                          <td className="dw-td" style={{ position: 'sticky', left: 0, background: subRowBg }}></td>
-                          <td className="dw-td" style={{ position: 'sticky', left: 28, background: subRowBg, color: accent, fontWeight: 600, textAlign: 'left', paddingLeft: '1.5rem' }}>
-                            ↳ {sub.disttype}
-                          </td>
-                          {dayNums.map(d => {
-                            const tv = parseFloat(sub[`tonnage${d}`]) || 0;
+                        <React.Fragment key={subKey}>
+                          <tr style={{ background: subRowBg, borderBottom: `1px solid ${isDarkMode ? '#1e3a5f' : '#e0e8ff'}` }}>
+                            <td className="dw-td" style={{ position: 'sticky', left: 0, background: subRowBg, textAlign: 'center' }}>
+                              {canExpand && (
+                                <button
+                                  onClick={() => handleExpandL2(id, sub, subKey)}
+                                  className="dw-expand-btn"
+                                  style={{ border: `1px solid ${isDarkMode ? '#334155' : '#c7d2fe'}`, color: accent }}
+                                >
+                                  {thirdLoading[subKey]
+                                    ? <i className="bi bi-arrow-clockwise"></i>
+                                    : <i className={`bi ${isOpenL2 ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>}
+                                </button>
+                              )}
+                            </td>
+                            <td className="dw-td" style={{ position: 'sticky', left: 28, background: subRowBg, color: accent, fontWeight: 600, textAlign: 'left', paddingLeft: '1.5rem' }}>
+                              ↳ {sub.disttype || sub.type}
+                            </td>
+                            {dayNums.map(d => {
+                              const tv = parseFloat(sub[`tonnage${d}`]) || 0;
+                              return (
+                                <td key={d} className="dw-td" style={{ background: subRowBg }}>
+                                  {tv > 0 ? <span style={{ color: textClr }}>{tv.toFixed(2)}</span> : <span style={{ color: isDarkMode ? '#475569' : '#cbd5e1' }}>0.00</span>}
+                                </td>
+                              );
+                            })}
+                            <td className="dw-td" style={{ background: `color-mix(in srgb, ${accent} 20%, ${subRowBg})`, fontWeight: 600, color: accent }}>
+                              {subTotal > 0 ? subTotal.toFixed(2) : '0.00'}
+                            </td>
+                          </tr>
+
+                          {/* ── L2: Third-level rows (no further expand — leaf nodes) ── */}
+                          {isOpenL2 && (thirdLevel[subKey] || []).map((deep, di) => {
+                            const deepTotal = sumTonnage(deep, days);
                             return (
-                              <td key={d} className="dw-td">
-                                {tv > 0 ? <span style={{ color: textClr }}>{tv.toFixed(2)}</span> : <span style={{ color: isDarkMode ? '#475569' : '#e2e8f0' }}>—</span>}
-                              </td>
+                              <tr key={`${subKey}__${di}`} style={{ background: sub2RowBg, borderBottom: `1px solid ${isDarkMode ? '#1a3050' : '#c7d2fe'}` }}>
+                                <td className="dw-td" style={{ position: 'sticky', left: 0, background: sub2RowBg }}></td>
+                                <td className="dw-td" style={{ position: 'sticky', left: 28, background: sub2RowBg, color: `color-mix(in srgb, ${accent} 80%, #000)`, fontWeight: 500, textAlign: 'left', paddingLeft: '2.5rem' }}>
+                                  ↳↳ {deep.disttype || deep.type}
+                                </td>
+                                {dayNums.map(d => {
+                                  const tv = parseFloat(deep[`tonnage${d}`]) || 0;
+                                  return (
+                                    <td key={d} className="dw-td" style={{ background: sub2RowBg }}>
+                                      {tv > 0 ? <span style={{ color: textClr, fontSize: '0.72rem' }}>{tv.toFixed(2)}</span> : <span style={{ color: isDarkMode ? '#475569' : '#cbd5e1', fontSize: '0.72rem' }}>0.00</span>}
+                                    </td>
+                                  );
+                                })}
+                                <td className="dw-td" style={{ background: `color-mix(in srgb, ${accent} 12%, ${sub2RowBg})`, fontWeight: 600, color: `color-mix(in srgb, ${accent} 80%, #000)`, fontSize: '0.72rem' }}>
+                                  {deepTotal > 0 ? deepTotal.toFixed(2) : '0.00'}
+                                </td>
+                              </tr>
                             );
                           })}
-                          <td className="dw-td" style={{ background: `color-mix(in srgb, ${accent} 20%, ${subRowBg})`, fontWeight: 600, color: accent }}>
-                            {subTotal > 0 ? subTotal.toFixed(2) : '—'}
-                          </td>
-                        </tr>
+                        </React.Fragment>
                       );
                     })}
                   </React.Fragment>

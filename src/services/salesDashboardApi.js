@@ -269,6 +269,25 @@ export async function getGraphCategoryWithCode(params) {
   }
 }
 
+export async function getGraphCategoryForCatgroup(params) {
+  // API 26: catgory_for_graphs_AR1_SVS.php — intermediate category-level drill within a catgroup
+  // Called when user clicks a catgroup segment in the pie/bar chart
+  // params: { selectedyear, month, catgroup, dataget, monthwisedisttype, monthwisecompany }
+  const url = `${BASE}/graph-category-for-catgroup`;
+  appLog('[API] getGraphCategoryForCatgroup → REQUEST ', url, '\nPARAMS', params);
+  try {
+    const res = await axios.get(url, {
+      params,
+      headers: authHeaders(),
+    });
+    appLog('[API] getGraphCategoryForCatgroup → RESPONSE', res.data);
+    return res.data.list ?? res.data;
+  } catch (err) {
+    appError('[API] getGraphCategoryForCatgroup → ERROR', url, err?.response?.data || err.message);
+    throw err;
+  }
+}
+
 export async function getGraphCatgroup(params) {
   // params: { selectedyear, month, monthwisecompany, monthwisedisttype }
   const url = `${BASE}/graph-catgroup`;
@@ -356,6 +375,126 @@ export async function getGraphMonthwise(params) {
     return res.data.list ?? res.data;
   } catch (err) {
     appError('[API] getGraphMonthwise → ERROR', url, err?.response?.data || err.message);
+    throw err;
+  }
+}
+
+// ─── APIs 20-25: New drill-down endpoints ─────────────────────────────────────
+
+export async function getCatgroupForCatAR1(params) {
+  // Single-year catgroup drill-down used when Distribution+ALL or Shops+SBL/BALAJI
+  // Angular: catgroup_for_cat_AR1_SVS1.php
+  // params: { id, distpatchtype, disttype, selectedyear, monthwisecompany, employeename }
+  const url = `${BASE}/catgroup-for-cat-ar1`;
+  appLog('[API] getCatgroupForCatAR1 → REQUEST ', url, '\nPARAMS', params);
+  try {
+    const res = await axios.get(url, {
+      params,
+      headers: authHeaders(),
+    });
+    appLog('[API] getCatgroupForCatAR1 → RESPONSE', res.data);
+    return res.data.list ?? res.data;
+  } catch (err) {
+    appError('[API] getCatgroupForCatAR1 → ERROR', url, err?.response?.data || err.message);
+    throw err;
+  }
+}
+
+export async function getDaywiseSalesSecondLevel(params) {
+  // Second-level drill-down for DayWise tab
+  // Angular: daywisesalesreportsecondlevel_AR1.php
+  // params: { year, month, company, disttype, type, employeename }
+  const url = `${BASE}/daywise-sales-second-level`;
+  appLog('[API] getDaywiseSalesSecondLevel → REQUEST ', url, '\nPARAMS', params);
+  try {
+    const res = await axios.get(url, {
+      params,
+      headers: authHeaders(),
+    });
+    appLog('[API] getDaywiseSalesSecondLevel → RESPONSE', res.data);
+    return res.data.list ?? res.data;
+  } catch (err) {
+    appError('[API] getDaywiseSalesSecondLevel → ERROR', url, err?.response?.data || err.message);
+    throw err;
+  }
+}
+
+export async function getDaywiseSalesThirdLevel(params) {
+  // Third-level drill-down for DayWise tab
+  // Angular: daywisesalesreportthirdlevel_AR1.php
+  // params: { year, month, company, disttype, type, companytype, employeename }
+  const url = `${BASE}/daywise-sales-third-level`;
+  appLog('[API] getDaywiseSalesThirdLevel → REQUEST ', url, '\nPARAMS', params);
+  try {
+    const res = await axios.get(url, {
+      params,
+      headers: authHeaders(),
+    });
+    appLog('[API] getDaywiseSalesThirdLevel → RESPONSE', res.data);
+    return res.data.list ?? res.data;
+  } catch (err) {
+    appError('[API] getDaywiseSalesThirdLevel → ERROR', url, err?.response?.data || err.message);
+    throw err;
+  }
+}
+
+export async function getFifthLevelDispatch(params) {
+  // Catgroup-level drill for a specific distributor (Shops+SBL/BALAJI and ALL+ALL+non-Distribution)
+  // Angular: fifthleveldispatch_new_SVS1.php
+  // params: { id, dispatchtype, disttype, selectedyear, monthwisecompany, employeename }
+  const url = `${BASE}/fifth-level-dispatch`;
+  appLog('[API] getFifthLevelDispatch → REQUEST ', url, '\nPARAMS', params);
+  try {
+    const res = await axios.get(url, {
+      params,
+      headers: authHeaders(),
+    });
+    appLog('[API] getFifthLevelDispatch → RESPONSE', res.data);
+    return res.data.list ?? res.data;
+  } catch (err) {
+    appError('[API] getFifthLevelDispatch → ERROR', url, err?.response?.data || err.message);
+    throw err;
+  }
+}
+
+export async function getSecondLevelDispatch(params) {
+  // Top-level disttype breakdown — SBL/BALAJI split
+  // Angular: secondleveldispatch_AR1_SVS1.php
+  // Used at L0 when Distribution+ALL or Shops+SBL/BALAJI;
+  // at L1 when ALL+SBL/BALAJI+non-Distribution, Shops+ALL, or catch-all
+  // Note: SBL OTHERS rows displayed as "SBL Direct Sales" in response
+  // params: { id, selectedyear, monthwisecompany, monthwisedisttype, employeename }
+  const url = `${BASE}/second-level-dispatch`;
+  appLog('[API] getSecondLevelDispatch → REQUEST ', url, '\nPARAMS', params);
+  try {
+    const res = await axios.get(url, {
+      params,
+      headers: authHeaders(),
+    });
+    appLog('[API] getSecondLevelDispatch → RESPONSE', res.data);
+    return res.data.list ?? res.data;
+  } catch (err) {
+    appError('[API] getSecondLevelDispatch → ERROR', url, err?.response?.data || err.message);
+    throw err;
+  }
+}
+
+export async function getSixthLevelDispatch(params) {
+  // Deepest drill-down — individual product codes within a category
+  // Angular: sixthleveldispatch_nw_SVS.php
+  // Used at L2 for Shops+SBL/BALAJI and at deeper levels for ALL+ALL+non-Distribution
+  // params: { id, dispatchtype, disttype, selectedyear, monthwisecompany }
+  const url = `${BASE}/sixth-level-dispatch`;
+  appLog('[API] getSixthLevelDispatch → REQUEST ', url, '\nPARAMS', params);
+  try {
+    const res = await axios.get(url, {
+      params,
+      headers: authHeaders(),
+    });
+    appLog('[API] getSixthLevelDispatch → RESPONSE', res.data);
+    return res.data.list ?? res.data;
+  } catch (err) {
+    appError('[API] getSixthLevelDispatch → ERROR', url, err?.response?.data || err.message);
     throw err;
   }
 }

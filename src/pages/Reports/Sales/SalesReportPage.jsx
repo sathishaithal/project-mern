@@ -14,6 +14,10 @@ import {
   getThirdLevelDispatch,
   getFourthLevelDispatch,
   getLastUpdatedDates,
+  getCatgroupForCatAR1,
+  getSecondLevelDispatch,
+  getFifthLevelDispatch,
+  getSixthLevelDispatch,
 } from '../../../services/salesDashboardApi';
 import { fmt, fmtDate } from '../../../utils/salesFormatters';
 import { useAuth } from '../../../context/AuthContext';
@@ -70,11 +74,6 @@ const ALL_NUM_KEYS = [
 // Keys summed during grouping (superset of ALL_NUM_KEYS — adds ttltonnage and lastmonthtonnage)
 const GROUP_SUM_KEYS = [...ALL_NUM_KEYS, 'ttltonnage', 'lastmonthtonnage'];
 
-const MONTH_KEYS_FOR_MINMAX = [
-  'jantonnage','febtonnage','martonnage','aprtonnage','maytonnage','juntonnage',
-  'jultonnage','augtonnage','septonnage','octtonnage','novtonnage','dectonnage','currentmonthtonnage',
-];
-
 // Mirrors Angular datafilter_new() distfinf assignments: groupField → distfinf value
 const GROUP_FIELD_TO_DISTFINF = {
   description: 1, category: 2, catgroup: 3, year: 4,
@@ -106,9 +105,6 @@ function groupByField(rows, groupField, parentFilters = {}) {
   return Array.from(map.values())
     .sort((a, b) => String(a[groupField]).localeCompare(String(b[groupField])))
     .map(row => {
-      const vals = MONTH_KEYS_FOR_MINMAX.map(k => row[k]).filter(v => v > 0);
-      row.maxvalue = vals.length ? Math.max(...vals) : '';
-      row.minvalue = vals.length ? Math.min(...vals) : '';
       if (distfinf !== undefined) row.distfinf = distfinf;
       return row;
     });
@@ -175,7 +171,17 @@ const fyToCalYear = (fy) => {
 const ArrowIcon = ({ diff }) => {
   if (diff === null || diff === undefined || diff === 0) return null;
   return (
-    <span style={{ fontWeight: 700, fontSize: '0.75rem', marginLeft: 1, color: diff > 0 ? '#2e7d32' : '#c62828' }}>
+    <span style={{
+      fontWeight: 700,
+      fontSize: '0.72rem',
+      marginLeft: 2,
+      color: diff > 0 ? '#2e7d32' : '#c62828',
+      display: 'inline-flex',
+      alignItems: 'center',
+      verticalAlign: 'middle',
+      lineHeight: 1,
+      flexShrink: 0,
+    }}>
       {diff > 0 ? '▲' : '▼'}
     </span>
   );
@@ -219,7 +225,8 @@ function CellTooltip({ className, style, title, thisYear, lastYear, formula, uni
 }
 
 const MonthCell = ({ row, rows, rowIdx, level, mKey, mLyKey, accent, isDarkMode, isSummary }) => {
-  const diff = (isSummary && level === 0) ? l0diff(rows, rowIdx, mKey) : subDiff(row, mKey, mLyKey);
+  const isL0Summary = isSummary && level === 0;
+  const diff = isL0Summary ? l0diff(rows, rowIdx, mKey) : subDiff(row, mKey, mLyKey);
   if (!isSummary) {
     return (
       <td className="sr-td">
@@ -229,13 +236,15 @@ const MonthCell = ({ row, rows, rowIdx, level, mKey, mLyKey, accent, isDarkMode,
     );
   }
   const label = mKey.replace('tonnage', '').replace(/^./, c => c.toUpperCase());
-  const lyVal = rowIdx > 0 ? rows[rowIdx - 1][mKey] : undefined;
+  const lyVal = isL0Summary
+    ? (rowIdx > 0 ? rows[rowIdx - 1][mKey] : undefined)
+    : row[mLyKey];
   return (
     <CellTooltip
       className="sr-td"
       title={`${label} Tonnage`}
       thisYear={fmt(row[mKey])}
-      lastYear={lyVal !== undefined ? fmt(lyVal) : undefined}
+      lastYear={lyVal !== undefined && lyVal !== null && lyVal !== '' ? fmt(lyVal) : undefined}
       accent={accent}
       isDarkMode={isDarkMode}
     >
@@ -246,7 +255,8 @@ const MonthCell = ({ row, rows, rowIdx, level, mKey, mLyKey, accent, isDarkMode,
 };
 
 const QuarterCell = ({ row, rows, rowIdx, level, qKey, accent, isDarkMode, isSummary }) => {
-  const diff = (isSummary && level === 0) ? l0diff(rows, rowIdx, qKey) : subDiff(row, qKey, qKey + '_last');
+  const isL0Summary = isSummary && level === 0;
+  const diff = isL0Summary ? l0diff(rows, rowIdx, qKey) : subDiff(row, qKey, qKey + '_last');
   if (!isSummary) {
     return (
       <td className="sr-td" style={{ fontWeight: 700, textAlign: 'center' }}>
@@ -255,14 +265,16 @@ const QuarterCell = ({ row, rows, rowIdx, level, qKey, accent, isDarkMode, isSum
       </td>
     );
   }
-  const lyVal = rowIdx > 0 ? rows[rowIdx - 1][qKey] : undefined;
+  const lyVal = isL0Summary
+    ? (rowIdx > 0 ? rows[rowIdx - 1][qKey] : undefined)
+    : row[qKey + '_last'];
   return (
     <CellTooltip
       className="sr-td"
       style={{ fontWeight: 700, textAlign: 'center' }}
       title={`${qKey} Total`}
       thisYear={fmt(row[qKey])}
-      lastYear={lyVal !== undefined ? fmt(lyVal) : undefined}
+      lastYear={lyVal !== undefined && lyVal !== null && lyVal !== '' ? fmt(lyVal) : undefined}
       accent={accent}
       isDarkMode={isDarkMode}
     >
@@ -277,11 +289,11 @@ const numColor = (v) => (v === null || v === undefined) ? '#94a3b8' : v >= 0 ? '
 const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMode, isSummary }) => {
   const tillLast = (parseFloat(row.ttltonnage_crnt) || 0) - (parseFloat(row.currentmonthtonnage) || 0);
   let ytdGr = null;
+  let lyYtd = null;
   if (isSummary && level === 0) {
     if (rowIdx > 0) ytdGr = (parseFloat(row.ttltonnage_crnt) || 0) - (parseFloat(rows[rowIdx - 1].ttltonnage_crnt) || 0);
   } else {
-    const lyYtd = GROUPS.flatMap(g => g.months.map(m => parseFloat(row[m.lyKey]) || 0)).reduce((s, v) => s + v, 0)
-      + (parseFloat(row.currentmonthtonnage_last) || 0);
+    lyYtd = GROUPS.flatMap(g => g.months.map(m => parseFloat(row[m.lyKey]) || 0)).reduce((s, v) => s + v, 0);
     ytdGr = (parseFloat(row.ttltonnage_crnt) || 0) - lyYtd;
   }
   const ytdBase  = parseFloat(row.ttltonnagewy) || 0;
@@ -329,7 +341,11 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
           style={{ fontWeight: 600 }}
           title="Current Month"
           thisYear={fmt(row.currentmonthtonnage)}
-          lastYear={rowIdx === 0 ? undefined : fmt(curMonLy)}
+          lastYear={
+            (isSummary && level === 0)
+              ? (rowIdx > 0 ? fmt(curMonLy) : undefined)
+              : (curMonLy > 0 && curMonLy < curMon * 1000 ? fmt(curMonLy) : undefined)
+          }
           accent={accent} isDarkMode={isDarkMode}
         >
           <div style={{ color: 'var(--sales-text, #1e293b)' }}>{fmt(row.currentmonthtonnage)}</div>
@@ -349,6 +365,7 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
           style={{ fontWeight: 700 }}
           title="Total (YTD)"
           thisYear={fmt(row.ttltonnage_crnt)}
+          lastYear={level === 0 ? undefined : (lyYtd !== null ? fmt(lyYtd) : undefined)}
           formula="Year-to-date total tonnage"
           accent={accent} isDarkMode={isDarkMode}
         >
@@ -367,7 +384,8 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
         formula={`Current YTD − Last Year YTD\n= ${fmt(ttlYtd)} − ${fmt(ytdBase)}\n= ${fmt(ytdGr ?? 0)}`}
         accent={accent} isDarkMode={isDarkMode}
       >
-        <div style={{ color: numColor(ytdGr ?? 0) }}>{`${(ytdGr ?? 0) >= 0 ? '+' : ''}${fmt(ytdGr ?? 0)}`}</div>
+        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{`${(ytdGr ?? 0) > 0 ? '+' : ''}${fmt(ytdGr ?? 0)}`}</div>
+        <ArrowIcon diff={ytdGr ?? 0} />
       </CellTooltip>
       <CellTooltip
         className="sr-td"
@@ -375,10 +393,8 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
         formula={`(YTD Gr/Degr ÷ Last Year YTD) × 100\n= (${fmt(ytdGr ?? 0)} ÷ ${fmt(ytdBase)}) × 100\n= ${(ytdPct ?? 0).toFixed(1)}%`}
         accent={accent} isDarkMode={isDarkMode}
       >
-        <div style={{ color: numColor(ytdPct ?? 0) }}>
-          {`${(ytdPct ?? 0).toFixed(1)}%`}
-          <ArrowIcon diff={ytdPct ?? 0} />
-        </div>
+        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{`${(ytdPct ?? 0).toFixed(1)}%`}</div>
+        <ArrowIcon diff={ytdPct ?? 0} />
       </CellTooltip>
       <CellTooltip
         className="sr-td"
@@ -397,10 +413,8 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
         formula={`Current YOY − Last Year YOY\n= ${fmt(ttlYoy)} − ${fmt(ttlYoyLy)}\n= ${fmt(yoyGr ?? 0)}`}
         accent={accent} isDarkMode={isDarkMode}
       >
-        <div style={{ color: numColor(yoyGr ?? 0) }}>
-          {`${(yoyGr ?? 0) >= 0 ? '+' : ''}${fmt(yoyGr ?? 0)}`}
-          <ArrowIcon diff={yoyGr ?? 0} />
-        </div>
+        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{`${(yoyGr ?? 0) > 0 ? '+' : ''}${fmt(yoyGr ?? 0)}`}</div>
+        <ArrowIcon diff={yoyGr ?? 0} />
       </CellTooltip>
       <CellTooltip
         className="sr-td"
@@ -408,10 +422,8 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
         formula={`(YOY Gr/Degr ÷ Last Year YOY) × 100\n= (${fmt(yoyGr ?? 0)} ÷ ${fmt(ttlYoyLy)}) × 100\n= ${(yoyPct ?? 0).toFixed(1)}%`}
         accent={accent} isDarkMode={isDarkMode}
       >
-        <div style={{ color: numColor(yoyPct ?? 0) }}>
-          {`${(yoyPct ?? 0).toFixed(1)}%`}
-          <ArrowIcon diff={yoyPct ?? 0} />
-        </div>
+        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{`${(yoyPct ?? 0).toFixed(1)}%`}</div>
+        <ArrowIcon diff={yoyPct ?? 0} />
       </CellTooltip>
     </>
   );
@@ -433,7 +445,10 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
     const isOpen    = !!expanded[stateKey];
     const isLoading = !!drillLoading[stateKey];
     const children  = drillData[stateKey] || [];
-    const canDrill   = isSummary ? level < 3 : !!(FULL_DRILL_AFTER[tab]?.[row._groupField]);
+    const isLeafNode = row.final === 1 || row.final === '1';
+    const isShopsLeaf = isSummary && monthwisedisttype === 'Shops' && !!(row.disttype && row.description && row.disttype === row.description);
+    const maxLevel = (isSummary && monthwisedisttype === 'Shops') ? 5 : 3;
+    const canDrill   = !(isLeafNode || isShopsLeaf) && (isSummary ? level < maxLevel : !!(FULL_DRILL_AFTER[tab]?.[row._groupField]));
     const yearOpen   = !isSummary && level === 0 && !!expandedYear?.[stateKey];
     const yearChildren = drillData[`year__${stateKey}`] || [];
     const isL0NonSummary = !isSummary && level === 0;
@@ -441,9 +456,6 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
     const showExpandBtn = canDrill && !isLoading;
     const clampedLevel = Math.min(level, 3);
     const indentPx     = level * 16;
-    const isMax        = (v) => parseFloat(v) > 0 && parseFloat(v) === parseFloat(row.maxvalue);
-    const isMin        = (v) => parseFloat(v) > 0 && parseFloat(v) === parseFloat(row.minvalue);
-    const cellBg       = (v) => isMax(v) ? 'rgba(16,185,129,0.10)' : isMin(v) ? 'rgba(239,68,68,0.08)' : undefined;
     const dfColor      = level === 0 ? getDistfinfColor(row) : null;
 
     const rowBgMap = [
@@ -465,7 +477,7 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
       <React.Fragment key={stateKey}>
         <tr
           className={level > 0 ? 'sr-drill-row' : undefined}
-          style={{ borderBottom: '1px solid rgba(148,163,184,0.1)', borderLeft: `${borderWidth} solid ${borderColor}`, background: rowBg }}
+          style={{ borderBottom: '1px solid rgba(148,163,184,0.1)', borderLeft: `${borderWidth} solid ${borderColor}`, background: rowBg, height: 38 }}
           onMouseEnter={e => { e.currentTarget.style.background = isDarkMode ? '#1e2d45' : '#eff6ff'; }}
           onMouseLeave={e => { e.currentTarget.style.background = rowBg; }}
         >
@@ -515,10 +527,10 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
               textTransform: level === 0 ? 'uppercase' : 'none',
               color: dfColor ? dfColor.text : lvlTextClr,
               textAlign: 'left', paddingLeft: `${8 + indentPx}px`,
-              minWidth: nameColWidth, maxWidth: nameColWidth + 40,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              minWidth: nameColWidth, maxWidth: nameColWidth + 60,
+              whiteSpace: 'normal', wordBreak: 'break-word',
+              lineHeight: 1.4, verticalAlign: 'middle',
             }}
-            title={getLabel(row, level)}
           >
             {level > 0 && <span style={{ color: isDarkMode ? '#475569' : '#94a3b8', marginRight: 4 }}>{'↳'.repeat(level)}</span>}
             {getLabel(row, level)}
@@ -646,7 +658,7 @@ function ColorLegend({ accent, isDarkMode }) {
 export default function SalesReportPage({ loggedInRole = null, loggedInRolex = null }) {
   const { user } = useAuth();
   const employeename = user?.username;
-  const { multiyear, monthwisecompany, monthwisedisttype } = useSalesFilterStore();
+  const { multiyear, monthwisecompany, monthwisedisttype, setMonthwiseDisttype } = useSalesFilterStore();
   const { isDarkMode, selectedAccent, selectedFont } = useColorMode();
 
   const [toast, setToast]       = useState({ show: false, message: '', type: 'info', title: '' });
@@ -755,13 +767,29 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
       if (row._groupField === 'year') return fyToCalYear(val) || '—';
       return String(val ?? '—');
     }
-    // Summary tab: level-based label
     if (level === 0) return fyToCalYear(row.year) || '—';
-    if (level === 1) return row.catgroup || row.disttype || '—';
-    if (level === 2) return row.category || row.distname || '—';
-    if (level === 3) return row.description || row.distname || row.catgroup || '—';
+    const isShops = monthwisedisttype === 'Shops';
+    if (isShops) {
+      // L1: shop type — disttype = 'NTPet Shop', 'Yeshwantpur Shop', etc.
+      if (level === 1) return String(row.disttype ?? row.distname ?? '—');
+      // L2: distributor — distname = 'SBL NT PET SHOP', 'GATE PASS', etc.
+      if (level === 2) return String(row.distname ?? row.disttype ?? '—');
+      // L3: catgroup — catgroup = 'GRAM FLOUR', 'AVALAKKI', etc. (from getFifthLevelDispatch)
+      if (level === 3) return String(row.catgroup ?? row.category ?? row.disttype ?? '—');
+      // L4: item — disttype = item name (getSixthLevelDispatch sets disttype = description)
+      if (level === 4) return String(row.disttype ?? row.description ?? '—');
+      return String(row.disttype ?? row.description ?? '—');
+    }
+    // Distribution mode
+    // L1: catgroup name (from getCatgroupForCategory)
+    if (level === 1) return String(row.catgroup ?? row.disttype ?? '—');
+    // L2: from getThirdLevelDispatch — groups by a.category, so row.category = category name
+    //     row.disttype = 'Distribution' (constant, not useful here)
+    if (level === 2) return String(row.category ?? row.distname ?? row.disttype ?? '—');
+    // L3: from getFourthLevelDispatch — description = item name (disttype = 'Distribution', not useful)
+    if (level === 3) return String(row.description ?? row.disttype ?? row.distname ?? '—');
     return '—';
-  }, [activeTab]);
+  }, [activeTab, monthwisedisttype]);
 
   const isSummary     = activeTab === 'summary';
   const showTillLast  = TILL_LAST_MONTH_TABS[activeTab] ?? true;
@@ -976,40 +1004,141 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
       let data;
 
       if (level === 0) {
-        // YoY Summary Level 0 → catgroup-for-category
-        data = await getCatgroupForCategory({
-          selectedyear,
-          employeename,
-          monthwisecompany,
-          id: `${monthwisedisttype}_${monthwisecompany}`,
-        });
+        // YoY Summary Level 0 → disttype breakdown
+        // Angular getallmaindisttype() routing:
+        //   Distribution + SBL/BALAJI → catgroup_for_cat_AR4_SVS.php  (getCatgroupForCategory)
+        //   (Distribution + ALL) || (Shops + SBL/BALAJI) → secondleveldispatch_AR1_SVS1.php (getSecondLevelDispatch)
+        const isDistAll   = monthwisedisttype === 'Distribution' && monthwisecompany === 'ALL';
+        const isShopsSbl  = monthwisedisttype === 'Shops' && (monthwisecompany === 'SBL' || monthwisecompany === 'BALAJI');
+
+        if (isDistAll || isShopsSbl) {
+          // API 24: getSecondLevelDispatch
+          data = await getSecondLevelDispatch({
+            id: `${monthwisedisttype}_${monthwisecompany}`,
+            selectedyear,
+            monthwisecompany,
+            monthwisedisttype,
+            employeename,
+          });
+        } else {
+          // Existing: getCatgroupForCategory (Distribution+SBL/BALAJI and other combinations)
+          data = await getCatgroupForCategory({
+            selectedyear,
+            employeename,
+            monthwisecompany,
+            id: `${monthwisedisttype}_${monthwisecompany}`,
+          });
+        }
       } else if (level === 1) {
-        // Summary Level 1: catgroup row → distributor list
-        const catgroup = row.catgroup || '';
-        data = await getThirdLevelDispatch({
-          id: `${monthwisedisttype}_${monthwisecompany}_${catgroup}_0_${selectedyear}`,
-          distpatchtype: monthwisedisttype,
-          disttype: catgroup,
-          selectedyear,
-          monthwisecompany,
-          employeename,
-        });
+        // Summary Level 1: catgroup/disttype row → next level
+        // Angular getsecondlevel() routing:
+        //   Distribution + SBL/BALAJI → thirdleveldispatch_vn_AR4_SVS.php (getThirdLevelDispatch)
+        //   (Distribution + ALL) || (Shops + SBL/BALAJI) → catgroup_for_cat_AR1_SVS1.php (getCatgroupForCatAR1)
+        //   ALL + SBL/BALAJI + disttype='Distribution' → catgroup_for_cat_AR1_SVS1.php (getCatgroupForCatAR1)
+        //   ALL + SBL/BALAJI + disttype≠'Distribution' → secondleveldispatch_AR1_SVS1.php (getSecondLevelDispatch)
+        //   Shops + ALL or else → secondleveldispatch_AR1_SVS1.php (getSecondLevelDispatch)
+        const catgroup    = row.catgroup || '';
+        const rowDisttype = row.disttype || catgroup;
+        const isDistSbl   = monthwisedisttype === 'Distribution' && (monthwisecompany === 'SBL' || monthwisecompany === 'BALAJI');
+        const isDistAll   = monthwisedisttype === 'Distribution' && monthwisecompany === 'ALL';
+        const isShopsSbl  = monthwisedisttype === 'Shops' && (monthwisecompany === 'SBL' || monthwisecompany === 'BALAJI');
+        const isAllSbl    = monthwisedisttype === 'ALL' && (monthwisecompany === 'SBL' || monthwisecompany === 'BALAJI');
+        const isAllSblDist = isAllSbl && rowDisttype === 'Distribution';
+
+        if (isDistSbl) {
+          // Existing path — Distribution + SBL/BALAJI
+          data = await getThirdLevelDispatch({
+            id: `${monthwisedisttype}_${monthwisecompany}_${catgroup}_0_${selectedyear}`,
+            distpatchtype: monthwisedisttype,
+            disttype: catgroup,
+            selectedyear,
+            monthwisecompany,
+            employeename,
+          });
+        } else if (isDistAll || isShopsSbl || isAllSblDist) {
+          // API 20: getCatgroupForCatAR1 — Angular uses actual row ID, not a constructed string
+          data = await getCatgroupForCatAR1({
+            id: row.id,
+            distpatchtype: monthwisedisttype,
+            disttype: rowDisttype,
+            selectedyear,
+            monthwisecompany,
+            employeename,
+          });
+          // Shops+SBL: getCatgroupForCatAR1 returns distributor rows → stamp distfinf=5 (traffic-light color)
+          if (isShopsSbl || isAllSblDist) {
+            data = (Array.isArray(data) ? data : []).map(r => ({ ...r, distfinf: 5 }));
+          }
+        } else {
+          // API 24: getSecondLevelDispatch (ALL+SBL/BALAJI+non-Distribution, Shops+ALL, etc.)
+          data = await getSecondLevelDispatch({
+            id: `${rowDisttype}_${monthwisecompany}`,
+            selectedyear,
+            monthwisecompany,
+            monthwisedisttype,
+            employeename,
+          });
+        }
       } else {
         // Summary Level 2+
-        const categoryVal = row.category || '';
-        const distnameVal = row.distname  || '';
-        const deepLabel   = level === 2 ? categoryVal : (distnameVal || categoryVal);
-        data = await getFourthLevelDispatch({
-          id: `${monthwisedisttype}_${monthwisecompany}_${deepLabel}_0_${selectedyear}`,
-          dispatchtype: monthwisedisttype,
-          disttype: deepLabel,
-          selectedyear,
-          monthwisecompany,
-          employeename,
-        });
+        const isShopsSblDeep = monthwisedisttype === 'Shops' && (monthwisecompany === 'SBL' || monthwisecompany === 'BALAJI');
+        if (isShopsSblDeep && level === 2) {
+          // Shops+SBL L2→L3: distributor row → catgroup rows
+          // getFifthLevelDispatch groups DB by a.category for a specific distid
+          // row.id from getCatgroupForCatAR1: {shoptype}_{company}_{distname}_{distid}_{idx}_{year}
+          // → idParts[0]=shoptype, idParts[3]=distid — correct for getFifthLevelDispatch
+          appLog('[SHOPS L2→L3] row.id:', row.id, '| row.distid:', row.distid, '| row.disttype:', row.disttype, '| row.distname:', row.distname);
+          const raw = await getFifthLevelDispatch({
+            id: row.id,
+            dispatchtype: monthwisedisttype,
+            selectedyear: row.year || selectedyear,
+            monthwisecompany,
+          });
+          data = (Array.isArray(raw) ? raw : []).map(r => ({ ...r, distfinf: 3 }));
+        } else if (isShopsSblDeep && level === 3) {
+          // Shops+SBL L3→L4: catgroup row → item-code rows
+          // getFifthLevelDispatch L3 rows have: distid, company, disttype (shoptype), catgroup
+          // getSixthLevelDispatch expects id: {distid}_{company}_{shoptype}_{catgroup}_{idx}_{year}
+          const builtId = `${row.distid || ''}_${row.company || monthwisecompany}_${row.disttype || ''}_${row.catgroup || row.category || ''}_0_${selectedyear}`;
+          appLog('[SHOPS L3→L4] row.id:', row.id, '| builtId:', builtId, '| row.distid:', row.distid, '| row.catgroup:', row.catgroup, '| row.disttype:', row.disttype);
+          const raw = await getSixthLevelDispatch({
+            id: builtId,
+            dispatchtype: monthwisedisttype,
+            selectedyear: row.year || selectedyear,
+            monthwisecompany,
+          });
+          data = (Array.isArray(raw) ? raw : []).map(r => ({ ...r, distfinf: 1 }));
+        } else if (isShopsSblDeep && level === 4) {
+          // Angular getfourthlevel for Shops — item description rows (leaf, distfinf=1)
+          const raw = await getSixthLevelDispatch({
+            id: row.id,
+            dispatchtype: monthwisedisttype,
+            disttype: row.distid || row.disttype,
+            selectedyear: row.year || selectedyear,
+            monthwisecompany,
+          });
+          data = (Array.isArray(raw) ? raw : []).map(r => ({ ...r, distfinf: 1 }));
+        } else {
+          const categoryVal = row.category || '';
+          const distnameVal = row.distname  || '';
+          const deepLabel   = level === 2 ? categoryVal : (distnameVal || categoryVal);
+          data = await getFourthLevelDispatch({
+            id: `${monthwisedisttype}_${monthwisecompany}_${deepLabel}_0_${selectedyear}`,
+            dispatchtype: monthwisedisttype,
+            disttype: deepLabel,
+            selectedyear,
+            monthwisecompany,
+            employeename,
+          });
+        }
       }
 
       const list = (Array.isArray(data) ? data : []).filter(r => !isGrandTotal(r));
+      if (list.length === 0) {
+        setExpanded(p => ({ ...p, [key]: false }));
+        showToast('No Data', `No data available for "${getLabel(row, level)}"`, 'info');
+        return;
+      }
       drillDataRef.current = { ...drillDataRef.current, [key]: list };
       setDrillData(p => ({ ...p, [key]: list }));
       setExpanded(p => ({ ...p, [key]: true }));
@@ -1020,7 +1149,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
     } finally {
       setDrillLoading(p => ({ ...p, [key]: false }));
     }
-  }, [monthwisecompany, monthwisedisttype, employeename, multiyear]);
+  }, [monthwisecompany, monthwisedisttype, employeename, multiyear, getLabel]);
 
   const handleCollapse = useCallback((stateKey) => {
     // Cascade-collapse: close this row AND all descendants.
@@ -1088,7 +1217,18 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
       setDrillData({});
       setExpandedYear({});
     }
-  }, [visibleTabs, activeTab]);
+  }, [visibleTabs]); // activeTab read from closure; omitting it prevents double-fire loop
+
+  // Auto-reset method to Distribution when switching to ASM or Soff tab
+  // (Shops has no data for these tabs)
+  useEffect(() => {
+    if (activeTab === 'asm' || activeTab === 'soff') {
+      if (monthwisedisttype === 'Shops') {
+        setMonthwiseDisttype('Distribution');
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const lastUpdateDate = lastUpdate ? fmtDate(lastUpdate.dispatchlastupdate) : null;
   const isDrillLoading = Object.values(drillLoading).some(Boolean);
@@ -1164,7 +1304,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
   }, [rawRows, activeTab, multiyear, fCatgroup, fCategory, fItemType, fItem, fDistName, fAsm, fAreaName, fSoff]);
 
   // ── Table virtualization ───────────────────────────────────────────────────────
-  const ROW_HEIGHT = 38; // px — matches sr-td padding
+  const ROW_HEIGHT = 52; // px — accounts for potential 2-line wrapped names
   const tableWrapRef  = useRef(null);
   const scrollTopRef  = useRef(0);
   const rafRef        = useRef(null);
@@ -1234,7 +1374,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
           </h2>
         </motion.div>
 
-        <FilterBar mode="monthwise" onApply={fetchData} isLoading={loading} lastUpdateDate={lastUpdateDate} />
+        <FilterBar mode="monthwise" onApply={fetchData} isLoading={loading} lastUpdateDate={lastUpdateDate} activeReportTab={activeTab} />
 
         {error && (
           <div style={{ padding: '0.75rem 1rem', marginBottom: '1rem', background: isDarkMode ? '#2d1515' : '#fff5f5', border: '1px solid #fecaca', borderRadius: 8, color: '#ef4444', fontSize: '0.82rem' }}>
@@ -1363,7 +1503,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
             <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
               <tr style={{ background: headerMain, color: 'white' }}>
                 <th className="sr-th" style={{ position: 'sticky', left: 0, background: headerMain, width: 50, minWidth: 50, zIndex: 11, padding: '0.55rem 0.2rem' }} />
-                <th className="sr-th" style={{ position: 'sticky', left: 50, background: headerMain, minWidth: nameColWidth, textAlign: 'left', zIndex: 11 }}>
+                <th className="sr-th" style={{ position: 'sticky', left: 50, background: headerMain, minWidth: nameColWidth, textAlign: 'left', zIndex: 11, whiteSpace: 'normal', verticalAlign: 'middle' }}>
                   {FIRST_COL_LABEL[activeTab] || 'Name'}
                 </th>
                 {GROUPS.flatMap(g => [
