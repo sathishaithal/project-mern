@@ -22,6 +22,7 @@ import {
 import { useColorMode } from "../../theme/ThemeContext";
 import { AppDatePicker, AppSelect } from "../../components/FormControls";
 import styles from "./Production.module.css";
+import SummaryCardsSystem from "../../components/SummaryCardsSystem/SummaryCardsSystem";
 
 const toNumber = (value) => Number(value) || 0;
 
@@ -56,10 +57,16 @@ const filterGroupedData = (grouped = {}, predicate) =>
     return acc;
   }, {});
 
+const PRODUCTION_TABS = [
+  { id: "reports", label: "Reports" },
+  { id: "charts", label: "Charts" },
+];
+
 const Production = () => {
   const { isDarkMode, selectedAccent, selectedFont } = useColorMode();
   const [isMobileScreen, setIsMobileScreen] = useState(window.innerWidth < 768);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(window.innerWidth >= 768);
+  const [activeProductionTab, setActiveProductionTab] = useState("reports");
   const [catGroup, setCatGroup] = useState("Fried Gram Mill");
   const [fromDate, setFromDate] = useState(new Date());
   const [toDate, setToDate] = useState(new Date());
@@ -87,17 +94,25 @@ const Production = () => {
   const [periodType, setPeriodType] = useState('custom');
   const [customFrom, setCustomFrom] = useState(new Date());
   const [customTo,   setCustomTo]   = useState(new Date());
-  const [selectedMonth, setSelectedMonth] = useState(() => {
+
+  const [selectedMonthYear, setSelectedMonthYear] = useState(() => String(new Date().getFullYear()));
+  const [selectedMonthVal,  setSelectedMonthVal]  = useState(() => {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return String(d.getMonth() + 1).padStart(2, '0');
   });
+
   const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
-  const [selectedQuarter, setSelectedQuarter] = useState(() => {
-    const m = new Date().getMonth();
-    if (m < 3)  return 'Q4';
-    if (m < 6)  return 'Q1';
-    if (m < 9)  return 'Q2';
-    return 'Q3';
+
+  const [quarterType,     setQuarterType]     = useState('financial');
+  const [selectedQuarter, setSelectedQuarter] = useState('Q1');
+  const [selectedQYear,   setSelectedQYear]   = useState(() => {
+    const now = new Date();
+    return String(now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1);
+  });
+
+  const [selectedFY, setSelectedFY] = useState(() => {
+    const now = new Date();
+    return String(now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1);
   });
 
   // Toast notification state
@@ -181,18 +196,28 @@ const Production = () => {
       }
 
       case 'quarter': {
-        const fy   = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
-        const qMap = {
-          Q1: { from: d(fy,     3, 1), to: d(fy,     5, 30) },
-          Q2: { from: d(fy,     6, 1), to: d(fy,     8, 30) },
-          Q3: { from: d(fy,     9, 1), to: d(fy,    11, 31) },
-          Q4: { from: d(fy + 1, 0, 1), to: d(fy + 1,  2, 31) },
-        };
-        return qMap[opts.quarter] || qMap['Q1'];
+        const yr = parseInt(opts.qYear || (today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1), 10);
+        if (opts.quarterType === 'calendar') {
+          const calMap = {
+            Q1: { from: d(yr, 0,  1), to: d(yr, 2,  31) },
+            Q2: { from: d(yr, 3,  1), to: d(yr, 5,  30) },
+            Q3: { from: d(yr, 6,  1), to: d(yr, 8,  30) },
+            Q4: { from: d(yr, 9,  1), to: d(yr, 11, 31) },
+          };
+          return calMap[opts.quarter] || calMap['Q1'];
+        } else {
+          const fyMap = {
+            Q1: { from: d(yr,     3, 1), to: d(yr,     5, 30) },
+            Q2: { from: d(yr,     6, 1), to: d(yr,     8, 30) },
+            Q3: { from: d(yr,     9, 1), to: d(yr,    11, 31) },
+            Q4: { from: d(yr + 1, 0, 1), to: d(yr + 1,  2, 31) },
+          };
+          return fyMap[opts.quarter] || fyMap['Q1'];
+        }
       }
 
       case 'financialyear': {
-        const fy = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
+        const fy = parseInt(opts.fy || (today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1), 10);
         return { from: d(fy, 3, 1), to: d(fy + 1, 2, 31) };
       }
 
@@ -202,7 +227,8 @@ const Production = () => {
       }
 
       case 'month': {
-        const [yr, mo] = (opts.month || '').split('-').map(Number);
+        const yr = parseInt(opts.monthYear || today.getFullYear(), 10);
+        const mo = parseInt(opts.monthVal  || 1, 10);
         if (!yr || !mo) return { from: new Date(today), to: new Date(today) };
         return { from: d(yr, mo - 1, 1), to: d(yr, mo, 0) };
       }
@@ -215,16 +241,20 @@ const Production = () => {
 
   useEffect(() => {
     const { from, to } = computeDateRange(periodType, {
-      quarter:    selectedQuarter,
-      year:       selectedYear,
-      month:      selectedMonth,
-      customFrom: customFrom,
-      customTo:   customTo,
+      quarterType: quarterType,
+      quarter:     selectedQuarter,
+      qYear:       selectedQYear,
+      fy:          selectedFY,
+      year:        selectedYear,
+      monthYear:   selectedMonthYear,
+      monthVal:    selectedMonthVal,
+      customFrom:  customFrom,
+      customTo:    customTo,
     });
     setFromDate(from);
     setToDate(to);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [periodType, selectedQuarter, selectedYear, selectedMonth, customFrom, customTo]);
+  }, [periodType, quarterType, selectedQuarter, selectedQYear, selectedFY, selectedYear, selectedMonthYear, selectedMonthVal, customFrom, customTo]);
 
   const showToast = (title, message, type = "info") => {
     if (toastTimeoutRef.current) {
@@ -579,6 +609,13 @@ let othersProdPercentage = 0;
 
   const fetchReport = async () => {
     setLoading(true);
+    console.log('[Production] API date range →', {
+      periodType,
+      fromdate: formatPayloadDate(fromDate),
+      todate:   formatPayloadDate(toDate),
+      fromDate,
+      toDate,
+    });
     showToast("Loading", "Fetching production report...", "info");
 
     try {
@@ -1865,6 +1902,30 @@ case "pie":
         </div>
       )}
 
+      <SummaryCardsSystem
+        context="production"
+        productionData={data}
+        accent={selectedAccent.primary}
+        accent2={selectedAccent.secondary}
+      />
+
+      {!isReportFullscreen && (
+        <div className={styles.productionTabBar}>
+          {PRODUCTION_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={`${styles.productionTabButton} ${
+                activeProductionTab === tab.id ? styles.productionTabButtonActive : ""
+              }`}
+              onClick={() => setActiveProductionTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className={styles.reportActionRow}>
         <button
           type="button"
@@ -1963,27 +2024,90 @@ case "pie":
             />
           </motion.div>
 
-          {/* Quarter sub-selector */}
+          {/* Quarter sub-selectors */}
           {periodType === 'quarter' && (
-            <motion.div
-              className={styles.filterItem}
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-              whileHover={{ y: -2 }}
-            >
+            <>
+              <motion.div className={styles.filterItem}
+                initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
+                whileHover={{ y: -2 }}>
+                <label className={styles.filterLabel}>
+                  <i className="bi bi-pie-chart"></i> Quarter Type
+                </label>
+                <AppSelect
+                  value={quarterType}
+                  onChange={(val) => { setQuarterType(val); setSelectedQuarter('Q1'); }}
+                  options={[
+                    { value: 'financial', label: 'Financial Year Quarter (Apr–Mar)' },
+                    { value: 'calendar',  label: 'Calendar Year Quarter (Jan–Dec)' },
+                  ]}
+                />
+              </motion.div>
+
+              <motion.div className={styles.filterItem}
+                initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
+                whileHover={{ y: -2 }}>
+                <label className={styles.filterLabel}>
+                  <i className="bi bi-calendar2"></i> {quarterType === 'financial' ? 'FY Start Year' : 'Year'}
+                </label>
+                <AppSelect
+                  value={selectedQYear}
+                  onChange={setSelectedQYear}
+                  options={(() => {
+                    const curr = new Date().getFullYear();
+                    return Array.from({ length: 10 }, (_, i) => ({
+                      value: String(curr - i),
+                      label: quarterType === 'financial'
+                        ? `FY ${curr - i}–${(curr - i + 1).toString().slice(-2)}`
+                        : String(curr - i),
+                    }));
+                  })()}
+                />
+              </motion.div>
+
+              <motion.div className={styles.filterItem}
+                initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
+                whileHover={{ y: -2 }}>
+                <label className={styles.filterLabel}>
+                  <i className="bi bi-pie-chart"></i> Quarter
+                </label>
+                <AppSelect
+                  value={selectedQuarter}
+                  onChange={setSelectedQuarter}
+                  options={quarterType === 'financial' ? [
+                    { value: 'Q1', label: 'Q1 (Apr – Jun)' },
+                    { value: 'Q2', label: 'Q2 (Jul – Sep)' },
+                    { value: 'Q3', label: 'Q3 (Oct – Dec)' },
+                    { value: 'Q4', label: 'Q4 (Jan – Mar)' },
+                  ] : [
+                    { value: 'Q1', label: 'Q1 (Jan – Mar)' },
+                    { value: 'Q2', label: 'Q2 (Apr – Jun)' },
+                    { value: 'Q3', label: 'Q3 (Jul – Sep)' },
+                    { value: 'Q4', label: 'Q4 (Oct – Dec)' },
+                  ]}
+                />
+              </motion.div>
+            </>
+          )}
+
+          {/* Financial Year sub-selector */}
+          {periodType === 'financialyear' && (
+            <motion.div className={styles.filterItem}
+              initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
+              whileHover={{ y: -2 }}>
               <label className={styles.filterLabel}>
-                <i className="bi bi-pie-chart"></i> Quarter
+                <i className="bi bi-calendar2-range"></i> Financial Year
               </label>
               <AppSelect
-                value={selectedQuarter}
-                onChange={setSelectedQuarter}
-                options={[
-                  { value: 'Q1', label: 'Q1 (Apr – Jun)' },
-                  { value: 'Q2', label: 'Q2 (Jul – Sep)' },
-                  { value: 'Q3', label: 'Q3 (Oct – Dec)' },
-                  { value: 'Q4', label: 'Q4 (Jan – Mar)' },
-                ]}
+                value={selectedFY}
+                onChange={setSelectedFY}
+                options={(() => {
+                  const curr = new Date().getFullYear();
+                  const currFY = new Date().getMonth() >= 3 ? curr : curr - 1;
+                  return Array.from({ length: 10 }, (_, i) => {
+                    const fy = currFY - i;
+                    return { value: String(fy), label: `FY ${fy}–${(fy + 1).toString().slice(-2)}` };
+                  });
+                })()}
               />
             </motion.div>
           )}
@@ -2014,34 +2138,53 @@ case "pie":
             </motion.div>
           )}
 
-          {/* Month sub-selector */}
+          {/* Month sub-selectors */}
           {periodType === 'month' && (
-            <motion.div
-              className={styles.filterItem}
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-              whileHover={{ y: -2 }}
-            >
-              <label className={styles.filterLabel}>
-                <i className="bi bi-calendar3"></i> Month
-              </label>
-              <AppSelect
-                value={selectedMonth}
-                onChange={setSelectedMonth}
-                options={(() => {
-                  const opts = [];
-                  const now  = new Date();
-                  for (let i = 0; i < 24; i++) {
-                    const d   = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                    const lbl = d.toLocaleString('default', { month: 'long', year: 'numeric' });
-                    opts.push({ value: val, label: lbl });
-                  }
-                  return opts;
-                })()}
-              />
-            </motion.div>
+            <>
+              <motion.div className={styles.filterItem}
+                initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
+                whileHover={{ y: -2 }}>
+                <label className={styles.filterLabel}>
+                  <i className="bi bi-calendar2"></i> Year
+                </label>
+                <AppSelect
+                  value={selectedMonthYear}
+                  onChange={setSelectedMonthYear}
+                  options={(() => {
+                    const curr = new Date().getFullYear();
+                    return Array.from({ length: 10 }, (_, i) => ({
+                      value: String(curr - i), label: String(curr - i),
+                    }));
+                  })()}
+                />
+              </motion.div>
+
+              <motion.div className={styles.filterItem}
+                initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
+                whileHover={{ y: -2 }}>
+                <label className={styles.filterLabel}>
+                  <i className="bi bi-calendar3"></i> Month
+                </label>
+                <AppSelect
+                  value={selectedMonthVal}
+                  onChange={setSelectedMonthVal}
+                  options={[
+                    { value: '01', label: 'January'   },
+                    { value: '02', label: 'February'  },
+                    { value: '03', label: 'March'     },
+                    { value: '04', label: 'April'     },
+                    { value: '05', label: 'May'       },
+                    { value: '06', label: 'June'      },
+                    { value: '07', label: 'July'      },
+                    { value: '08', label: 'August'    },
+                    { value: '09', label: 'September' },
+                    { value: '10', label: 'October'   },
+                    { value: '11', label: 'November'  },
+                    { value: '12', label: 'December'  },
+                  ]}
+                />
+              </motion.div>
+            </>
           )}
 
           {/* Custom Range — two date pickers */}
@@ -2129,42 +2272,44 @@ case "pie":
       {/* Report Content */}
       {data && (
         <>
-          {/* 1. Finished Goods Report */}
-          <div className={styles.reportCard}>
-            <div
-              className={`${styles.reportCardHeader} ${styles.finishedHeader}`}
-              onClick={() => setFinishedCollapsed(!finishedCollapsed)}
-            >
-              <div className={styles.reportCardTitle}>
-                <i className="bi bi-box-seam"></i>
-                <span>Finished Goods</span>
+          {activeProductionTab === "reports" && (
+            <>
+              {/* 1. Finished Goods Report */}
+              <div className={styles.reportCard}>
+                <div
+                  className={`${styles.reportCardHeader} ${styles.finishedHeader}`}
+                  onClick={() => setFinishedCollapsed(!finishedCollapsed)}
+                >
+                  <div className={styles.reportCardTitle}>
+                    <i className="bi bi-box-seam"></i>
+                    <span>Finished Goods</span>
+                  </div>
+                  <i className={`bi ${finishedCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                </div>
+                {!finishedCollapsed && (
+                  <div className={styles.reportCardBody}>
+                    {renderFinishedGoodsTable()}
+                  </div>
+                )}
               </div>
-              <i className={`bi ${finishedCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
-            </div>
-            {!finishedCollapsed && (
-              <div className={styles.reportCardBody}>
-                {renderFinishedGoodsTable()}
-              </div>
-            )}
-          </div>
 
-          <div className={styles.reportCard}>
-            <div
-              className={`${styles.reportCardHeader} ${styles.othersHeader}`}
-              onClick={() => setOthersCollapsed(!othersCollapsed)}
-            >
-              <div className={styles.reportCardTitle}>
-                <i className="bi bi-boxes"></i>
-                <span>By Products and Packing Section Material</span>
+              <div className={styles.reportCard}>
+                <div
+                  className={`${styles.reportCardHeader} ${styles.othersHeader}`}
+                  onClick={() => setOthersCollapsed(!othersCollapsed)}
+                >
+                  <div className={styles.reportCardTitle}>
+                    <i className="bi bi-boxes"></i>
+                    <span>By Products and Packing Section Material</span>
+                  </div>
+                  <i className={`bi ${othersCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                </div>
+                {!othersCollapsed && (
+                  <div className={styles.reportCardBody}>
+                    {renderOthersTable()}
+                  </div>
+                )}
               </div>
-              <i className={`bi ${othersCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
-            </div>
-            {!othersCollapsed && (
-              <div className={styles.reportCardBody}>
-                {renderOthersTable()}
-              </div>
-            )}
-          </div>
 
           <div className={styles.totalCardWrapper}>
             <div className={styles.totalCard}>
@@ -2268,11 +2413,12 @@ case "pie":
               </div>
             )}
           </div>
-
+            </>
+          )}
 
 
           {/* Chart Section */}
-          {data && (brands.length > 0 || othersBrands.length > 0) && (
+          {activeProductionTab === "charts" && data && (brands.length > 0 || othersBrands.length > 0) && (
             <div className={styles.reportCard}>
               <div
                 className={`${styles.reportCardHeader} ${styles.chartHeader}`}

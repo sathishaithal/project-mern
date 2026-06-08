@@ -10,6 +10,7 @@ import DayWisePage from './DayWisePage';
 import ShortSupplyPage from './ShortSupplyPage';
 import ChartsPage from './ChartsPage';
 import SummaryCards from './SummaryCards';
+import SummaryCardsSystem from '../../../components/SummaryCardsSystem/SummaryCardsSystem';
 
 const REPORT_TABS = [
   { id: 'monthwise',   label: 'Month Wise' },
@@ -166,7 +167,7 @@ export default function SalesDashboard() {
       {topTab === 'reports' && (
         <>
           {/* Summary cards — hide in fullscreen */}
-          {!isFullscreen && <SummaryCards accent={accent} accent2={accent2} />}
+          {!isFullscreen && <SummaryCardsSystem context="sales" accent={accent} accent2={accent2} />}
 
           {/* Report sub-tab pills — hide in fullscreen */}
           {!isFullscreen && (
@@ -194,7 +195,7 @@ export default function SalesDashboard() {
       {/* ── CHARTS tab ──────────────────────────────────────────────────── */}
       {topTab === 'charts' && (
         <>
-          {!isFullscreen && <SummaryCards accent={accent} accent2={accent2} />}
+          {!isFullscreen && <SummaryCardsSystem context="sales" accent={accent} accent2={accent2} />}
           <ChartsPage loggedInRolex={loggedInRolex} />
         </>
       )}

@@ -25,6 +25,73 @@
   margin-bottom: 16px;
 }
 
+
+.productionTabBar {
+  display: inline-flex;
+  gap: 6px;
+  padding: 5px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.containerDark .productionTabBar {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.productionTabButton {
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  padding: 0.55rem 1.6rem;
+  font-family: var(--production-body-font, var(--dashboard-font-body, 'Inter', sans-serif));
+  font-size: 0.87rem;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  min-width: 115px;
+}
+
+.productionTabButton:hover {
+  background: #f1f5f9;
+  color: var(--production-accent-strong, #2563eb);
+  transform: translateY(-1px);
+}
+
+.containerDark .productionTabButton {
+  color: #94a3b8;
+}
+
+.containerDark .productionTabButton:hover {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+/* Active State */
+.productionTabButtonActive,
+.containerDark .productionTabButtonActive {
+  background: linear-gradient(135deg, var(--production-accent, #3b82f6), var(--production-accent-strong, #2563eb)) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 15px -3px rgba(59, 130, 246, 0.35);
+}
+
+/* Active Hover - Brighter but not grayed out */
+.productionTabButtonActive:hover,
+.containerDark .productionTabButtonActive:hover {
+  background: linear-gradient(135deg, 
+    var(--production-accent-strong, #2563eb), 
+    var(--production-accent, #3b82f6)
+  ) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px -3px rgba(59, 130, 246, 0.45);
+}
+
 .reportViewToggle {
   border: 1px solid rgba(148, 163, 184, 0.2);
   background: #ffffff;
@@ -1269,6 +1336,16 @@
   .reportActionRow {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .productionTabBar {
+    display: flex;
+    width: 100%;
+  }
+
+  .productionTabButton {
+    flex: 1;
+    padding: 0.45rem 0.8rem;
   }
 
   .reportViewToggle {

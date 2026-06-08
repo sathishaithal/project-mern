@@ -6,9 +6,14 @@ import AssessmentIcon from "@mui/icons-material/Assessment";
 import TimelineIcon from "@mui/icons-material/Timeline";
 import SummarizeIcon from "@mui/icons-material/Summarize";
 import DownloadIcon from "@mui/icons-material/Download";
+import { useColorMode } from "../../theme/ThemeContext";
+import SummaryCardsSystem from "../../components/SummaryCardsSystem/SummaryCardsSystem";
 
 const Reports = () => {
   const navigate = useNavigate();
+  const { selectedAccent } = useColorMode();
+  const accent  = selectedAccent?.primary   || '#1a237e';
+  const accent2 = selectedAccent?.secondary || '#283593';
 
   const reportCards = [
     {
@@ -41,6 +46,8 @@ const Reports = () => {
       transition={{ duration: 0.5 }}
     >
       <Box>
+        <SummaryCardsSystem context="reports" accent={accent} accent2={accent2} />
+
         <Typography variant="h4" gutterBottom fontWeight={600}>
           Reports Dashboard
         </Typography>

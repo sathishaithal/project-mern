@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import ThemedTooltip from '../../../components/ui/Tooltip';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, LabelList,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, LabelList, ReferenceLine, Label,
   PieChart, Pie, Legend, ResponsiveContainer,
 } from 'recharts';
 import Select from 'react-select';
@@ -301,7 +301,26 @@ function DrillPieCard({ title, data, onSliceClick, onZoom }) {
   );
 }
 
-function HBarCard({ title, data, onBarClick, onZoom }) {
+// Angular-style tooltip: shows Tonnage, LY Tonnage, Amount, LY Amount
+function DwFullTooltip({ active, payload, isDarkMode: dark }) {
+  if (!active || !payload?.[0]) return null;
+  const d   = payload[0].payload;
+  const bg  = dark ? '#1e293b' : '#ffffff';
+  const clr = dark ? '#e2e8f0' : '#1e293b';
+  const mut = dark ? '#94a3b8' : '#64748b';
+  const n   = (v) => (parseFloat(v) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  return (
+    <div style={{ background: bg, border: `1px solid ${dark ? '#334155' : '#e2e8f0'}`, borderRadius: 8, padding: '7px 11px', fontSize: '0.73rem', boxShadow: '0 4px 14px rgba(0,0,0,0.22)', minWidth: 190 }}>
+      <div style={{ fontWeight: 700, color: clr, marginBottom: 5 }}>{d.name}</div>
+      <div style={{ color: clr }}>Tonnage : <b>{n(d.tonnage ?? d.value)}</b></div>
+      <div style={{ color: mut }}>LY Tonnage : {n(d.ly_tonnage)}</div>
+      <div style={{ color: clr, marginTop: 3 }}>Amount : <b>{n(d.amount)}</b></div>
+      <div style={{ color: mut }}>LY Amount : {n(d.ly_amount)}</div>
+    </div>
+  );
+}
+
+function HBarCard({ title, data, onBarClick, onZoom, showFullTooltip = false }) {
   const { isDarkMode, selectedAccent } = useColorMode();
   const accent   = selectedAccent?.primary   || '#1a237e';
   const accent2  = selectedAccent?.secondary || '#283593';
@@ -311,10 +330,6 @@ function HBarCard({ title, data, onBarClick, onZoom }) {
   const gridClr  = isDarkMode ? '#334155' : '#f1f5f9';
   const labelClr = isDarkMode ? '#94a3b8' : '#475569';
   const total    = data.reduce((s, r) => s + r.value, 0);
-  const tooltipStyle = {
-    contentStyle: { backgroundColor: isDarkMode ? '#1e293b' : '#fff', borderColor: isDarkMode ? '#334155' : '#e2e8f0', color: isDarkMode ? '#e2e8f0' : '#1e293b' },
-    itemStyle:    { color: isDarkMode ? '#e2e8f0' : '#1e293b' },
-  };
   const hbarLabel = ({ x, y, width, height, value }) => {
     const pct = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
     return (
@@ -331,7 +346,10 @@ function HBarCard({ title, data, onBarClick, onZoom }) {
         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridClr} />
         <XAxis type="number" tick={{ fontSize: 10, fill: axisClr }} />
         <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 10, fill: textClr, fontWeight: 500 }} />
-        <Tooltip enabled={false} />
+        {showFullTooltip
+          ? <Tooltip content={<DwFullTooltip isDarkMode={isDarkMode} />} />
+          : <Tooltip enabled={false} />
+        }
         <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={24} isAnimationActive animationDuration={600}
           onClick={onBarClick ? (barData) => { if (barData) onBarClick(barData); } : undefined}>
           {data.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
@@ -347,34 +365,116 @@ function HBarCard({ title, data, onBarClick, onZoom }) {
   );
 }
 
-function MirroredHBarCard({ title, data, onZoom }) {
-  const { isDarkMode } = useColorMode();
+function MirroredHBarCard({ title, data, onBarClick, onZoom }) {
+  const { isDarkMode, selectedAccent } = useColorMode();
+  const accent  = selectedAccent?.primary   || '#1a237e';
+  const accent2 = selectedAccent?.secondary || '#283593';
+  const colors  = getChartColors(accent, accent2);
   const axisClr = isDarkMode ? '#94a3b8' : '#64748b';
   const textClr = isDarkMode ? '#e2e8f0' : '#1e293b';
   const gridClr = isDarkMode ? '#334155' : '#f1f5f9';
-  const tooltipStyle = {
-    contentStyle: { backgroundColor: isDarkMode ? '#1e293b' : '#fff', borderColor: isDarkMode ? '#334155' : '#e2e8f0', color: isDarkMode ? '#e2e8f0' : '#1e293b' },
-  };
+  const bdrClr  = isDarkMode ? '#334155' : '#e2e8f0';
+
   const chartData = data.map(r => ({
-    name:     r.name,
-    tonnage:  -(r.tonnage ?? r.value ?? 0),
-    amount:   (r.amount ?? 0) / 100000,
-    _tonnage: r.tonnage ?? r.value ?? 0,
-    _amount:  r.amount ?? 0,
+    name:       r.name,
+    tonnage:    Math.abs(parseFloat(r.tonnage ?? r.value ?? 0)),
+    amount:     parseFloat(r.amount ?? 0) / 100000,
+    _tonnage:   parseFloat(r.tonnage ?? r.value ?? 0),
+    _amount:    parseFloat(r.amount ?? 0),
+    ly_tonnage: parseFloat(r.ly_tonnage ?? 0) || 0,
+    ly_amount:  parseFloat(r.ly_amount ?? 0)  || 0,
   }));
-  const barH = Math.max(180, data.length * 44 + 40);
+
+  const maxTonnage = Math.max(...chartData.map(r => r.tonnage), 0.1);
+  const maxAmount  = Math.max(...chartData.map(r => r.amount),  0.1);
+  const tonPadded  = maxTonnage * 1.2;
+  const amtPadded  = maxAmount  * 1.2;
+
+  const barH = Math.max(180, data.length * 28 + 40);
+  const handleBarClick = onBarClick ? (barData) => { if (barData?.name) onBarClick(barData); } : undefined;
+
+  // Split tooltips: left chart shows tonnage only, right chart shows amount only
+  const makeTooltip = (field, lyField, label, lyLabel) => ({ active, payload }) => {
+    if (!active || !payload?.[0]) return null;
+    const d   = payload[0].payload;
+    const bg  = isDarkMode ? '#1e293b' : '#ffffff';
+    const clr = isDarkMode ? '#e2e8f0' : '#1e293b';
+    const mut = isDarkMode ? '#94a3b8' : '#64748b';
+    const n   = v => Math.abs(parseFloat(v) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    return (
+      <div style={{ borderRadius: 10, overflow: 'hidden', boxShadow: '0 6px 20px rgba(0,0,0,0.26)', minWidth: 175, fontSize: '0.72rem' }}>
+        <div style={{ background: accent, padding: '7px 13px', textAlign: 'center' }}>
+          <div style={{ color: '#fff', fontWeight: 700, fontSize: '0.74rem', letterSpacing: '0.03em' }}>{d.name}</div>
+        </div>
+        <div style={{ background: bg, border: `1px solid ${bdrClr}`, borderTop: 'none', borderRadius: '0 0 10px 10px', padding: '8px 13px', textAlign: 'center' }}>
+          <div style={{ color: mut, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.09em', marginBottom: 4 }}>THIS YEAR</div>
+          <div style={{ color: clr, marginBottom: 6 }}>{label} : <b>{n(d[field])}</b></div>
+          <div style={{ height: 1, background: bdrClr, margin: '6px 0' }} />
+          <div style={{ color: mut, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.09em', marginBottom: 4 }}>LAST YEAR</div>
+          <div style={{ color: mut }}>{lyLabel} : {n(d[lyField])}</div>
+        </div>
+      </div>
+    );
+  };
+  const tonnageTooltip = makeTooltip('_tonnage', 'ly_tonnage', 'Tonnage', 'LY Tonnage');
+  const amountTooltip  = makeTooltip('_amount',  'ly_amount',  'Amount',  'LY Amount');
+
+  // Custom tick: centers label text within the 110px YAxis column
+  const centerTick = ({ x, y, payload }) => {
+    const label = payload.value.length > 16 ? payload.value.slice(0, 15) + '…' : payload.value;
+    return (
+      <text x={x + 55} y={y} fill={textClr} textAnchor="middle" dominantBaseline="central" fontSize={9} fontWeight={500}>
+        {label}
+      </text>
+    );
+  };
+
   const chart = (
-    <ResponsiveContainer width="100%" height={barH}>
-      <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 60, left: 10, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridClr} />
-        <XAxis type="number" tick={{ fontSize: 9, fill: axisClr }} tickFormatter={v => v < 0 ? Math.abs(v) : `${v.toFixed(1)}L`} />
-        <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 9, fill: textClr, fontWeight: 500 }} />
-        <Tooltip enabled={false} />
-        <Bar dataKey="tonnage" fill="#FF00CC" stackId="m" maxBarSize={22} isAnimationActive />
-        <Bar dataKey="amount"  fill="#FF6600" stackId="m" maxBarSize={22} isAnimationActive />
-      </BarChart>
-    </ResponsiveContainer>
+    <div style={{ display: 'flex', width: '100%', cursor: onBarClick ? 'pointer' : 'default' }}>
+      {/* LEFT — tonnage, axis reversed so bars grow leftward from center */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <ResponsiveContainer width="100%" height={barH}>
+          <BarChart data={chartData} layout="vertical"
+            barCategoryGap="35%"
+            margin={{ top: 0, right: 0, left: 10, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridClr} />
+            <XAxis type="number" domain={[0, tonPadded]} reversed
+              tick={{ fontSize: 9, fill: axisClr }}
+              tickFormatter={v => v === 0 ? '' : `${Math.round(v)}`}
+            />
+            <YAxis dataKey="name" type="category" orientation="right" width={110}
+              tick={centerTick} tickLine={false} axisLine={false}
+            />
+            <Tooltip content={tonnageTooltip} />
+            <Bar dataKey="tonnage" barSize={16} isAnimationActive animationDuration={600} animationBegin={0} onClick={handleBarClick}>
+              {chartData.map((_, i) => <Cell key={`t${i}`} fill={colors[i % colors.length]} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* RIGHT — amount in Lacs, grows rightward from center */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <ResponsiveContainer width="100%" height={barH}>
+          <BarChart data={chartData} layout="vertical"
+            barCategoryGap="35%"
+            margin={{ top: 0, right: 10, left: 0, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridClr} />
+            <XAxis type="number" domain={[0, amtPadded]}
+              tick={{ fontSize: 9, fill: axisClr }}
+              tickFormatter={v => v === 0 ? '' : `${v % 1 === 0 ? v : v.toFixed(1)}Lacs`}
+            />
+            <YAxis dataKey="name" type="category" hide width={0} />
+            <Tooltip content={amountTooltip} />
+            <Bar dataKey="amount" barSize={16} isAnimationActive animationDuration={600} animationBegin={0} onClick={handleBarClick}>
+              {chartData.map((_, i) => <Cell key={`a${i}`} fill={colors[(i + 6) % colors.length]} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
+
   return (
     <ChartCard title={title} onZoom={() => onZoom(title, chart)} style={{ flex: 1 }}>
       {chart}
@@ -382,9 +482,64 @@ function MirroredHBarCard({ title, data, onZoom }) {
   );
 }
 
-// DwTableCard — full Angular columns: Category | Tonnage | Amount | LY Tonnage | LY Amount
+const DW_ENTRIES_OPTIONS = [5, 10, 15, 20, 25, 50];
+
+function EntriesSelect({ value, onChange, accent, isDarkMode, borderClr }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block', userSelect: 'none' }}>
+      <div onClick={() => setOpen(o => !o)} style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4,
+        padding: '2px 10px',
+        borderRadius: 6,
+        border: `1.5px solid ${accent}`,
+        background: isDarkMode ? '#1e293b' : '#fff',
+        color: accent,
+        fontSize: '0.75rem', fontWeight: 700,
+        cursor: 'pointer', minWidth: 52,
+        lineHeight: 1.6,
+      }}>
+        {value}
+        <span style={{ fontSize: '0.55rem', lineHeight: 1 }}>▼</span>
+      </div>
+      {open && (
+        <div style={{
+          position: 'absolute', bottom: '110%', left: 0,
+          background: isDarkMode ? '#1e293b' : '#fff',
+          border: `1.5px solid ${accent}`,
+          borderRadius: 8,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+          zIndex: 999, minWidth: 60, overflow: 'hidden',
+        }}>
+          {[5, 10, 15, 20, 25, 50].map(n => (
+            <div key={n} onClick={() => { onChange(n); setOpen(false); }}
+              style={{
+                padding: '5px 14px', fontSize: '0.75rem',
+                fontWeight: n === value ? 700 : 400,
+                color: n === value ? 'white' : (isDarkMode ? '#e2e8f0' : '#1e293b'),
+                background: n === value ? accent : 'transparent',
+                cursor: 'pointer', transition: 'background 0.12s',
+              }}
+              onMouseEnter={e => { if (n !== value) e.currentTarget.style.background = isDarkMode ? '#334155' : '#f1f5f9'; }}
+              onMouseLeave={e => { if (n !== value) e.currentTarget.style.background = 'transparent'; }}
+            >{n}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// DwTableCard — full Angular columns + pagination like ShortSupplyPage
 function DwTableCard({ title, data, basedon }) {
-  const { isDarkMode } = useColorMode();
+  const { isDarkMode, selectedAccent } = useColorMode();
+  const accent    = selectedAccent?.primary || '#1a237e';
   const cardBg    = isDarkMode ? '#1e293b' : 'white';
   const borderClr = isDarkMode ? '#334155' : '#e2e8f0';
   const titleClr  = isDarkMode ? '#e2e8f0' : '#1e293b';
@@ -392,34 +547,99 @@ function DwTableCard({ title, data, basedon }) {
   const rowEven   = isDarkMode ? '#0f172a' : 'white';
   const rowOdd    = isDarkMode ? '#1e293b' : '#f8fafc';
   const muted     = isDarkMode ? '#94a3b8' : '#64748b';
+
+  const [page, setPage]           = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
+  useEffect(() => { setPage(1); }, [data, rowsPerPage]);
+  const totalPages  = Math.max(1, Math.ceil(data.length / rowsPerPage));
+  const pageRows    = data.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  const startNum    = data.length === 0 ? 0 : (page - 1) * rowsPerPage + 1;
+  const endNum      = Math.min(page * rowsPerPage, data.length);
+
+  const pgBtn = (disabled, onClick, label) => (
+    <button onClick={onClick} disabled={disabled} style={{
+      background: disabled ? 'transparent' : accent,
+      color: disabled ? muted : 'white',
+      border: `1px solid ${disabled ? borderClr : accent}`,
+      borderRadius: 5, padding: '2px 8px', fontSize: '0.72rem',
+      cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 600,
+    }}>{label}</button>
+  );
+
+  const pageNums = [];
+  for (let p = 1; p <= totalPages; p++) {
+    if (p === 1 || p === totalPages || Math.abs(p - page) <= 1) pageNums.push(p);
+    else if (Math.abs(p - page) === 2) pageNums.push('…');
+  }
+  const deduped = pageNums.filter((v, i, a) => v !== '…' || a[i - 1] !== '…');
+
   return (
-    <div style={{ flex: 1, background: cardBg, borderRadius: 12, border: `1px solid ${borderClr}`, overflow: 'hidden', boxShadow: '0 2px 10px rgba(37,99,235,0.07)' }}>
+    <div style={{ flex: 1, background: cardBg, borderRadius: 12, border: `1px solid ${borderClr}`, overflow: 'hidden', boxShadow: '0 2px 10px rgba(37,99,235,0.07)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '0.55rem 1rem', borderBottom: `1px solid ${borderClr}`, background: headerBg, borderRadius: '12px 12px 0 0' }}>
         <span style={{ fontWeight: 700, fontSize: '0.75rem', color: titleClr }}>{title}</span>
       </div>
-      <div style={{ overflowY: 'auto', maxHeight: 380 }}>
+      <div style={{ flex: 1, overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
           <thead>
             <tr style={{ background: headerBg, position: 'sticky', top: 0 }}>
-              <th style={{ padding: '5px 8px', textAlign: 'left',  borderBottom: `1px solid ${borderClr}`, color: muted, fontWeight: 600 }}>Category</th>
-              <th style={{ padding: '5px 8px', textAlign: 'right', borderBottom: `1px solid ${borderClr}`, color: muted, fontWeight: 600 }}>Tonnage</th>
-              <th style={{ padding: '5px 8px', textAlign: 'right', borderBottom: `1px solid ${borderClr}`, color: muted, fontWeight: 600 }}>Amount</th>
-              <th style={{ padding: '5px 8px', textAlign: 'right', borderBottom: `1px solid ${borderClr}`, color: muted, fontWeight: 600 }}>LY Tonnage</th>
-              <th style={{ padding: '5px 8px', textAlign: 'right', borderBottom: `1px solid ${borderClr}`, color: muted, fontWeight: 600 }}>LY Amount</th>
+              <th style={{ padding: '5px 8px', textAlign: 'center',  borderBottom: `1px solid ${borderClr}`, color: accent, fontWeight: 600 }}>#</th>
+              <th style={{ padding: '5px 8px', textAlign: 'left',   borderBottom: `1px solid ${borderClr}`, color: accent, fontWeight: 600 }}>Category</th>
+              <th style={{ padding: '5px 8px', textAlign: 'right',  borderBottom: `1px solid ${borderClr}`, color: accent, fontWeight: 600 }}>Tonnage</th>
+              <th style={{ padding: '5px 8px', textAlign: 'right',  borderBottom: `1px solid ${borderClr}`, color: accent, fontWeight: 600 }}>Amount</th>
+              <th style={{ padding: '5px 8px', textAlign: 'right',  borderBottom: `1px solid ${borderClr}`, color: accent, fontWeight: 600 }}>LY Tonnage</th>
+              <th style={{ padding: '5px 8px', textAlign: 'right',  borderBottom: `1px solid ${borderClr}`, color: accent, fontWeight: 600 }}>LY Amount</th>
             </tr>
           </thead>
           <tbody>
-            {data.map((r, i) => (
-              <tr key={r.name} style={{ background: i % 2 === 0 ? rowEven : rowOdd }}>
-                <td style={{ padding: '4px 8px', color: titleClr, fontWeight: 500 }}>{r.name}</td>
-                <td style={{ padding: '4px 8px', textAlign: 'right', color: titleClr }}>{r.tonnage ?? r.value ?? 0}</td>
-                <td style={{ padding: '4px 8px', textAlign: 'right', color: titleClr }}>{r.amount ?? 0}</td>
-                <td style={{ padding: '4px 8px', textAlign: 'right', color: muted }}>{r.ly_tonnage ?? 0}</td>
-                <td style={{ padding: '4px 8px', textAlign: 'right', color: muted }}>{r.ly_amount ?? 0}</td>
-              </tr>
-            ))}
+            {pageRows.map((r, i) => {
+              const globalIdx = (page - 1) * rowsPerPage + i + 1;
+              return (
+                <tr key={r.name} style={{ background: i % 2 === 0 ? rowEven : rowOdd }}>
+                  <td style={{ padding: '4px 8px', textAlign: 'center', color: muted }}>{globalIdx}</td>
+                  <td style={{ padding: '4px 8px', color: titleClr, fontWeight: 500 }}>{r.name}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', color: titleClr }}>{r.tonnage ?? r.value ?? 0}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', color: titleClr }}>{r.amount ?? 0}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', color: titleClr }}>{r.ly_tonnage ?? 0}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', color: titleClr }}>{r.ly_amount ?? 0}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
+      </div>
+      {/* Pagination */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 10px', borderTop: `1px solid ${borderClr}`, background: headerBg, flexWrap: 'wrap', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ fontSize: '0.67rem', color: muted, fontWeight: 600 }}>Show</span>
+          <EntriesSelect
+            value={rowsPerPage}
+            onChange={(n) => { setRowsPerPage(n); setPage(1); }}
+            accent={accent}
+            isDarkMode={isDarkMode}
+            borderClr={borderClr}
+          />
+          <span style={{ fontSize: '0.67rem', color: muted, fontWeight: 600 }}>entries</span>
+          <span style={{ fontSize: '0.67rem', color: muted, marginLeft: 8 }}>
+            {data.length === 0 ? 'No data' : `Showing ${startNum} to ${endNum} of ${data.length}`}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {pgBtn(page <= 1, () => setPage(1), '«')}
+          {pgBtn(page <= 1, () => setPage(p => p - 1), '‹')}
+          {deduped.map((p, i) =>
+            p === '…'
+              ? <span key={`e${i}`} style={{ color: muted, fontSize: '0.72rem', padding: '0 2px' }}>…</span>
+              : <button key={p} onClick={() => setPage(p)} style={{
+                  background: p === page ? accent : 'transparent',
+                  color: p === page ? 'white' : titleClr,
+                  border: `1px solid ${p === page ? accent : borderClr}`,
+                  borderRadius: 5, padding: '2px 7px', fontSize: '0.72rem',
+                  cursor: 'pointer', fontWeight: p === page ? 700 : 400,
+                }}>{p}</button>
+          )}
+          {pgBtn(page >= totalPages, () => setPage(p => p + 1), '›')}
+          {pgBtn(page >= totalPages, () => setPage(totalPages), '»')}
+        </div>
       </div>
     </div>
   );
@@ -427,9 +647,16 @@ function DwTableCard({ title, data, basedon }) {
 
 const SHOP_RESTRICTED_ROLES = ['Distributor', 'Sales Man', 'Sales Executive', 'Asst. Manager Sales'];
 
-const DW_DAYSEL_OPTIONS  = ['yesterday','today','7days','30days','month','lmonth'].map(v => ({ value: v, label: v }));
+const DW_DAYSEL_OPTIONS  = [
+  { value: 'yesterday', label: 'Yesterday' },
+  { value: 'today',     label: 'Today' },
+  { value: '7days',     label: 'Last 7 Days' },
+  { value: '30days',    label: 'Last 30 Days' },
+  { value: 'month',     label: 'This Month' },
+  { value: 'lmonth',    label: 'Last Month' },
+];
 const DW_METHOD_OPTIONS  = [{ value: 'Distribution', label: 'Distribution' }, { value: 'Shops', label: 'Shops' }];
-const DW_COMPANY_OPTIONS = ['ALL','SBL','BALAJI'].map(v => ({ value: v, label: v }));
+const DW_COMPANY_OPTIONS = [{ value: 'SBL', label: 'SBL' }, { value: 'BALAJI', label: 'BALAJI' }];
 const DW_FILTER_OPTIONS  = ['Category group','Category','Code'].map(v => ({ value: v, label: v }));
 const DW_BASEDON_OPTIONS = ['Tonnage','Amount'].map(v => ({ value: v, label: v }));
 
@@ -456,7 +683,7 @@ export default function ChartsPage({ loggedInRolex }) {
   const [dwBasedon,         setDwBasedon]        = useState('Tonnage');
   const [dwDaysel,          setDwDaysel]          = useState('yesterday');
   const [dwMethod,          setDwMethod]          = useState('Distribution');
-  const [dwCompany,         setDwCompany]         = useState('ALL');
+  const [dwCompany,         setDwCompany]         = useState('SBL');
   const [dwFilter,          setDwFilter]          = useState('Category group');
   const [dwSellingTab,      setDwSellingTab]      = useState('topview');
   const [dwLevel1,          setDwLevel1]          = useState([]);
@@ -469,7 +696,12 @@ export default function ChartsPage({ loggedInRolex }) {
   const [dwClickedCategory, setDwClickedCategory] = useState(null);
   const [dwLevel4,          setDwLevel4]          = useState([]);
   const [dwL4Loading,       setDwL4Loading]       = useState(false);
+  const [dwL2LoadingVisible, setDwL2LoadingVisible] = useState(false);
+  const [dwL3LoadingVisible, setDwL3LoadingVisible] = useState(false);
+  const [dwL4LoadingVisible, setDwL4LoadingVisible] = useState(false);
   const [dwClickedItem,     setDwClickedItem]     = useState(null);
+  // Tracks filter values at last Apply — titles and drill-downs use these, not the live dropdown state
+  const [appliedDw, setAppliedDw] = useState({ daysel: 'yesterday', method: 'Distribution', company: 'SBL', filter: 'Category group', basedon: 'Tonnage' });
   const [graphDataAll,      setGraphDataAll]      = useState([]);
   const [yrFilterMode,      setYrFilterMode]      = useState('-Select-');
   const [yrFilterSub,       setYrFilterSub]       = useState('-Select-');
@@ -516,6 +748,9 @@ export default function ChartsPage({ loggedInRolex }) {
   const mwPieNumRef   = useRef(null);
   const mwPieTitles   = useRef({ t1: '', t2: '', t3: '' });
   const mwHbarTitle   = useRef('');
+  const dwL2LoadingTimer = useRef(null);
+  const dwL3LoadingTimer = useRef(null);
+  const dwL4LoadingTimer = useRef(null);
 
   useEffect(() => {
     const h = () => setIsMobile(window.innerWidth < 768);
@@ -545,6 +780,11 @@ export default function ChartsPage({ loggedInRolex }) {
   }, [multiyear, monthwisecompany, monthwisedisttype, employeename]);
 
   useEffect(() => { fetchGraphData(); }, [fetchGraphData]);
+
+  useEffect(() => {
+    if (chartTab === 'daywise' && employeename && dwLevel1.length === 0) fetchDwData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartTab, employeename]);
 
   const monthlyBarData = useMemo(() => {
     if (!graphData) return [];
@@ -640,74 +880,95 @@ export default function ChartsPage({ loggedInRolex }) {
     setDwL1Loading(false);
   }, [dwDaysel, dwMethod, dwCompany, dwBasedon, dwFilter, employeename]);
 
+  // Captures current dropdown values into appliedDw then fetches — titles/drill-downs use appliedDw
+  const handleDwApply = useCallback(() => {
+    setAppliedDw({ daysel: dwDaysel, method: dwMethod, company: dwCompany, filter: dwFilter, basedon: dwBasedon });
+    fetchDwData();
+  }, [dwDaysel, dwMethod, dwCompany, dwFilter, dwBasedon, fetchDwData]);
+
   const handleDwBarClick = useCallback(async (payload) => {
     if (!payload?.name) return;
     setDwClickedCatgroup(payload.name);
     setDwLevel2([]); setDwLevel3([]); setDwLevel4([]);
     setDwClickedCategory(null); setDwClickedItem(null);
+    clearTimeout(dwL3LoadingTimer.current);
+    clearTimeout(dwL4LoadingTimer.current);
+    setDwL3Loading(false); setDwL3LoadingVisible(false);
+    setDwL4Loading(false); setDwL4LoadingVisible(false);
+    dwL2LoadingTimer.current = setTimeout(() => setDwL2LoadingVisible(true), 150);
     setDwL2Loading(true);
     try {
-      const rows = await getGraphSellingDataByCategory({ label: payload.name, daysel: dwDaysel, method: dwMethod, company: dwCompany, basedon: dwBasedon });
+      const rows = await getGraphSellingDataByCategory({ label: payload.name, daysel: appliedDw.daysel, method: appliedDw.method, company: appliedDw.company, basedon: appliedDw.basedon });
       setDwLevel2(Array.isArray(rows) ? rows.map(r => ({
         name:       r.catgroup,
-        value:      parseFloat(dwBasedon === 'Tonnage' ? r.tonnage : r.amount) || 0,
+        value:      parseFloat(appliedDw.basedon === 'Tonnage' ? r.tonnage : r.amount) || 0,
         tonnage:    parseFloat(r.tonnage)    || 0,
         amount:     parseFloat(r.amount)     || 0,
         ly_tonnage: parseFloat(r.ly_tonnage) || 0,
         ly_amount:  parseFloat(r.ly_amount)  || 0,
       })) : []);
     } catch { setDwLevel2([]); }
+    clearTimeout(dwL2LoadingTimer.current);
+    setDwL2LoadingVisible(false);
     setDwL2Loading(false);
     scrollTo('dw-section2');
-  }, [dwDaysel, dwMethod, dwCompany, dwBasedon]);
+  }, [appliedDw]);
 
   const handleDwCategoryClick = useCallback(async (payload) => {
     if (!payload?.name) return;
     setDwClickedCategory(payload.name);
     setDwLevel3([]); setDwLevel4([]);
     setDwClickedItem(null);
+    clearTimeout(dwL4LoadingTimer.current);
+    setDwL4Loading(false); setDwL4LoadingVisible(false);
+    dwL3LoadingTimer.current = setTimeout(() => setDwL3LoadingVisible(true), 150);
     setDwL3Loading(true);
     try {
-      const rows = await getGraphSellingDataByItem({ catgory: dwClickedCatgroup, label: payload.name, daysel: dwDaysel, method: dwMethod, company: dwCompany, basedon: dwBasedon });
+      const rows = await getGraphSellingDataByItem({ catgory: dwClickedCatgroup, label: payload.name, daysel: appliedDw.daysel, method: appliedDw.method, company: appliedDw.company, basedon: appliedDw.basedon });
       setDwLevel3(Array.isArray(rows) ? rows.map(r => ({
         name:       r.catgroup,
-        value:      parseFloat(dwBasedon === 'Tonnage' ? r.tonnage : r.amount) || 0,
+        value:      parseFloat(appliedDw.basedon === 'Tonnage' ? r.tonnage : r.amount) || 0,
         tonnage:    parseFloat(r.tonnage)    || 0,
         amount:     parseFloat(r.amount)     || 0,
         ly_tonnage: parseFloat(r.ly_tonnage) || 0,
         ly_amount:  parseFloat(r.ly_amount)  || 0,
       })) : []);
     } catch { setDwLevel3([]); }
+    clearTimeout(dwL3LoadingTimer.current);
+    setDwL3LoadingVisible(false);
     setDwL3Loading(false);
     scrollTo('dw-section3');
-  }, [dwClickedCatgroup, dwDaysel, dwMethod, dwCompany, dwBasedon]);
+  }, [dwClickedCatgroup, appliedDw]);
 
   const handleDwItemClick = useCallback(async (payload) => {
     if (!payload?.name) return;
     setDwClickedItem(payload.name);
     setDwLevel4([]);
+    dwL4LoadingTimer.current = setTimeout(() => setDwL4LoadingVisible(true), 150);
     setDwL4Loading(true);
     try {
       const rows = await getGraphSellingDataByItem({
         catgory: dwClickedCatgroup,
         label:   payload.name,
-        daysel:  dwDaysel,
-        method:  dwMethod,
-        company: dwCompany,
-        basedon: dwBasedon,
+        daysel:  appliedDw.daysel,
+        method:  appliedDw.method,
+        company: appliedDw.company,
+        basedon: appliedDw.basedon,
       });
       setDwLevel4(Array.isArray(rows) ? rows.map(r => ({
         name:       r.catgroup,
-        value:      parseFloat(dwBasedon === 'Tonnage' ? r.tonnage : r.amount) || 0,
+        value:      parseFloat(appliedDw.basedon === 'Tonnage' ? r.tonnage : r.amount) || 0,
         tonnage:    parseFloat(r.tonnage)    || 0,
         amount:     parseFloat(r.amount)     || 0,
         ly_tonnage: parseFloat(r.ly_tonnage) || 0,
         ly_amount:  parseFloat(r.ly_amount)  || 0,
       })) : []);
     } catch { setDwLevel4([]); }
+    clearTimeout(dwL4LoadingTimer.current);
+    setDwL4LoadingVisible(false);
     setDwL4Loading(false);
     scrollTo('dw-section4');
-  }, [dwClickedCatgroup, dwDaysel, dwMethod, dwCompany, dwBasedon]);
+  }, [dwClickedCatgroup, appliedDw]);
 
   const handleZoom = (title, content) => setZoomChart({ title, content });
 
@@ -1026,33 +1287,49 @@ export default function ChartsPage({ loggedInRolex }) {
       {/* ── DAY WISE ── */}
       {chartTab === 'daywise' && (
         <>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: '1rem', padding: '0.6rem 0.75rem', background: filterBarBg, border: `1px solid ${filterBarBdr}`, borderRadius: 10 }}>
-            <Select options={DW_DAYSEL_OPTIONS} value={DW_DAYSEL_OPTIONS.find(o => o.value === dwDaysel)}
-              onChange={o => setDwDaysel(o.value)} styles={selStyles} isSearchable={false}
-              menuPortalTarget={document.body} menuPosition="fixed" placeholder="Period" />
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '1rem', padding: '0.65rem 0.85rem', background: filterBarBg, border: `1px solid ${filterBarBdr}`, borderRadius: 10 }}>
+            <div className="sr-sel-wrap">
+              <label className="sr-filter-label" style={{ color: isDarkMode ? '#94a3b8' : accent }}>Dates :</label>
+              <Select options={DW_DAYSEL_OPTIONS} value={DW_DAYSEL_OPTIONS.find(o => o.value === dwDaysel)}
+                onChange={o => setDwDaysel(o.value)} styles={selStyles} isSearchable={false}
+                menuPortalTarget={document.body} menuPosition="fixed" />
+            </div>
             {showShopsOption && (
-              <Select options={DW_METHOD_OPTIONS} value={DW_METHOD_OPTIONS.find(o => o.value === dwMethod)}
-                onChange={o => setDwMethod(o.value)} styles={selStyles} isSearchable={false}
-                menuPortalTarget={document.body} menuPosition="fixed" placeholder="Method" />
+              <div className="sr-sel-wrap">
+                <label className="sr-filter-label" style={{ color: isDarkMode ? '#94a3b8' : accent }}>Methods :</label>
+                <Select options={DW_METHOD_OPTIONS} value={DW_METHOD_OPTIONS.find(o => o.value === dwMethod)}
+                  onChange={o => setDwMethod(o.value)} styles={selStyles} isSearchable={false}
+                  menuPortalTarget={document.body} menuPosition="fixed" />
+              </div>
             )}
-            <Select options={DW_COMPANY_OPTIONS} value={DW_COMPANY_OPTIONS.find(o => o.value === dwCompany)}
-              onChange={o => setDwCompany(o.value)} styles={selStyles} isSearchable={false}
-              menuPortalTarget={document.body} menuPosition="fixed" placeholder="Company" />
-            <Select options={DW_FILTER_OPTIONS} value={DW_FILTER_OPTIONS.find(o => o.value === dwFilter)}
-              onChange={o => setDwFilter(o.value)} styles={selStyles} isSearchable={false}
-              menuPortalTarget={document.body} menuPosition="fixed" placeholder="Data View" />
-            <Select options={DW_BASEDON_OPTIONS} value={DW_BASEDON_OPTIONS.find(o => o.value === dwBasedon)}
-              onChange={o => setDwBasedon(o.value)} styles={selStyles} isSearchable={false}
-              menuPortalTarget={document.body} menuPosition="fixed" placeholder="Value" />
-            <button onClick={fetchDwData} disabled={dwL1Loading} style={{
+            <div className="sr-sel-wrap">
+              <label className="sr-filter-label" style={{ color: isDarkMode ? '#94a3b8' : accent }}>Company :</label>
+              <Select options={DW_COMPANY_OPTIONS} value={DW_COMPANY_OPTIONS.find(o => o.value === dwCompany)}
+                onChange={o => setDwCompany(o.value)} styles={selStyles} isSearchable={false}
+                menuPortalTarget={document.body} menuPosition="fixed" />
+            </div>
+            <div className="sr-sel-wrap">
+              <label className="sr-filter-label" style={{ color: isDarkMode ? '#94a3b8' : accent }}>Data View :</label>
+              <Select options={DW_FILTER_OPTIONS} value={DW_FILTER_OPTIONS.find(o => o.value === dwFilter)}
+                onChange={o => setDwFilter(o.value)} styles={selStyles} isSearchable={false}
+                menuPortalTarget={document.body} menuPosition="fixed" />
+            </div>
+            <div className="sr-sel-wrap">
+              <label className="sr-filter-label" style={{ color: isDarkMode ? '#94a3b8' : accent }}>Value :</label>
+              <Select options={DW_BASEDON_OPTIONS} value={DW_BASEDON_OPTIONS.find(o => o.value === dwBasedon)}
+                onChange={o => setDwBasedon(o.value)} styles={selStyles} isSearchable={false}
+                menuPortalTarget={document.body} menuPosition="fixed" />
+            </div>
+            <button onClick={handleDwApply} disabled={dwL1Loading} style={{
               background: `linear-gradient(135deg,${accent},${accent2})`,
               border: 'none', color: 'white', borderRadius: 6,
               padding: '0.35rem 1rem', fontSize: '0.78rem', fontWeight: 600,
               cursor: dwL1Loading ? 'not-allowed' : 'pointer', opacity: dwL1Loading ? 0.6 : 1,
+              alignSelf: 'flex-end',
             }}>
               {dwL1Loading ? 'Loading…' : 'Apply'}
             </button>
-            <div style={{ display: 'flex', gap: 4, background: isDarkMode ? '#0f172a' : '#f1f5f9', borderRadius: 8, padding: 3, alignSelf: 'center' }}>
+            <div style={{ display: 'flex', gap: 4, background: isDarkMode ? '#0f172a' : '#f1f5f9', borderRadius: 8, padding: 3, alignSelf: 'flex-end' }}>
               {[{ id: 'topview', label: 'Top Selling' }, { id: 'lowview', label: 'Low Selling' }].map(t => (
                 <button key={t.id} onClick={() => setDwSellingTab(t.id)} style={{
                   background: dwSellingTab === t.id ? accent : 'none',
@@ -1073,10 +1350,10 @@ export default function ChartsPage({ loggedInRolex }) {
               {dwL1Loading ? <LoaderOverlay text="Loading Day-Wise Data" /> : (
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
                   <DwTableCard
-                    title={`${dwCompany} ${dwMethod} Wise Overview (${dwDaysel})`}
-                    data={sortedDwLevel1} basedon={dwBasedon} />
-                  <HBarCard
-                    title={`${dwSellingTab === 'topview' ? 'Top' : 'Low'} Selling — ${dwFilter} (${dwBasedon}) [${dwDaysel}]`}
+                    title={`${appliedDw.company} ${appliedDw.method} Wise Overview (${appliedDw.daysel})`}
+                    data={sortedDwLevel1} basedon={appliedDw.basedon} />
+                  <MirroredHBarCard
+                    title={`${dwSellingTab === 'topview' ? 'Top' : 'Low'} Selling — ${appliedDw.filter} (${appliedDw.basedon}) [${appliedDw.daysel}]`}
                     data={sortedDwLevel1} onBarClick={handleDwBarClick} onZoom={handleZoom} />
                 </div>
               )}
@@ -1087,16 +1364,18 @@ export default function ChartsPage({ loggedInRolex }) {
           {(dwL2Loading || dwLevel2.length > 0) && (
             <motion.div id="dw-section2" style={{ marginBottom: 20 }}
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-              {dwL2Loading ? <LoaderOverlay text="Loading Breakdown" /> : (
+              {dwL2LoadingVisible ? (
+                <LoaderOverlay text="Generating Report" />
+              ) : dwLevel2.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
                   <DwTableCard
-                    title={`${dwCompany} ${dwMethod} And ${dwClickedCatgroup} Wise Overview (${dwDaysel})`}
-                    data={sortedDwLevel2} basedon={dwBasedon} />
-                  <HBarCard
-                    title={`Day Wise — ${dwClickedCatgroup} breakdown (${dwBasedon})`}
+                    title={`${appliedDw.company} ${appliedDw.method} And ${dwClickedCatgroup} Wise Overview (${appliedDw.daysel})`}
+                    data={sortedDwLevel2} basedon={appliedDw.basedon} />
+                  <MirroredHBarCard
+                    title={`Day Wise — ${dwClickedCatgroup} breakdown (${appliedDw.basedon})`}
                     data={sortedDwLevel2} onBarClick={handleDwCategoryClick} onZoom={handleZoom} />
                 </div>
-              )}
+              ) : null}
             </motion.div>
           )}
 
@@ -1104,16 +1383,18 @@ export default function ChartsPage({ loggedInRolex }) {
           {(dwL3Loading || dwLevel3.length > 0) && (
             <motion.div id="dw-section3" style={{ marginBottom: 20 }}
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-              {dwL3Loading ? <LoaderOverlay text="Loading Items" /> : (
+              {dwL3LoadingVisible ? (
+                <LoaderOverlay text="Generating Report" />
+              ) : dwLevel3.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
                   <DwTableCard
-                    title={`${dwCompany} ${dwMethod} And ${dwClickedCatgroup} and ${dwClickedCategory} Category Wise Overview (${dwDaysel})`}
-                    data={sortedDwLevel3} basedon={dwBasedon} />
-                  <HBarCard
-                    title={`Day Wise — ${dwClickedCatgroup} → ${dwClickedCategory} items (${dwBasedon})`}
+                    title={`${appliedDw.company} ${appliedDw.method} And ${dwClickedCatgroup} and ${dwClickedCategory} Category Wise Overview (${appliedDw.daysel})`}
+                    data={sortedDwLevel3} basedon={appliedDw.basedon} />
+                  <MirroredHBarCard
+                    title={`Day Wise — ${dwClickedCatgroup} → ${dwClickedCategory} items (${appliedDw.basedon})`}
                     data={sortedDwLevel3} onBarClick={handleDwItemClick} onZoom={handleZoom} />
                 </div>
-              )}
+              ) : null}
             </motion.div>
           )}
 
@@ -1121,21 +1402,23 @@ export default function ChartsPage({ loggedInRolex }) {
           {(dwL4Loading || dwLevel4.length > 0) && (
             <motion.div id="dw-section4" style={{ marginBottom: 20 }}
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-              {dwL4Loading ? <LoaderOverlay text="Loading Items" /> : (
+              {dwL4LoadingVisible ? (
+                <LoaderOverlay text="Generating Report" />
+              ) : dwLevel4.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
                   <DwTableCard
-                    title={`${dwCompany} ${dwMethod} — ${dwClickedCatgroup} → ${dwClickedCategory} → ${dwClickedItem} Items (${dwDaysel})`}
+                    title={`${appliedDw.company} ${appliedDw.method} — ${dwClickedCatgroup} → ${dwClickedCategory} → ${dwClickedItem} Items (${appliedDw.daysel})`}
                     data={sortedDwLevel4}
-                    basedon={dwBasedon}
+                    basedon={appliedDw.basedon}
                   />
-                  <HBarCard
-                    title={`Day Wise — ${dwClickedCatgroup} → ${dwClickedCategory} → ${dwClickedItem} (${dwBasedon})`}
+                  <MirroredHBarCard
+                    title={`Day Wise — ${dwClickedCatgroup} → ${dwClickedCategory} → ${dwClickedItem} (${appliedDw.basedon})`}
                     data={sortedDwLevel4}
                     onBarClick={null}
                     onZoom={handleZoom}
                   />
                 </div>
-              )}
+              ) : null}
             </motion.div>
           )}
 

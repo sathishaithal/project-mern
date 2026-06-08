@@ -5,9 +5,57 @@ import { AppDatePicker } from '../../../components/FormControls';
 import { useAuth } from '../../../context/AuthContext';
 import { useColorMode } from '../../../theme/ThemeContext';
 import { appLog } from '../../../config/appConfig';
+import Tooltip from '../../../components/ui/Tooltip';
 import './Sales.css';
 
-const ROWS_PER_PAGE = 50;
+const SS_ENTRIES_OPTIONS = [5, 10, 15, 20, 25, 50];
+
+function SSEntriesSelect({ value, onChange, accent, isDarkMode }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block', userSelect: 'none' }}>
+      <div onClick={() => setOpen(o => !o)} style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4,
+        padding: '2px 10px', borderRadius: 6,
+        border: `1.5px solid ${accent}`, background: isDarkMode ? '#1e293b' : '#fff',
+        color: accent, fontSize: '0.75rem', fontWeight: 700,
+        cursor: 'pointer', minWidth: 52, lineHeight: 1.6,
+      }}>
+        {value}
+        <span style={{ fontSize: '0.55rem', lineHeight: 1 }}>▼</span>
+      </div>
+      {open && (
+        <div style={{
+          position: 'absolute', bottom: '110%', left: 0,
+          background: isDarkMode ? '#1e293b' : '#fff',
+          border: `1.5px solid ${accent}`, borderRadius: 8,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+          zIndex: 999, minWidth: 60, overflow: 'hidden',
+        }}>
+          {SS_ENTRIES_OPTIONS.map(n => (
+            <div key={n} onClick={() => { onChange(n); setOpen(false); }}
+              style={{
+                padding: '5px 14px', fontSize: '0.75rem',
+                fontWeight: n === value ? 700 : 400,
+                color: n === value ? 'white' : (isDarkMode ? '#e2e8f0' : '#1e293b'),
+                background: n === value ? accent : 'transparent',
+                cursor: 'pointer', transition: 'background 0.12s',
+              }}
+              onMouseEnter={e => { if (n !== value) e.currentTarget.style.background = isDarkMode ? '#334155' : '#f1f5f9'; }}
+              onMouseLeave={e => { if (n !== value) e.currentTarget.style.background = 'transparent'; }}
+            >{n}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const toYMD = (d) => {
   const y = d.getFullYear();
@@ -33,8 +81,9 @@ function ShortSupplyTable({
   accent, accent2, cardBg, borderClr, textClr, mutedClr, isDarkMode, fontFamily,
   flipPicker,
 }) {
-  const [page, setPage] = useState(1);
-  useEffect(() => { setPage(1); }, [data]);
+  const [page, setPage]               = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
+  useEffect(() => { setPage(1); }, [data, rowsPerPage]);
 
   const totals = useMemo(() => ({
     order:    data.reduce((s, r) => s + (parseFloat(r.ordertonnage)          || 0), 0),
@@ -43,9 +92,27 @@ function ShortSupplyTable({
     lastYear: data.reduce((s, r) => s + (parseFloat(r.ly_shortsupplytonnage) || 0), 0),
   }), [data]);
 
-  const totalPages = Math.max(1, Math.ceil(data.length / ROWS_PER_PAGE));
-  const pagedRows  = data.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(data.length / rowsPerPage));
+  const pagedRows  = data.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  const startNum0  = data.length === 0 ? 0 : (page - 1) * rowsPerPage + 1;
+  const endNum0    = Math.min(page * rowsPerPage, data.length);
   const totalRowBg = `color-mix(in srgb, ${accent} 18%, ${isDarkMode ? '#1e293b' : '#e8eaf6'})`;
+
+  const pgBtn = (disabled, onClick, label) => (
+    <button onClick={onClick} disabled={disabled} style={{
+      background: disabled ? 'transparent' : accent,
+      color: disabled ? mutedClr : 'white',
+      border: `1px solid ${disabled ? borderClr : accent}`,
+      borderRadius: 5, padding: '2px 8px', fontSize: '0.72rem',
+      cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 600,
+    }}>{label}</button>
+  );
+  const pageNums = [];
+  for (let p = 1; p <= totalPages; p++) {
+    if (p === 1 || p === totalPages || Math.abs(p - page) <= 1) pageNums.push(p);
+    else if (Math.abs(p - page) === 2) pageNums.push('…');
+  }
+  const deduped = pageNums.filter((v, i, a) => v !== '…' || a[i - 1] !== '…');
 
   const labelStyle = {
     fontWeight: 600, fontSize: '0.72rem', color: mutedClr,
@@ -156,10 +223,16 @@ function ShortSupplyTable({
                     <td colSpan={6} className="ss-td" style={{ textAlign: 'center', padding: '3rem' }}>No data</td>
                   </tr>
                 ) : pagedRows.map((row, idx) => {
-                  const globalNum = (page - 1) * ROWS_PER_PAGE + idx + 1;
-                  const evenBg = isDarkMode ? '#1e293b' : '#ffffff';
-                  const oddBg  = isDarkMode ? '#192233' : '#f8fafc';
-                  const rowBg  = idx % 2 === 0 ? evenBg : oddBg;
+                  const globalNum  = (page - 1) * rowsPerPage + idx + 1;
+                  const evenBg     = isDarkMode ? '#1e293b' : '#ffffff';
+                  const oddBg      = isDarkMode ? '#192233' : '#f8fafc';
+                  const rowBg      = idx % 2 === 0 ? evenBg : oddBg;
+                  const curVal     = parseFloat(row.shortsupplytonnage    || 0);
+                  const lyVal      = parseFloat(row.ly_shortsupplytonnage || 0);
+                  const diffVal    = curVal - lyVal;
+                  const isUp       = diffVal > 0.0005;
+                  const isDown     = diffVal < -0.0005;
+                  const lyTooltip = `Current : ${curVal.toFixed(3)}\nLast Year : ${lyVal.toFixed(3)}\nDifference : ${isUp ? '+' : ''}${diffVal.toFixed(3)} ${isUp ? '↑' : isDown ? '↓' : ''}`.trim();
                   return (
                     <tr
                       key={row.id ?? globalNum}
@@ -171,10 +244,18 @@ function ShortSupplyTable({
                       <td className="ss-td" style={{ textAlign: 'left', color: textClr, fontWeight: 500, whiteSpace: 'normal' }}>
                         {row.description}
                       </td>
-                      <td className="ss-td">{parseFloat(row.ordertonnage          || 0).toFixed(3)}</td>
-                      <td className="ss-td">{parseFloat(row.supplytonnage          || 0).toFixed(3)}</td>
-                      <td className="ss-td">{parseFloat(row.shortsupplytonnage     || 0).toFixed(3)}</td>
-                      <td className="ss-td">{parseFloat(row.ly_shortsupplytonnage  || 0).toFixed(3)}</td>
+                      <td className="ss-td">{parseFloat(row.ordertonnage  || 0).toFixed(3)}</td>
+                      <td className="ss-td">{parseFloat(row.supplytonnage || 0).toFixed(3)}</td>
+                      <td className="ss-td">{curVal.toFixed(3)}</td>
+                      <td className="ss-td">
+                        <Tooltip content={lyTooltip}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, cursor: 'default' }}>
+                            {isUp   && <span style={{ color: '#c62828', fontWeight: 700, fontSize: '0.72rem', lineHeight: 1, marginRight: 2 }}>▲</span>}
+                            {isDown && <span style={{ color: '#2e7d32', fontWeight: 700, fontSize: '0.72rem', lineHeight: 1, marginRight: 2 }}>▼</span>}
+                            {lyVal.toFixed(3)}
+                          </span>
+                        </Tooltip>
+                      </td>
                     </tr>
                   );
                 })}
@@ -195,30 +276,42 @@ function ShortSupplyTable({
           )}
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div
-            className="ss-pagination"
-            style={{ borderTop: `1px solid ${borderClr}`, background: isDarkMode ? '#0f172a' : '#f8fafc' }}
-          >
-            <button
-              className="ss-pg-btn"
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              style={{ fontSize: '0.74rem', fontFamily }}
-            >← Prev</button>
-            <span style={{ fontSize: '0.76rem', color: mutedClr, fontWeight: 600 }}>
-              Page {page} of {totalPages}
-              <span style={{ marginLeft: 6, opacity: 0.65 }}>({data.length} rows)</span>
-            </span>
-            <button
-              className="ss-pg-btn"
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              style={{ fontSize: '0.74rem', fontFamily }}
-            >Next →</button>
+        {/* Pagination — always visible for Show entries control */}
+        <div
+          className="ss-pagination"
+          style={{ borderTop: `1px solid ${borderClr}`, background: isDarkMode ? '#0f172a' : '#f8fafc', flexWrap: 'wrap', gap: 6 }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ fontSize: '0.72rem', color: mutedClr, fontWeight: 600 }}>Show</span>
+            <SSEntriesSelect
+              value={rowsPerPage}
+              onChange={(n) => { setRowsPerPage(n); setPage(1); }}
+              accent={accent}
+              isDarkMode={isDarkMode}
+            />
+            <span style={{ fontSize: '0.72rem', color: mutedClr, fontWeight: 600 }}>entries</span>
           </div>
-        )}
+          <span style={{ fontSize: '0.72rem', color: mutedClr, fontWeight: 600 }}>
+            {data.length === 0 ? 'No data' : `Showing ${startNum0} to ${endNum0} of ${data.length}`}
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {pgBtn(page <= 1, () => setPage(1), '«')}
+            {pgBtn(page <= 1, () => setPage(p => p - 1), '‹')}
+            {deduped.map((p, i) =>
+              p === '…'
+                ? <span key={`e${i}`} style={{ color: mutedClr, fontSize: '0.72rem', padding: '0 2px' }}>…</span>
+                : <button key={p} onClick={() => setPage(p)} style={{
+                    background: p === page ? accent : 'transparent',
+                    color: p === page ? 'white' : textClr,
+                    border: `1px solid ${p === page ? accent : borderClr}`,
+                    borderRadius: 5, padding: '2px 7px', fontSize: '0.72rem',
+                    cursor: 'pointer', fontWeight: p === page ? 700 : 400,
+                  }}>{p}</button>
+            )}
+            {pgBtn(page >= totalPages, () => setPage(p => p + 1), '›')}
+            {pgBtn(page >= totalPages, () => setPage(totalPages), '»')}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -289,7 +382,7 @@ export default function ShortSupplyPage() {
     showToast('Loading', 'Fetching short supply data...', 'info');
     getShortSupplyByCategory({ fromdate: leftFrom, todate: leftTo, employeename: user?.username })
       .then(data => {
-        const arr = Array.isArray(data) ? data : [];
+        const arr = (Array.isArray(data) ? data : []).filter(r => r.description !== 'Total');
         setLeftData([...arr].sort((a, b) => (parseFloat(b.shortsupplytonnage) || 0) - (parseFloat(a.shortsupplytonnage) || 0)));
         setLeftLoading(false);
         showToast('Success', 'Data loaded successfully!', 'success');
@@ -309,7 +402,7 @@ export default function ShortSupplyPage() {
     showToast('Loading', 'Fetching short supply data...', 'info');
     getShortSupplyByCategory({ fromdate: rightFrom, todate: rightTo, employeename: user?.username })
       .then(data => {
-        const arr = Array.isArray(data) ? data : [];
+        const arr = (Array.isArray(data) ? data : []).filter(r => r.description !== 'Total');
         setRightData([...arr].sort((a, b) => (parseFloat(a.shortsupplytonnage) || 0) - (parseFloat(b.shortsupplytonnage) || 0)));
         setRightLoading(false);
         showToast('Success', 'Data loaded successfully!', 'success');
