@@ -19,7 +19,7 @@ import {
   getFifthLevelDispatch,
   getSixthLevelDispatch,
 } from '../../../services/salesDashboardApi';
-import { fmt, fmtDate } from '../../../utils/salesFormatters';
+import { fmt, fmtR, fmtDate } from '../../../utils/salesFormatters';
 import { useAuth } from '../../../context/AuthContext';
 import { useSalesSelectStyles } from './filters/useSalesSelectStyles';
 import { appLog } from '../../../config/appConfig';
@@ -226,11 +226,12 @@ function CellTooltip({ className, style, title, thisYear, lastYear, formula, uni
 
 const MonthCell = ({ row, rows, rowIdx, level, mKey, mLyKey, accent, isDarkMode, isSummary }) => {
   const isL0Summary = isSummary && level === 0;
+  const f = level === 0 ? fmtR : fmt;
   const diff = isL0Summary ? l0diff(rows, rowIdx, mKey) : subDiff(row, mKey, mLyKey);
   if (!isSummary) {
     return (
       <td className="sr-td">
-        <div style={{ fontWeight: 500, color: 'var(--sales-text, #1e293b)' }}>{fmt(row[mKey])}</div>
+        <div style={{ fontWeight: 500, color: 'var(--sales-text, #1e293b)' }}>{f(row[mKey])}</div>
         <ArrowIcon diff={diff} />
       </td>
     );
@@ -243,12 +244,12 @@ const MonthCell = ({ row, rows, rowIdx, level, mKey, mLyKey, accent, isDarkMode,
     <CellTooltip
       className="sr-td"
       title={`${label} Tonnage`}
-      thisYear={fmt(row[mKey])}
-      lastYear={lyVal !== undefined && lyVal !== null && lyVal !== '' ? fmt(lyVal) : undefined}
+      thisYear={f(row[mKey])}
+      lastYear={lyVal !== undefined && lyVal !== null && lyVal !== '' ? f(lyVal) : undefined}
       accent={accent}
       isDarkMode={isDarkMode}
     >
-      <div style={{ fontWeight: 500, color: 'var(--sales-text, #1e293b)' }}>{fmt(row[mKey])}</div>
+      <div style={{ fontWeight: 500, color: 'var(--sales-text, #1e293b)' }}>{f(row[mKey])}</div>
       <ArrowIcon diff={diff} />
     </CellTooltip>
   );
@@ -256,11 +257,12 @@ const MonthCell = ({ row, rows, rowIdx, level, mKey, mLyKey, accent, isDarkMode,
 
 const QuarterCell = ({ row, rows, rowIdx, level, qKey, accent, isDarkMode, isSummary }) => {
   const isL0Summary = isSummary && level === 0;
+  const f = level === 0 ? fmtR : fmt;
   const diff = isL0Summary ? l0diff(rows, rowIdx, qKey) : subDiff(row, qKey, qKey + '_last');
   if (!isSummary) {
     return (
       <td className="sr-td" style={{ fontWeight: 700, textAlign: 'center' }}>
-        <div>{fmt(row[qKey])}</div>
+        <div>{f(row[qKey])}</div>
         <ArrowIcon diff={diff} />
       </td>
     );
@@ -273,12 +275,12 @@ const QuarterCell = ({ row, rows, rowIdx, level, qKey, accent, isDarkMode, isSum
       className="sr-td"
       style={{ fontWeight: 700, textAlign: 'center' }}
       title={`${qKey} Total`}
-      thisYear={fmt(row[qKey])}
-      lastYear={lyVal !== undefined && lyVal !== null && lyVal !== '' ? fmt(lyVal) : undefined}
+      thisYear={f(row[qKey])}
+      lastYear={lyVal !== undefined && lyVal !== null && lyVal !== '' ? f(lyVal) : undefined}
       accent={accent}
       isDarkMode={isDarkMode}
     >
-      <div>{fmt(row[qKey])}</div>
+      <div>{f(row[qKey])}</div>
       <ArrowIcon diff={diff} />
     </CellTooltip>
   );
@@ -286,33 +288,74 @@ const QuarterCell = ({ row, rows, rowIdx, level, qKey, accent, isDarkMode, isSum
 
 const numColor = (v) => (v === null || v === undefined) ? '#94a3b8' : v >= 0 ? '#2e7d32' : '#c62828';
 
-const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMode, isSummary }) => {
+const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMode, isSummary, allSummaryRows, isMultiYear }) => {
+  const f = level === 0 ? fmtR : fmt;
+  // For non-summary L0 rows with multiple years selected, the row is a multi-year aggregate;
+  // _last fields are summed across all years → "last year" comparison is meaningless, suppress it.
+  // Single-year selection: _last fields are valid prior-year data — show comparison normally.
+  const isNonSummaryL0 = !isSummary && level === 0 && isMultiYear;
   const tillLast = (parseFloat(row.ttltonnage_crnt) || 0) - (parseFloat(row.currentmonthtonnage) || 0);
-  let ytdGr = null;
-  let lyYtd = null;
+
+  // YTD Gr/Degr: L0 rowN>0 → row-to-row diff; L0 row0 → hidden prior-year full YTD; L1+ → _last fields
+  // API quirk: hidden prior-year row has ttltonnage_crnt = current month only (not full YTD).
+  // Full YTD for hidden prior year = ttltonnage (up-to-last-month sum) + currentmonthtonnage.
+  const lyYtd = GROUPS.flatMap(g => g.months.map(m => parseFloat(row[m.lyKey]) || 0)).reduce((s, v) => s + v, 0);
+  let ytdGr;
+  let ytdGrBase;
   if (isSummary && level === 0) {
-    if (rowIdx > 0) ytdGr = (parseFloat(row.ttltonnage_crnt) || 0) - (parseFloat(rows[rowIdx - 1].ttltonnage_crnt) || 0);
+    if (rowIdx > 0) {
+      ytdGrBase = parseFloat(rows[rowIdx - 1].ttltonnage_crnt) || 0;
+    } else {
+      const prevYrRow = allSummaryRows?.find(r => String(r.year) === String(parseInt(row.year, 10) - 1));
+      ytdGrBase = prevYrRow
+        ? (parseFloat(prevYrRow.ttltonnage) || 0) + (parseFloat(prevYrRow.currentmonthtonnage) || 0)
+        : lyYtd;
+    }
+    ytdGr = (parseFloat(row.ttltonnage_crnt) || 0) - ytdGrBase;
   } else {
-    lyYtd = GROUPS.flatMap(g => g.months.map(m => parseFloat(row[m.lyKey]) || 0)).reduce((s, v) => s + v, 0);
+    ytdGrBase = lyYtd;
     ytdGr = (parseFloat(row.ttltonnage_crnt) || 0) - lyYtd;
   }
-  const ytdBase  = parseFloat(row.ttltonnagewy) || 0;
-  const ytdPct   = (ytdGr !== null && ytdBase !== 0) ? (ytdGr / Math.abs(ytdBase) * 100) : null;
-  const yoyVal   = parseFloat(row.ttltonnage_crntwy) || 0;
-  let yoyGr = null;
-  if (isSummary && level === 0) {
-    if (rowIdx > 0) yoyGr = yoyVal - (parseFloat(rows[rowIdx - 1].ttltonnagewy) || 0);
-  } else {
-    yoyGr = yoyVal - (parseFloat(row.ttltonnagewy) || 0);
-  }
-  const yoyPct   = (yoyGr !== null && ytdBase !== 0) ? (yoyGr / Math.abs(ytdBase) * 100) : null;
+
+  // YTD %: current month vs previous year's equivalent month — mirrors Angular CastNumber_per_per
+  // L0 Summary: API does not return currentmonthtonnage_last; find prev-year row by year number (Angular approach)
+  // Use allSummaryRows (full API list) so the hidden prior year (e.g. 2023 when user selects 2025+2024) is found
+  // L1+ / non-summary: API provides currentmonthtonnage_last directly
   const curMon   = parseFloat(row.currentmonthtonnage) || 0;
-  const curMonLy = (isSummary && level === 0)
-    ? (rowIdx > 0 ? parseFloat(rows[rowIdx - 1].currentmonthtonnage) || 0 : 0)
-    : parseFloat(row.currentmonthtonnage_last) || 0;
+  const curMonLy = parseFloat(row.currentmonthtonnage_last) || 0;
+  let prevMonForPct = 0;
+  if (isSummary && level === 0) {
+    const prevYearRow = (allSummaryRows || rows).find(r => String(r.year) === String(parseInt(row.year, 10) - 1));
+    prevMonForPct = prevYearRow
+      ? (parseFloat(prevYearRow.currentmonthtonnage_last) || parseFloat(prevYearRow.currentmonthtonnage) || 0)
+      : 0;
+  } else {
+    prevMonForPct = curMonLy;
+  }
+  const ytdPct = prevMonForPct !== 0 ? ((curMon - prevMonForPct) / Math.abs(prevMonForPct) * 100) : null;
+
+  const yoyVal   = parseFloat(row.ttltonnage_crntwy) || 0;
   const ttlYtd   = parseFloat(row.ttltonnage_crnt) || 0;
   const ttlYoy   = parseFloat(row.ttltonnage_crntwy) || 0;
   const ttlYoyLy = parseFloat(row.ttltonnagewy) || 0;
+
+  // YOY Gr/Degr and %: use the same base for both so % is never zero when Gr/Degr is non-zero
+  let yoyGr = null;
+  let yoyBase = 0;
+  if (isSummary && level === 0) {
+    if (rowIdx > 0) {
+      yoyBase = parseFloat(rows[rowIdx - 1].ttltonnagewy) || 0;
+    } else {
+      // First selected year: rows doesn't include the prior year; look it up in allSummaryRows (full API list)
+      const prevYrRow = allSummaryRows?.find(r => String(r.year) === String(parseInt(row.year, 10) - 1));
+      yoyBase = prevYrRow ? (parseFloat(prevYrRow.ttltonnagewy) || 0) : 0;
+    }
+    yoyGr = yoyBase !== 0 ? yoyVal - yoyBase : null;
+  } else {
+    yoyBase = ttlYoyLy;
+    yoyGr = yoyVal - yoyBase;
+  }
+  const yoyPct   = (yoyGr !== null && yoyBase !== 0) ? (yoyGr / Math.abs(yoyBase) * 100) : null;
 
   return (
     <>
@@ -322,15 +365,15 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
           className="sr-td"
           style={{ fontWeight: 600 }}
           title="Till Last Month"
-          thisYear={fmt(tillLast)}
-          formula={`Total YTD − Current Month\n= ${fmt(ttlYtd)} − ${fmt(curMon)}`}
+          thisYear={f(tillLast)}
+          formula={`Total YTD − Current Month\n= ${f(ttlYtd)} − ${f(curMon)}`}
           accent={accent} isDarkMode={isDarkMode}
         >
-          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{fmt(tillLast)}</div>
+          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(tillLast)}</div>
         </CellTooltip>
       ) : (
         <td className="sr-td" style={{ fontWeight: 600 }}>
-          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{fmt(tillLast)}</div>
+          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(tillLast)}</div>
         </td>
       ))}
 
@@ -340,20 +383,16 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
           className="sr-td"
           style={{ fontWeight: 600 }}
           title="Current Month"
-          thisYear={fmt(row.currentmonthtonnage)}
-          lastYear={
-            (isSummary && level === 0)
-              ? (rowIdx > 0 ? fmt(curMonLy) : undefined)
-              : (curMonLy > 0 && curMonLy < curMon * 1000 ? fmt(curMonLy) : undefined)
-          }
+          thisYear={f(row.currentmonthtonnage)}
+          lastYear={(curMonLy > 0 ? f(curMonLy) : undefined)}
           accent={accent} isDarkMode={isDarkMode}
         >
-          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{fmt(row.currentmonthtonnage)}</div>
+          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(row.currentmonthtonnage)}</div>
           <ArrowIcon diff={l0diff(rows, rowIdx, 'currentmonthtonnage')} />
         </CellTooltip>
       ) : (
         <td className="sr-td" style={{ fontWeight: 600 }}>
-          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{fmt(row.currentmonthtonnage)}</div>
+          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(row.currentmonthtonnage)}</div>
           <ArrowIcon diff={subDiff(row, 'currentmonthtonnage', 'currentmonthtonnage_last')} />
         </td>
       )}
@@ -364,33 +403,33 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
           className="sr-td"
           style={{ fontWeight: 700 }}
           title="Total (YTD)"
-          thisYear={fmt(row.ttltonnage_crnt)}
-          lastYear={level === 0 ? undefined : (lyYtd !== null ? fmt(lyYtd) : undefined)}
+          thisYear={f(row.ttltonnage_crnt)}
+          lastYear={ytdGrBase > 0 ? f(ytdGrBase) : undefined}
           formula="Year-to-date total tonnage"
           accent={accent} isDarkMode={isDarkMode}
         >
-          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{fmt(row.ttltonnage_crnt)}</div>
+          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(row.ttltonnage_crnt)}</div>
           {ytdGr !== null && <ArrowIcon diff={ytdGr} />}
         </CellTooltip>
       ) : (
         <td className="sr-td" style={{ fontWeight: 700 }}>
-          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{fmt(row.ttltonnage_crnt)}</div>
+          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(row.ttltonnage_crnt)}</div>
           {ytdGr !== null && <ArrowIcon diff={ytdGr} />}
         </td>
       )}
       <CellTooltip
         className="sr-td"
         title="YTD Growth / Degrowth"
-        formula={`Current YTD − Last Year YTD\n= ${fmt(ttlYtd)} − ${fmt(ytdBase)}\n= ${fmt(ytdGr ?? 0)}`}
+        formula={isNonSummaryL0 ? `Multi-year aggregate (sum of all selected years)\nCurrent YTD − Prev Year YTD\n= ${f(ttlYtd)} − ${f(ytdGrBase)}\n= ${f(ytdGr ?? 0)}` : `Current YTD − Prev Year YTD\n= ${f(ttlYtd)} − ${f(ytdGrBase)}\n= ${f(ytdGr ?? 0)}`}
         accent={accent} isDarkMode={isDarkMode}
       >
-        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{`${(ytdGr ?? 0) > 0 ? '+' : ''}${fmt(ytdGr ?? 0)}`}</div>
+        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(ytdGr ?? 0)}</div>
         <ArrowIcon diff={ytdGr ?? 0} />
       </CellTooltip>
       <CellTooltip
         className="sr-td"
         title="YTD %"
-        formula={`(YTD Gr/Degr ÷ Last Year YTD) × 100\n= (${fmt(ytdGr ?? 0)} ÷ ${fmt(ytdBase)}) × 100\n= ${(ytdPct ?? 0).toFixed(1)}%`}
+        formula={isNonSummaryL0 ? `Multi-year aggregate (sum of all selected years)\n(Current Month − Prev Year Month) ÷ Prev Year Month × 100\n= (${f(curMon)} − ${f(curMonLy)}) ÷ ${f(curMonLy)} × 100\n= ${(ytdPct ?? 0).toFixed(1)}%` : `(Current Month − Prev Year Month) ÷ Prev Year Month × 100\n= (${f(curMon)} − ${f(prevMonForPct)}) ÷ ${f(prevMonForPct)} × 100\n= ${(ytdPct ?? 0).toFixed(1)}%`}
         accent={accent} isDarkMode={isDarkMode}
       >
         <div style={{ color: 'var(--sales-text, #1e293b)' }}>{`${(ytdPct ?? 0).toFixed(1)}%`}</div>
@@ -400,26 +439,26 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
         className="sr-td"
         style={{ fontWeight: 700 }}
         title="Total (YOY)"
-        thisYear={fmt(ttlYoy)}
-        lastYear={fmt(ttlYoyLy)}
+        thisYear={f(ttlYoy)}
+        lastYear={(!isNonSummaryL0 && yoyBase > 0) ? f(yoyBase) : undefined}
         formula="Full year comparison (same period)"
         accent={accent} isDarkMode={isDarkMode}
       >
-        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{fmt(yoyVal)}</div>
+        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(yoyVal)}</div>
       </CellTooltip>
       <CellTooltip
         className="sr-td"
         title="YOY Growth / Degrowth"
-        formula={`Current YOY − Last Year YOY\n= ${fmt(ttlYoy)} − ${fmt(ttlYoyLy)}\n= ${fmt(yoyGr ?? 0)}`}
+        formula={isNonSummaryL0 ? `Multi-year aggregate (sum of all selected years)\nCurrent YOY − Last Year YOY\n= ${f(ttlYoy)} − ${f(yoyBase)}\n= ${f(yoyGr ?? 0)}` : `Current YOY − Last Year YOY\n= ${f(ttlYoy)} − ${f(yoyBase)}\n= ${f(yoyGr ?? 0)}`}
         accent={accent} isDarkMode={isDarkMode}
       >
-        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{`${(yoyGr ?? 0) > 0 ? '+' : ''}${fmt(yoyGr ?? 0)}`}</div>
+        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(yoyGr ?? 0)}</div>
         <ArrowIcon diff={yoyGr ?? 0} />
       </CellTooltip>
       <CellTooltip
         className="sr-td"
         title="YOY %"
-        formula={`(YOY Gr/Degr ÷ Last Year YOY) × 100\n= (${fmt(yoyGr ?? 0)} ÷ ${fmt(ttlYoyLy)}) × 100\n= ${(yoyPct ?? 0).toFixed(1)}%`}
+        formula={isNonSummaryL0 ? `Multi-year aggregate (sum of all selected years)\n(YOY Gr/Degr ÷ Last Year YOY) × 100\n= (${f(yoyGr ?? 0)} ÷ ${f(yoyBase)}) × 100\n= ${(yoyPct ?? 0).toFixed(1)}%` : `(YOY Gr/Degr ÷ Last Year YOY) × 100\n= (${f(yoyGr ?? 0)} ÷ ${f(yoyBase)}) × 100\n= ${(yoyPct ?? 0).toFixed(1)}%`}
         accent={accent} isDarkMode={isDarkMode}
       >
         <div style={{ color: 'var(--sales-text, #1e293b)' }}>{`${(yoyPct ?? 0).toFixed(1)}%`}</div>
@@ -436,7 +475,7 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
   monthwisecompany, monthwisedisttype, employeename, tab,
   expanded, drillData, drillLoading, onExpand, onCollapse,
   expandedYear, onYearExpand, onYearCollapse, yearRowsEnabled,
-  getLabel, l0Bg, isDarkMode, accent, nameColWidth = 160 }) {
+  getLabel, l0Bg, isDarkMode, accent, nameColWidth = 160, allSummaryRows, isMultiYear }) {
   const dataRows = rows.filter(r => !isGrandTotal(r));
   const effectiveParent = parentRows ? parentRows.filter(r => !isGrandTotal(r)) : dataRows;
   return dataRows.map((row, i) => {
@@ -544,7 +583,7 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
             <QuarterCell key={g.qKey} row={row} rows={effectiveParent} rowIdx={i} level={level} qKey={g.qKey} accent={accent} isDarkMode={isDarkMode} isSummary={isSummary} />,
           ])}
 
-          <SummaryCells row={row} rows={effectiveParent} rowIdx={i} level={level} showTillLast={showTillLast} accent={accent} isDarkMode={isDarkMode} isSummary={isSummary} />
+          <SummaryCells row={row} rows={effectiveParent} rowIdx={i} level={level} showTillLast={showTillLast} accent={accent} isDarkMode={isDarkMode} isSummary={isSummary} allSummaryRows={allSummaryRows} isMultiYear={isMultiYear} />
         </tr>
 
         {yearOpen && yearChildren.length > 0 && (
@@ -558,7 +597,7 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
             expandedYear={expandedYear} onYearExpand={onYearExpand} onYearCollapse={onYearCollapse}
             yearRowsEnabled={false}
             getLabel={getLabel} l0Bg={l0Bg}
-            isDarkMode={isDarkMode} accent={accent} nameColWidth={nameColWidth}
+            isDarkMode={isDarkMode} accent={accent} nameColWidth={nameColWidth} allSummaryRows={allSummaryRows} isMultiYear={isMultiYear}
           />
         )}
 
@@ -573,7 +612,7 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
             expandedYear={expandedYear} onYearExpand={onYearExpand} onYearCollapse={onYearCollapse}
             yearRowsEnabled={yearRowsEnabled}
             getLabel={getLabel} l0Bg={l0Bg}
-            isDarkMode={isDarkMode} accent={accent} nameColWidth={nameColWidth}
+            isDarkMode={isDarkMode} accent={accent} nameColWidth={nameColWidth} allSummaryRows={allSummaryRows} isMultiYear={isMultiYear}
           />
         )}
       </React.Fragment>
@@ -581,7 +620,7 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
   });
 }
 
-function GrandTotalRow({ rows, expandedQuarters, isSummary, showTillLast, accent, nameColWidth = 160 }) {
+function GrandTotalRow({ rows, expandedQuarters, isSummary, showTillLast, accent, nameColWidth = 160, allSummaryRows }) {
   const gt = useMemo(() => {
     const r = {};
     ALL_NUM_KEYS.forEach(k => { r[k] = rows.reduce((s, row) => s + (parseFloat(row[k]) || 0), 0); });
@@ -592,6 +631,52 @@ function GrandTotalRow({ rows, expandedQuarters, isSummary, showTillLast, accent
   const gtBg     = accent ? `color-mix(in srgb, ${accent} 60%, #050505)` : '#1e293b';
   const gtBorder = accent ? `color-mix(in srgb, ${accent} 40%, #000000)` : '#334155';
 
+  // Compute aggregate growth values for summary tab (mirrors SummaryCells logic per-row, then sums)
+  const gtGrowth = useMemo(() => {
+    if (!isSummary || rows.length === 0) return null;
+    let totalYtdGr = 0, totalCurMon = 0, totalPrevMon = 0, totalYoyGr = 0, totalYoyBase = 0;
+    rows.forEach((row, rowIdx) => {
+      // YTD Gr/Degr base — mirrors SummaryCells exactly
+      let ytdGrBase;
+      if (rowIdx > 0) {
+        ytdGrBase = parseFloat(rows[rowIdx - 1].ttltonnage_crnt) || 0;
+      } else {
+        const prevYrRow = allSummaryRows?.find(r => String(r.year) === String(parseInt(row.year, 10) - 1));
+        ytdGrBase = prevYrRow
+          ? (parseFloat(prevYrRow.ttltonnage) || 0) + (parseFloat(prevYrRow.currentmonthtonnage) || 0)
+          : GROUPS.flatMap(g => g.months.map(m => parseFloat(row[m.lyKey]) || 0)).reduce((s, v) => s + v, 0);
+      }
+      totalYtdGr += (parseFloat(row.ttltonnage_crnt) || 0) - ytdGrBase;
+
+      // YTD % — current month vs prior year current month
+      const curMon = parseFloat(row.currentmonthtonnage) || 0;
+      const prevYrRowForPct = (allSummaryRows || rows).find(r => String(r.year) === String(parseInt(row.year, 10) - 1));
+      const prevMon = prevYrRowForPct
+        ? (parseFloat(prevYrRowForPct.currentmonthtonnage_last) || parseFloat(prevYrRowForPct.currentmonthtonnage) || 0)
+        : 0;
+      totalCurMon += curMon;
+      totalPrevMon += prevMon;
+
+      // YOY Gr/Degr base
+      let yoyBase;
+      if (rowIdx > 0) {
+        yoyBase = parseFloat(rows[rowIdx - 1].ttltonnagewy) || 0;
+      } else {
+        const prevYrRow = allSummaryRows?.find(r => String(r.year) === String(parseInt(row.year, 10) - 1));
+        yoyBase = prevYrRow ? (parseFloat(prevYrRow.ttltonnagewy) || 0) : 0;
+      }
+      const yoyVal = parseFloat(row.ttltonnage_crntwy) || 0;
+      if (yoyBase !== 0) totalYoyGr += yoyVal - yoyBase;
+      totalYoyBase += yoyBase;
+    });
+
+    const ytdPct = totalPrevMon !== 0 ? ((totalCurMon - totalPrevMon) / Math.abs(totalPrevMon) * 100) : null;
+    const yoyPct = totalYoyBase !== 0 ? (totalYoyGr / Math.abs(totalYoyBase) * 100) : null;
+    return { totalYtdGr, ytdPct, totalYoyGr, yoyPct };
+  }, [rows, allSummaryRows, isSummary]);
+
+  const gClr = (v) => v == null ? 'rgba(255,255,255,0.55)' : v >= 0 ? '#86efac' : '#fca5a5';
+
   return (
     <tr style={{ background: gtBg, borderTop: `2px solid ${gtBorder}`, borderBottom: `2px solid ${gtBorder}` }}>
       <td className="sr-td" style={{ position: 'sticky', left: 0, background: gtBg, width: 50, minWidth: 50 }} />
@@ -600,18 +685,26 @@ function GrandTotalRow({ rows, expandedQuarters, isSummary, showTillLast, accent
       </td>
       {GROUPS.flatMap(g => [
         ...(expandedQuarters[g.qKey] ? g.months.map(m => (
-          <td key={m.key} className="sr-td" style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>{fmt(gt[m.key])}</td>
+          <td key={m.key} className="sr-td" style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>{fmtR(gt[m.key])}</td>
         )) : []),
-        <td key={g.qKey} className="sr-td" style={{ background: 'rgba(0,0,0,0.18)', fontWeight: 800, color: 'white', textAlign: 'center' }}>{fmt(gt[g.qKey])}</td>,
+        <td key={g.qKey} className="sr-td" style={{ fontWeight: 800, color: 'white', textAlign: 'center' }}>{fmtR(gt[g.qKey])}</td>,
       ])}
-      {showTillLast && <td className="sr-td" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', fontWeight: 600 }}>{fmt(tillLast)}</td>}
-      <td className="sr-td" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', fontWeight: 600 }}>{fmt(gt.currentmonthtonnage)}</td>
-      <td className="sr-td" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', fontWeight: 800 }}>{fmt(gt.ttltonnage_crnt)}</td>
-      <td className="sr-td" style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>0.00</td>
-      <td className="sr-td" style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>0.00</td>
-      <td className="sr-td" style={{ background: 'rgba(255,255,255,0.08)', color: 'white', fontWeight: 800 }}>{fmt(gt.ttltonnage_crntwy)}</td>
-      <td className="sr-td" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}>0.00</td>
-      <td className="sr-td" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}>0.00</td>
+      {showTillLast && <td className="sr-td" style={{ color: 'white', fontWeight: 600 }}>{fmtR(tillLast)}</td>}
+      <td className="sr-td" style={{ color: 'white', fontWeight: 600 }}>{fmtR(gt.currentmonthtonnage)}</td>
+      <td className="sr-td" style={{ color: 'white', fontWeight: 800 }}>{fmtR(gt.ttltonnage_crnt)}</td>
+      <td className="sr-td" style={{ color: gClr(gtGrowth?.totalYtdGr), fontWeight: 700 }}>
+        {gtGrowth != null ? fmtR(gtGrowth.totalYtdGr) : '—'}
+      </td>
+      <td className="sr-td" style={{ color: gClr(gtGrowth?.ytdPct) }}>
+        {gtGrowth?.ytdPct != null ? `${gtGrowth.ytdPct.toFixed(1)}%` : '—'}
+      </td>
+      <td className="sr-td" style={{ color: 'white', fontWeight: 800 }}>{fmtR(gt.ttltonnage_crntwy)}</td>
+      <td className="sr-td" style={{ color: gClr(gtGrowth?.totalYoyGr), fontWeight: 700 }}>
+        {gtGrowth != null ? fmtR(gtGrowth.totalYoyGr) : '—'}
+      </td>
+      <td className="sr-td" style={{ color: gClr(gtGrowth?.yoyPct) }}>
+        {gtGrowth?.yoyPct != null ? `${gtGrowth.yoyPct.toFixed(1)}%` : '—'}
+      </td>
     </tr>
   );
 }
@@ -1522,14 +1615,14 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
                     </Tooltip>
                   </th>,
                 ])}
-                {showTillLast && <th className="sr-th" style={{ background: headerDark, minWidth: 70 }}>Till Last<br />Month</th>}
-                <th className="sr-th" style={{ background: headerDark, minWidth: 70 }}>Current<br />tonnage</th>
-                <th className="sr-th" style={{ background: headerDark, minWidth: 75 }}>Total<br />(YTD)</th>
-                <th className="sr-th" style={{ background: headerDark, minWidth: 75 }}>YTD Gr/<br />Degr</th>
-                <th className="sr-th" style={{ background: headerDark, minWidth: 60 }}>YTD<br />%</th>
-                <th className="sr-th" style={{ background: headerDark, minWidth: 75 }}>Total<br />(YOY)</th>
-                <th className="sr-th" style={{ background: headerDark, minWidth: 75 }}>YOY Gr/<br />Degr</th>
-                <th className="sr-th" style={{ background: headerDark, minWidth: 60 }}>YOY<br />%</th>
+                {showTillLast && <th className="sr-th" style={{ background: headerDark, minWidth: 70 }}><Tooltip content="Cumulative tonnage up to (but not including) the current month"><span>Till Last<br />Month</span></Tooltip></th>}
+                <th className="sr-th" style={{ background: headerDark, minWidth: 70 }}><Tooltip content="Current month's dispatched tonnage"><span>Current<br />tonnage</span></Tooltip></th>
+                <th className="sr-th" style={{ background: headerDark, minWidth: 75 }}><Tooltip content="Year-to-Date: total tonnage from start of year to current month"><span>Total<br />(YTD)</span></Tooltip></th>
+                <th className="sr-th" style={{ background: headerDark, minWidth: 75 }}><Tooltip content="Year-to-Date Growth / Degrowth vs previous year's YTD"><span>YTD Gr/<br />Degr</span></Tooltip></th>
+                <th className="sr-th" style={{ background: headerDark, minWidth: 60 }}><Tooltip content="Current month % change vs same month last year"><span>YTD<br />%</span></Tooltip></th>
+                <th className="sr-th" style={{ background: headerDark, minWidth: 75 }}><Tooltip content="Year-on-Year: full financial year comparable tonnage"><span>Total<br />(YOY)</span></Tooltip></th>
+                <th className="sr-th" style={{ background: headerDark, minWidth: 75 }}><Tooltip content="Year-on-Year Growth / Degrowth vs previous year's full year"><span>YOY Gr/<br />Degr</span></Tooltip></th>
+                <th className="sr-th" style={{ background: headerDark, minWidth: 60 }}><Tooltip content="Year-on-Year percentage change"><span>YOY<br />%</span></Tooltip></th>
               </tr>
             </thead>
             <tbody>
@@ -1566,6 +1659,8 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
                       yearRowsEnabled={!isSummary && (Array.isArray(multiyear) ? multiyear.length : 1) > 1}
                       getLabel={getLabel} l0Bg={L0_BG[activeTab] ?? '#fffde7'}
                       isDarkMode={isDarkMode} accent={accent} nameColWidth={nameColWidth}
+                      allSummaryRows={isSummary ? rawRows : undefined}
+                      isMultiYear={(Array.isArray(multiyear) ? multiyear.length : 1) > 1}
                     />
                     {/* Bottom spacer — maintains scroll height for rows below viewport */}
                     {sliceEnd < displayRows.length && (
@@ -1573,7 +1668,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
                     )}
                     {/* Grand Total always rendered — outside the virtual slice */}
                     {displayRows.length > 1 && (
-                      <GrandTotalRow rows={displayRows} expandedQuarters={expandedQuarters} isSummary={isSummary} showTillLast={showTillLast} accent={accent} nameColWidth={nameColWidth} />
+                      <GrandTotalRow rows={displayRows} expandedQuarters={expandedQuarters} isSummary={isSummary} showTillLast={showTillLast} accent={accent} nameColWidth={nameColWidth} allSummaryRows={isSummary ? rawRows : undefined} />
                     )}
                   </>
                 );

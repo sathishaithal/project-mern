@@ -4,8 +4,6 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import TimelineIcon from "@mui/icons-material/Timeline";
-import SummarizeIcon from "@mui/icons-material/Summarize";
-import DownloadIcon from "@mui/icons-material/Download";
 import { useColorMode } from "../../theme/ThemeContext";
 import SummaryCardsSystem from "../../components/SummaryCardsSystem/SummaryCardsSystem";
 
@@ -25,17 +23,10 @@ const Reports = () => {
     },
     {
       title: "Sales Report",
-      description: "Analyze sales performance, revenue trends, and customer insights",
+      description: "Month-wise and year-on-year sales performance with multi-year drill-down",
       icon: <AssessmentIcon sx={{ fontSize: 40 }} />,
       path: "/reports/sales",
       color: "#2e7d32",
-    },
-    {
-      title: "Inventory Report",
-      description: "Monitor stock levels, inventory turnover, and supply chain metrics",
-      icon: <SummarizeIcon sx={{ fontSize: 40 }} />,
-      path: "/reports/inventory",
-      color: "#ed6c02",
     },
   ];
 
@@ -107,35 +98,6 @@ const Reports = () => {
           ))}
         </Grid>
 
-        {/* Quick Stats Section */}
-        <Paper sx={{ p: 3, mt: 4, borderRadius: 3 }}>
-          <Typography variant="h6" gutterBottom fontWeight={600}>
-            Quick Statistics
-          </Typography>
-          
-          <Grid container spacing={3} sx={{ mt: 1 }}>
-            <Grid item xs={12} sm={4}>
-              <Paper sx={{ p: 2, textAlign: "center", bgcolor: "#e3f2fd" }}>
-                <Typography variant="h4" fontWeight={700}>24</Typography>
-                <Typography variant="body2">Reports Generated Today</Typography>
-              </Paper>
-            </Grid>
-            
-            <Grid item xs={12} sm={4}>
-              <Paper sx={{ p: 2, textAlign: "center", bgcolor: "#e8f5e9" }}>
-                <Typography variant="h4" fontWeight={700}>98%</Typography>
-                <Typography variant="body2">Data Accuracy</Typography>
-              </Paper>
-            </Grid>
-            
-            <Grid item xs={12} sm={4}>
-              <Paper sx={{ p: 2, textAlign: "center", bgcolor: "#fff3e0" }}>
-                <Typography variant="h4" fontWeight={700}>15 min</Typography>
-                <Typography variant="body2">Average Generation Time</Typography>
-              </Paper>
-            </Grid>
-          </Grid>
-        </Paper>
       </Box>
     </motion.div>
   );

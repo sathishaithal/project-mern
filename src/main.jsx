@@ -11,17 +11,12 @@ import Dashboard from "./pages/Dashboard";
 
 // ---------------- REPORTS ----------------
 import Reports from "./pages/Reports/Reports";
-import Production from "./pages/Reports/Production";
+import Production from "./pages/Reports/Production/Production";
 import Sales from "./pages/Reports/Sales/Sales";
-import Inventory from "./pages/Reports/Inventory";
 
 // ---------------- MANAGEMENT ----------------
 import Employees from "./pages/Management/Employees";
 import Vendors from "./pages/Management/Vendors";
-
-// ---------------- SETTINGS ----------------
-import Profile from "./pages/Settings/Profile";
-import SystemSettings from "./pages/Settings/SystemSettings";
 
 // ---------------- TOOLS ----------------
 // import ExportTool from "./pages/Tools/ExportTool";
@@ -29,6 +24,7 @@ import SystemSettings from "./pages/Settings/SystemSettings";
 
 import { AuthProvider } from "./context/AuthContext";
 import { ColorModeProvider } from "./theme/ThemeContext";
+import { SummaryCardsProvider } from "./context/SummaryCardsContext";
 
 import MainLayout from "./layouts/MainLayout";
 import "./styles/global.css";
@@ -57,6 +53,7 @@ root.render(
   <React.StrictMode>
     <AuthProvider>
       <ColorModeProvider>
+        <SummaryCardsProvider>
         <BrowserRouter>
           <ScrollToTop />
           <Routes>
@@ -122,17 +119,6 @@ root.render(
               }
             />
 
-            {/* ---------- REPORTS → INVENTORY ---------- */}
-            <Route
-              path="/reports/inventory"
-              element={
-                  <ProtectedRoute>
-                  <MainLayout title="Inventory Report">
-                    <Inventory />
-                  </MainLayout>
-                   </ProtectedRoute>
-              }
-            />
 
             {/* ---------- MANAGEMENT → EMPLOYEES ---------- */}
             <Route
@@ -158,31 +144,9 @@ root.render(
               }
             />
 
-            {/* ---------- SETTINGS → PROFILE ---------- */}
-            <Route
-              path="/settings/profile"
-              element={
-                  <ProtectedRoute>
-                  <MainLayout title="User Profile">
-                    <Profile />
-                  </MainLayout>
-                   </ProtectedRoute>
-              }
-            />
-
-            {/* ---------- SETTINGS → SYSTEM SETTINGS ---------- */}
-            <Route
-              path="/settings/system"
-              element={
-                  <ProtectedRoute>
-                  <MainLayout title="System Settings">
-                    <SystemSettings />
-                  </MainLayout>
-                   </ProtectedRoute>
-              }
-            />
           </Routes>
         </BrowserRouter>
+        </SummaryCardsProvider>
       </ColorModeProvider>
     </AuthProvider>
   </React.StrictMode>

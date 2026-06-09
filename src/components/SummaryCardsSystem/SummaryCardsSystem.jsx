@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import axios from 'axios';
-import { useAuth } from '../../context/AuthContext';
+import React, { useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useColorMode } from '../../theme/ThemeContext';
-import { getLastUpdatedDates, getDispatchHeaderTop, getShortSupplyByCategory, getMultiYearSales, getGraphSellingData } from '../../services/salesDashboardApi';
+import { useSummaryCards } from '../../context/SummaryCardsContext';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MAX_CARDS = 5;
@@ -16,13 +15,6 @@ const SHIMMER_CSS = `@keyframes sc-shimmer{0%{transform:translateX(-100%)}100%{t
 const fmt = (val) =>
   val == null || val === '' ? '—'
     : parseFloat(val).toLocaleString('en-IN', { maximumFractionDigits: 3 });
-
-const fmtDate = (d) => {
-  const y   = d.getFullYear();
-  const m   = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
 
 const getSublabel = (card, d) =>
   typeof card.sublabel === 'function' ? card.sublabel(d) : card.sublabel;
@@ -47,8 +39,12 @@ const ALL_CARDS = [
     icon: 'bi-graph-up-arrow',
     section: 'sales',
     grad: 0,
-    isLoading: (d) => d.dates === null,
-    getValue: (d) => `Tonnage: ${fmt(d.dates?.currentmonthtonnage)}`,
+    isLoading: (d) => d.dates === null && d.multiYearData === null,
+    getValue: (d) => {
+      const v = d.dates?.currentmonthtonnage
+        || (d.multiYearData ?? []).find(r => r.currentmonthtonnage > 0)?.currentmonthtonnage;
+      return `Tonnage: ${fmt(v)}`;
+    },
   },
   {
     id: 'short_supply',
@@ -206,6 +202,7 @@ const ALL_CARDS = [
   },
 
   // ── Sales Report API cards (from getMultiYearSales — same data as SalesReportPage) ──
+  // Uses last element = current year (arr[0] may be hidden prior-year row from API)
   {
     id: 'sales_rpt_month',
     label: 'SALES THIS MONTH',
@@ -215,7 +212,8 @@ const ALL_CARDS = [
     grad: 0,
     isLoading: (d) => d.multiYearData === null,
     getValue: (d) => {
-      const row = (d.multiYearData ?? [])[0];
+      const arr = d.multiYearData ?? [];
+      const row = arr[arr.length - 1];
       return row ? `${fmt(row.currentmonthtonnage)} T` : '—';
     },
   },
@@ -228,7 +226,8 @@ const ALL_CARDS = [
     grad: 1,
     isLoading: (d) => d.multiYearData === null,
     getValue: (d) => {
-      const row = (d.multiYearData ?? [])[0];
+      const arr = d.multiYearData ?? [];
+      const row = arr[arr.length - 1];
       return row ? `${fmt(row.ttltonnage_crnt)} T` : '—';
     },
   },
@@ -241,7 +240,8 @@ const ALL_CARDS = [
     grad: 2,
     isLoading: (d) => d.multiYearData === null,
     getValue: (d) => {
-      const row = (d.multiYearData ?? [])[0];
+      const arr = d.multiYearData ?? [];
+      const row = arr[arr.length - 1];
       return row ? `${fmt(row.Q1)} T` : '—';
     },
   },
@@ -254,7 +254,8 @@ const ALL_CARDS = [
     grad: 3,
     isLoading: (d) => d.multiYearData === null,
     getValue: (d) => {
-      const row = (d.multiYearData ?? [])[0];
+      const arr = d.multiYearData ?? [];
+      const row = arr[arr.length - 1];
       return row ? `${fmt(row.Q2)} T` : '—';
     },
   },
@@ -267,7 +268,8 @@ const ALL_CARDS = [
     grad: 4,
     isLoading: (d) => d.multiYearData === null,
     getValue: (d) => {
-      const row = (d.multiYearData ?? [])[0];
+      const arr = d.multiYearData ?? [];
+      const row = arr[arr.length - 1];
       return row ? `${fmt(row.Q3)} T` : '—';
     },
   },
@@ -280,7 +282,8 @@ const ALL_CARDS = [
     grad: 5,
     isLoading: (d) => d.multiYearData === null,
     getValue: (d) => {
-      const row = (d.multiYearData ?? [])[0];
+      const arr = d.multiYearData ?? [];
+      const row = arr[arr.length - 1];
       return row ? `${fmt(row.Q4)} T` : '—';
     },
   },
@@ -523,6 +526,100 @@ const ALL_CARDS = [
       return `${((fgTotal / used) * 100).toFixed(2)}%`;
     },
   },
+  {
+    id: 'fg_net_sold',
+    label: 'FG NET SOLD',
+    sublabel: '(Sold − Returned)',
+    icon: 'bi-cart-check',
+    section: 'production',
+    grad: 3,
+    isLoading: (d) => d.prodLoading,
+    getValue: (d) => {
+      if (!d.prodData?.finished) return '—';
+      const items = Object.values(d.prodData.finished).flat();
+      const sold     = items.reduce((s, i) => s + (parseFloat(i.sold) || 0), 0);
+      const returned = items.reduce((s, i) => s + (parseFloat(i.returned ?? i.return ?? i['sales return']) || 0), 0);
+      return `${fmt(sold - returned)} KG`;
+    },
+  },
+  {
+    id: 'fg_stock_delta',
+    label: 'FG STOCK CHANGE',
+    sublabel: '(Closing − Opening)',
+    icon: 'bi-arrow-left-right',
+    section: 'production',
+    grad: 2,
+    isLoading: (d) => d.prodLoading,
+    getValue: (d) => {
+      if (!d.prodData?.finished) return '—';
+      const items   = Object.values(d.prodData.finished).flat();
+      const opening = items.reduce((s, i) => s + (parseFloat(i.opening) || 0), 0);
+      const closing = items.reduce((s, i) => s + (parseFloat(i.closing) || 0), 0);
+      const delta   = closing - opening;
+      return `${delta >= 0 ? '+' : ''}${fmt(delta)} KG`;
+    },
+  },
+  {
+    id: 'raw_stock_delta',
+    label: 'RAW STOCK CHANGE',
+    sublabel: '(Closing − Opening)',
+    icon: 'bi-arrow-left-right',
+    section: 'production',
+    grad: 6,
+    isLoading: (d) => d.prodLoading,
+    getValue: (d) => {
+      const items   = d.prodData?.raw?.['All Raw Materials'] ?? [];
+      const opening = items.reduce((s, i) => s + (parseFloat(i.opening) || 0), 0);
+      const closing = items.reduce((s, i) => s + (parseFloat(i.closing) || 0), 0);
+      const delta   = closing - opening;
+      return `${delta >= 0 ? '+' : ''}${fmt(delta)} KG`;
+    },
+  },
+  {
+    id: 'fried_gram_closing',
+    label: 'FRIED GRAM CLOSING',
+    sublabel: '(Finished Goods Stock)',
+    icon: 'bi-fire',
+    section: 'production',
+    grad: 4,
+    isLoading: (d) => d.prodLoading,
+    getValue: (d) => {
+      const items = d.prodData?.finished?.['FRIED GRAM'] ?? [];
+      const total = items.reduce((s, i) => s + (parseFloat(i.closing) || 0), 0);
+      return `${fmt(total)} KG`;
+    },
+  },
+  {
+    id: 'bengal_gram_closing',
+    label: 'BENGAL GRAM CLOSING',
+    sublabel: '(Finished Goods Stock)',
+    icon: 'bi-droplet-half',
+    section: 'production',
+    grad: 2,
+    isLoading: (d) => d.prodLoading,
+    getValue: (d) => {
+      const items = d.prodData?.finished?.['BENGAL GRAM'] ?? [];
+      const total = items.reduce((s, i) => s + (parseFloat(i.closing) || 0), 0);
+      return `${fmt(total)} KG`;
+    },
+  },
+  {
+    id: 'fg_efficiency',
+    label: 'PRODUCTION EFFICIENCY',
+    sublabel: '(Avg % across all brands)',
+    icon: 'bi-speedometer2',
+    section: 'production',
+    grad: 1,
+    isLoading: (d) => d.prodLoading,
+    getValue: (d) => {
+      if (!d.prodData?.finished) return '—';
+      const items = Object.values(d.prodData.finished).flat()
+        .filter(i => parseFloat(i.prod_percentage) > 0);
+      if (items.length === 0) return '—';
+      const avg = items.reduce((s, i) => s + (parseFloat(i.prod_percentage) || 0), 0) / items.length;
+      return `${avg.toFixed(2)}%`;
+    },
+  },
 ];
 
 // IDs of all valid cards (used for validation)
@@ -669,7 +766,11 @@ function CardPickerModal({ selectedCards, onSave, onClose, accent, accent2, isDa
     if (card.isLoading(apiData)) return '⏳ Loading...';
     if (card.isList) {
       const list = card.getList(apiData);
-      return list.length > 0 ? `${list.length} items` : 'No data yet';
+      if (list.length === 0) return 'No data yet';
+      return list.slice(0, 3).map(item => {
+        const name = item.description ?? item.catgroup ?? item.name ?? '?';
+        return name.length > 15 ? name.slice(0, 15) + '…' : name;
+      }).join(' · ');
     }
     try {
       return card.getValue(apiData) || '—';
@@ -677,19 +778,32 @@ function CardPickerModal({ selectedCards, onSave, onClose, accent, accent2, isDa
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'rgba(0,0,0,0.55)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '1rem',
-    }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{
-        background: modalBg, borderRadius: 16,
-        width: '100%', maxWidth: 860, maxHeight: '88vh',
-        display: 'flex', flexDirection: 'column',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
-        overflow: 'hidden',
-      }}>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18 }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'rgba(0,0,0,0.55)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '1rem',
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <motion.div
+        initial={{ scale: 0.92, y: 20, opacity: 0 }}
+        animate={{ scale: 1, y: 0, opacity: 1 }}
+        exit={{ scale: 0.92, y: 20, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+        style={{
+          background: modalBg, borderRadius: 16,
+          width: '100%', maxWidth: 860, maxHeight: '88vh',
+          display: 'flex', flexDirection: 'column',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+          overflow: 'hidden',
+        }}
+      >
         {/* Header */}
         <div style={{
           padding: '1.1rem 1.4rem 0.9rem',
@@ -738,35 +852,63 @@ function CardPickerModal({ selectedCards, onSave, onClose, accent, accent2, isDa
                   gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
                   gap: 10, marginBottom: 18,
                 }}>
-                  {cards.map(card => {
+                  {cards.map((card, cardIdx) => {
                     const isSelected = draft.includes(card.id);
                     const isDisabled = !isSelected && draft.length >= MAX_CARDS;
                     return (
-                      <div
+                      <motion.div
                         key={card.id}
+                        layout
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{
+                          opacity: isDisabled ? 0.45 : 1,
+                          y: 0,
+                          scale: isSelected ? 1.02 : 1,
+                          boxShadow: isSelected ? `0 0 0 3px ${accent}33, 0 4px 16px rgba(0,0,0,0.18)` : '0 1px 4px rgba(0,0,0,0.06)',
+                        }}
+                        transition={{ duration: 0.18, delay: cardIdx * 0.02 }}
+                        whileHover={!isDisabled ? { y: -3, boxShadow: `0 6px 20px rgba(0,0,0,0.15)` } : {}}
+                        whileTap={!isDisabled ? { scale: 0.97 } : {}}
                         onClick={() => !isDisabled && toggle(card.id)}
                         style={{
-                          background: cardBg,
+                          background: isSelected
+                            ? (isDarkMode ? `color-mix(in srgb, ${accent} 18%, #1e293b)` : `color-mix(in srgb, ${accent} 8%, #f8fafc)`)
+                            : cardBg,
                           border: `2px solid ${isSelected ? accent : cardBdr}`,
                           borderRadius: 10,
                           padding: '0.7rem 0.85rem',
                           cursor: isDisabled ? 'not-allowed' : 'pointer',
-                          opacity: isDisabled ? 0.45 : 1,
                           display: 'flex', alignItems: 'flex-start', gap: 10,
-                          transition: 'border-color 0.15s, transform 0.1s',
-                          transform: isSelected ? 'scale(1.01)' : 'scale(1)',
-                          boxShadow: isSelected ? `0 0 0 3px ${accent}22` : 'none',
+                          position: 'relative', overflow: 'hidden',
                         }}
                       >
-                        <div style={{
-                          width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                          background: isSelected ? accent : (isDarkMode ? '#334155' : '#e2e8f0'),
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: isSelected ? 'white' : mutedClr, fontSize: '0.95rem',
-                          transition: 'background 0.15s',
-                        }}>
+                        {/* Selected pulse ring */}
+                        {isSelected && (
+                          <motion.div
+                            initial={{ scale: 0.6, opacity: 0.6 }}
+                            animate={{ scale: 1.8, opacity: 0 }}
+                            transition={{ duration: 0.5, ease: 'easeOut' }}
+                            style={{
+                              position: 'absolute', inset: 0, borderRadius: 8,
+                              border: `2px solid ${accent}`,
+                              pointerEvents: 'none',
+                            }}
+                          />
+                        )}
+                        <motion.div
+                          animate={{
+                            background: isSelected ? accent : (isDarkMode ? '#334155' : '#e2e8f0'),
+                            color: isSelected ? 'white' : mutedClr,
+                          }}
+                          transition={{ duration: 0.2 }}
+                          style={{
+                            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '0.95rem',
+                          }}
+                        >
                           <i className={`bi ${card.icon}`} />
-                        </div>
+                        </motion.div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{
                             fontSize: '0.72rem', fontWeight: 700, color: textClr,
@@ -786,15 +928,21 @@ function CardPickerModal({ selectedCards, onSave, onClose, accent, accent2, isDa
                             {getPreview(card)}
                           </div>
                         </div>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          disabled={isDisabled}
-                          onChange={() => {}}
-                          onClick={(e) => { e.stopPropagation(); if (!isDisabled) toggle(card.id); }}
-                          style={{ marginTop: 2, accentColor: accent, flexShrink: 0 }}
-                        />
-                      </div>
+                        <motion.div
+                          animate={{ scale: isSelected ? 1.15 : 1 }}
+                          transition={{ type: 'spring', stiffness: 500, damping: 18 }}
+                          style={{ marginTop: 2, flexShrink: 0 }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            disabled={isDisabled}
+                            onChange={() => {}}
+                            onClick={(e) => { e.stopPropagation(); if (!isDisabled) toggle(card.id); }}
+                            style={{ accentColor: accent, width: 15, height: 15, cursor: isDisabled ? 'not-allowed' : 'pointer' }}
+                          />
+                        </motion.div>
+                      </motion.div>
                     );
                   })}
                 </div>
@@ -831,8 +979,8 @@ function CardPickerModal({ selectedCards, onSave, onClose, accent, accent2, isDa
             Save Selection
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -843,122 +991,28 @@ export default function SummaryCardsSystem({
   accent: accentProp,
   accent2: accent2Prop,
 }) {
-  const { user }     = useAuth();
-  const employeename = user?.username;
   const { isDarkMode, selectedAccent } = useColorMode();
+  // All API data comes from the global context — fetched once on login, shared across all pages
+  const ctx = useSummaryCards();
 
   const accent  = accentProp  || selectedAccent?.primary   || '#1a237e';
   const accent2 = accent2Prop || selectedAccent?.secondary || '#283593';
 
-  // ── State ─────────────────────────────────────────────────────────────────
   const [selectedCards, setSelectedCards] = useState(loadStoredSelection);
   const [isHidden,      setIsHidden]      = useState(() => localStorage.getItem(STORAGE_HIDDEN_KEY) === 'true');
   const [showPicker,    setShowPicker]    = useState(false);
 
-  // Sales API data — fetched on every page
-  const [dates,         setDates]         = useState(null);
-  const [header,        setHeader]        = useState(null);
-  const [shortSupply,   setShortSupply]   = useState(null);
-  const [multiYearData, setMultiYearData] = useState(null);
-  const [sellingData,   setSellingData]   = useState(null);
-
-  // Production API data — fetched on every page (auto, current month)
-  const [autoFetchedProd, setAutoFetchedProd] = useState(null);
-  const [prodLoading,     setProdLoading]     = useState(false);
-
-  // ── Fetch sales dates + dispatch header (always) ──────────────────────────
-  useEffect(() => {
-    if (!employeename) return;
-    Promise.all([
-      getLastUpdatedDates(employeename).catch(() => null),
-      getDispatchHeaderTop(employeename).catch(() => null),
-    ]).then(([d, h]) => {
-      console.log('[SummaryCards] dates[0] fields:', Object.keys(Array.isArray(d) ? (d[0] ?? {}) : (d ?? {})));
-      console.log('[SummaryCards] header full response:', h);
-      console.log('[SummaryCards] header.list length:', h?.list?.length, ' list1 length:', h?.list1?.length);
-      setDates(Array.isArray(d) ? d[0] : (d ?? null));
-      setHeader(h ?? null);
-    });
-  }, [employeename]);
-
-  // ── Fetch short supply — current month (matches ShortSupplyPage default) ──
-  useEffect(() => {
-    if (!employeename) return;
-    const today    = new Date();
-    const fromdate = fmtDate(new Date(today.getFullYear(), today.getMonth(), 1));
-    const todate   = fmtDate(today);
-    getShortSupplyByCategory({ fromdate, todate, employeename })
-      .then(data => {
-        const arr = Array.isArray(data) ? data : [];
-        console.log('[SummaryCards] shortSupply items:', arr.length, arr[0]);
-        setShortSupply(arr);
-      })
-      .catch(() => setShortSupply([]));
-  }, [employeename]);
-
-  // ── Fetch multi-year sales (same API as SalesReportPage Summary tab) ──────
-  useEffect(() => {
-    if (!employeename) return;
-    const currentYear = String(new Date().getFullYear());
-    getMultiYearSales({
-      multiyear: currentYear,
-      employeename,
-      monthwisecompany:   'SBL',
-      monthwisedisttype:  'Distribution',
-    })
-      .then(data => {
-        const arr = Array.isArray(data)
-          ? data.filter(r => r.disttype !== 'Grand Total' && String(r.year) !== 'Grand Total' && r.id !== '')
-          : [];
-        console.log('[SummaryCards] multiYearData rows:', arr.length, arr[0]);
-        setMultiYearData(arr);
-      })
-      .catch(() => setMultiYearData([]));
-  }, [employeename]);
-
-  // ── Fetch current month top/low selling (for TOP/LOW SELLING ITEMS cards) ──
-  useEffect(() => {
-    if (!employeename) return;
-    getGraphSellingData({ daysel: 'month', method: 'Distribution', company: 'SBL', basedon: 'Tonnage', grdaiyfilter: 'Category group', employeename })
-      .then(data => {
-        const arr = Array.isArray(data) ? data : (data?.list ?? []);
-        console.log('[SummaryCards] sellingData items:', arr.length, arr[0]);
-        setSellingData(arr);
-      })
-      .catch(() => setSellingData([]));
-  }, [employeename]);
-
-  // ── Fetch production data (always, current month) ─────────────────────────
-  useEffect(() => {
-    const token =
-      localStorage.getItem('authToken') ||
-      sessionStorage.getItem('authToken') ||
-      sessionStorage.getItem('token');
-    if (!token) return;
-
-    const today    = new Date();
-    const fromdate = fmtDate(new Date(today.getFullYear(), today.getMonth(), 1));
-    const todate   = fmtDate(today);
-
-    setProdLoading(true);
-    axios.post(
-      `${import.meta.env.VITE_API_URL || ''}/Report/production-report`,
-      { fromdate, todate, catgroup: 'Fried Gram Mill' },
-      { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
-    )
-      .then(res => {
-        const d = res.data;
-        console.log('[SummaryCards] production keys:', d ? Object.keys(d) : 'null');
-        setAutoFetchedProd(d && Object.keys(d).length > 0 ? d : null);
-      })
-      .catch(err => console.warn('[SummaryCards] production auto-fetch:', err.message))
-      .finally(() => setProdLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // runs once on mount
-
-  // Prefer prop (user's current filtered report) over auto-fetched (current month default)
-  const prodData = prodDataProp ?? autoFetchedProd;
-  const apiData  = { dates, header, shortSupply, multiYearData, sellingData, prodData, prodLoading: prodLoading && !prodData };
+  // Production page can pass its own date-filtered data to override the cached default
+  const prodData = prodDataProp ?? ctx?.prodData ?? null;
+  const apiData  = {
+    dates:         ctx?.dates         ?? null,
+    header:        ctx?.header        ?? null,
+    shortSupply:   ctx?.shortSupply   ?? null,
+    multiYearData: ctx?.multiYearData ?? null,
+    sellingData:   ctx?.sellingData   ?? null,
+    prodData,
+    prodLoading:   (ctx?.prodLoading ?? false) && !prodData,
+  };
 
   const gradients = buildGradients(accent, accent2);
 
@@ -967,32 +1021,6 @@ export default function SummaryCardsSystem({
     .slice(0, MAX_CARDS)
     .map(id => ALL_CARDS.find(c => c.id === id))
     .filter(Boolean);
-
-  // ── Console diagnostics ───────────────────────────────────────────────────
-  useEffect(() => {
-    if (dates === null && !prodData) return;
-    const working = [], nodata = [], broken = [];
-    ALL_CARDS.forEach(card => {
-      try {
-        const val = card.isList
-          ? `[${card.getList(apiData).length} items]`
-          : card.getValue(apiData);
-        if (!val || val === '—' || val === '— KG' || val === 'Tonnage: —') {
-          nodata.push({ id: card.id });
-        } else {
-          working.push({ id: card.id, value: val });
-        }
-      } catch (e) {
-        broken.push({ id: card.id, error: e.message });
-      }
-    });
-    console.group(`[SummaryCards] Status (page: ${context})`);
-    console.log(`✅ Working (${working.length}):`, working);
-    if (nodata.length)  console.warn(`⚠️ No data (${nodata.length}):`, nodata);
-    if (broken.length)  console.error(`❌ Errors (${broken.length}):`, broken);
-    console.groupEnd();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dates, header, shortSupply, multiYearData, sellingData, prodData]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const toggleHide = () => {
@@ -1074,17 +1102,19 @@ export default function SummaryCardsSystem({
           </div>
         )}
 
-        {showPicker && (
-          <CardPickerModal
-            selectedCards={selectedCards}
-            onSave={handleSave}
-            onClose={() => setShowPicker(false)}
-            accent={accent}
-            accent2={accent2}
-            isDarkMode={isDarkMode}
-            apiData={apiData}
-          />
-        )}
+        <AnimatePresence>
+          {showPicker && (
+            <CardPickerModal
+              selectedCards={selectedCards}
+              onSave={handleSave}
+              onClose={() => setShowPicker(false)}
+              accent={accent}
+              accent2={accent2}
+              isDarkMode={isDarkMode}
+              apiData={apiData}
+            />
+          )}
+        </AnimatePresence>
       </div>
     </>
   );

@@ -9,7 +9,6 @@ import SalesReportPage from './SalesReportPage';
 import DayWisePage from './DayWisePage';
 import ShortSupplyPage from './ShortSupplyPage';
 import ChartsPage from './ChartsPage';
-import SummaryCards from './SummaryCards';
 import SummaryCardsSystem from '../../../components/SummaryCardsSystem/SummaryCardsSystem';
 
 const REPORT_TABS = [
@@ -130,9 +129,16 @@ export default function SalesDashboard() {
             style={{ background: tabBg, border: `1px solid ${tabBorder}` }}
           >
             {TOP_TABS.map(t => (
-              <button key={t.id} onClick={() => setTopTab(t.id)} style={activeTopBtn(topTab === t.id)}>
+              <motion.button
+                key={t.id}
+                onClick={() => setTopTab(t.id)}
+                style={activeTopBtn(topTab === t.id)}
+                whileHover={{ scale: 1.04, y: -1 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+              >
                 {t.label}
-              </button>
+              </motion.button>
             ))}
           </div>
 
@@ -179,9 +185,16 @@ export default function SalesDashboard() {
               style={{ background: tabBg, border: `1px solid ${tabBorder}` }}
             >
               {REPORT_TABS.map(t => (
-                <button key={t.id} onClick={() => setReportTab(t.id)} style={activeSubBtn(reportTab === t.id)}>
+                <motion.button
+                  key={t.id}
+                  onClick={() => setReportTab(t.id)}
+                  style={activeSubBtn(reportTab === t.id)}
+                  whileHover={{ scale: 1.05, y: -1 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                >
                   {t.label}
-                </button>
+                </motion.button>
               ))}
             </motion.div>
           )}

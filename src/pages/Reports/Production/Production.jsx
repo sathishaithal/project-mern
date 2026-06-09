@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import ThemedTooltip from "../../components/ui/Tooltip";
+import ThemedTooltip from "../../../components/ui/Tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import {
@@ -19,10 +19,10 @@ import {
   AreaChart,
   Area,
 } from "recharts";
-import { useColorMode } from "../../theme/ThemeContext";
-import { AppDatePicker, AppSelect } from "../../components/FormControls";
+import { useColorMode } from "../../../theme/ThemeContext";
+import { AppDatePicker, AppSelect } from "../../../components/FormControls";
 import styles from "./Production.module.css";
-import SummaryCardsSystem from "../../components/SummaryCardsSystem/SummaryCardsSystem";
+import SummaryCardsSystem from "../../../components/SummaryCardsSystem/SummaryCardsSystem";
 
 const toNumber = (value) => Number(value) || 0;
 

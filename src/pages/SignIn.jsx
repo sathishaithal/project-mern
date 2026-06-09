@@ -55,7 +55,14 @@ const SignIn = () => {
 
   const backgroundRef = useRef(null);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated, authReady } = useAuth();
+
+  // If a valid session already exists (e.g. new tab, page refresh), skip the login page
+  useEffect(() => {
+    if (authReady && isAuthenticated) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [authReady, isAuthenticated]);
 
   useEffect(() => {
     const newParticles = Array.from({ length: 20 }, (_, i) => ({
@@ -346,6 +353,8 @@ const SignIn = () => {
     { icon: "bi bi-stars", label: "Smooth Motion", tone: "#8b5cf6" },
   ];
 
+  // Don't render the login form while auth is still being resolved, or if already authenticated
+  if (!authReady || isAuthenticated) return null;
 
   return (
     <>

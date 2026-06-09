@@ -16,14 +16,28 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
 
+  // Cross-tab logout: when another tab removes the token from localStorage, log this tab out too
   useEffect(() => {
-    const username = sessionStorage.getItem("username");
+    const handleStorage = (e) => {
+      if (e.key === 'authToken' && e.newValue === null) {
+        setUser(null);
+        setAuthReady(true);
+        sessionStorage.clear();
+        delete axios.defaults.headers.common['Authorization'];
+        window.location.replace('/');
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  useEffect(() => {
     const token =
       sessionStorage.getItem("token") ||
       sessionStorage.getItem("authToken") ||
       localStorage.getItem("authToken");
 
-    if (!username || !token) {
+    if (!token) {
       setAuthReady(true);
       return;
     }
@@ -38,6 +52,24 @@ export const AuthProvider = ({ children }) => {
     if (expiresIn <= 0) {
       logout("Session expired");
       return;
+    }
+
+    // username: sessionStorage (current tab) → localStorage (cross-tab fallback) → JWT payload
+    const username =
+      sessionStorage.getItem("username") ||
+      localStorage.getItem("username") ||
+      payload.username || payload.sub || payload.name || payload.employeename;
+
+    if (!username) {
+      setAuthReady(true);
+      return;
+    }
+
+    // Restore sessionStorage for this tab so the expiry watcher works
+    if (!sessionStorage.getItem("username")) {
+      sessionStorage.setItem("username", username);
+      sessionStorage.setItem("token", token);
+      sessionStorage.setItem("authToken", token);
     }
 
     setUser({ username, token });
@@ -68,6 +100,7 @@ export const AuthProvider = ({ children }) => {
     sessionStorage.setItem("token", token);
     sessionStorage.setItem("authToken", token);
     localStorage.setItem("authToken", token);
+    localStorage.setItem("username", username);
 
     axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     setUser({ username, token });
@@ -103,6 +136,7 @@ const logout = async (message = "You have been logged out") => {
   sessionStorage.removeItem("authToken");
   sessionStorage.removeItem("themeMode");
   localStorage.removeItem("authToken");
+  localStorage.removeItem("username");
   delete axios.defaults.headers.common["Authorization"];
 
   setUser(null);

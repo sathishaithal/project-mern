@@ -66,15 +66,6 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
     reports: [
       { text: "Production", icon: <i className="bi bi-gear"></i>, link: "/reports/production" },
       { text: "Sales", icon: <i className="bi bi-graph-up"></i>, link: "/reports/sales" },
-      { text: "Inventory", icon: <i className="bi bi-box-seam"></i>, link: "/reports/inventory" },
-    ],
-    management: [
-      { text: "Employees", icon: <i className="bi bi-people"></i>, link: "/management/employees" },
-      { text: "Vendors", icon: <i className="bi bi-building"></i>, link: "/management/vendors" },
-    ],
-    settings: [
-      { text: "Profile", icon: <i className="bi bi-person-circle"></i>, link: "/settings/profile" },
-      { text: "System Settings", icon: <i className="bi bi-gear-wide-connected"></i>, link: "/settings/system" },
     ],
   };
 
@@ -120,7 +111,7 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
         </div>
 
         {/* Menu Items */}
-        {["reports", "management", "settings"].map((menu) => (
+        {["reports"].map((menu) => (
           <div
             key={menu}
             className={styles.menuWrapper}
@@ -139,9 +130,7 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
               }}
             >
               <div className={styles.navIcon}>
-                {menu === "reports" && <i className="bi bi-table"></i>}
-                {menu === "management" && <i className="bi bi-people"></i>}
-                {menu === "settings" && <i className="bi bi-gear"></i>}
+                <i className="bi bi-table"></i>
               </div>
               {!collapsed && (
                 <>
