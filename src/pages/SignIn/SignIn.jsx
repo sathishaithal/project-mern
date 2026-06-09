@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import { useColorMode } from "../theme/ThemeContext";
+import { useAuth } from "../../context/AuthContext";
+import { useColorMode } from "../../theme/ThemeContext";
 import axios from "axios";
-import bhagyaLogo from "../assets/bhagya.png";
+import bhagyaLogo from "../../assets/bhagya.png";
 import styles from "./SignIn.module.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";

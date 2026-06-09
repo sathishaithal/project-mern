@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 
-import SignIn from "./pages/SignIn";
+import SignIn from "./pages/SignIn/SignIn";
 import Dashboard from "./pages/Dashboard";
 
 // ---------------- REPORTS ----------------
