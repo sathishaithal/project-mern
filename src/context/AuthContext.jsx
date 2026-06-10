@@ -16,20 +16,38 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
 
-  // Cross-tab logout: when another tab removes the token from localStorage, log this tab out too
+  // Cross-tab auth sync: login on one tab → redirect others; logout on one tab → log out others
   useEffect(() => {
     const handleStorage = (e) => {
-      if (e.key === 'authToken' && e.newValue === null) {
+      if (e.key !== 'authToken') return;
+
+      if (e.newValue === null) {
+        // Another tab logged out
         setUser(null);
         setAuthReady(true);
         sessionStorage.clear();
         delete axios.defaults.headers.common['Authorization'];
         window.location.replace('/');
+      } else if (e.newValue && !user) {
+        // Another tab logged in — restore session in this tab
+        const token = e.newValue;
+        const payload = decodeToken(token);
+        if (!payload?.exp || payload.exp * 1000 <= Date.now()) return;
+        const username =
+          localStorage.getItem('username') ||
+          payload.username || payload.sub || payload.name || payload.employeename;
+        if (!username) return;
+        sessionStorage.setItem('username', username);
+        sessionStorage.setItem('token', token);
+        sessionStorage.setItem('authToken', token);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        setUser({ username, token });
+        setAuthReady(true);
       }
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const token =

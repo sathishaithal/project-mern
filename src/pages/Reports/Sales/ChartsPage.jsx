@@ -3,7 +3,7 @@ import ThemedTooltip from '../../../components/ui/Tooltip';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, LabelList, ReferenceLine, Label,
-  PieChart, Pie, Legend, ResponsiveContainer,
+  PieChart, Pie, ResponsiveContainer,
 } from 'recharts';
 import Select from 'react-select';
 import './Sales.css';
@@ -86,15 +86,16 @@ function ChartCard({ title, onZoom, children, style = {} }) {
   );
 }
 
-const InsidePieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+const InsidePieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }) => {
   if (percent < 0.04) return null;
   const R = Math.PI / 180;
   const r = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + r * Math.cos(-midAngle * R);
   const y = cy + r * Math.sin(-midAngle * R);
   return (
-    <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={600}>
-      {(percent * 100).toFixed(0)}%
+    <text textAnchor="middle" fill="#fff" fontSize={8} fontWeight={600}>
+      <tspan x={x} y={y - 5}>{Math.round(value)}</tspan>
+      <tspan x={x} y={y + 6}>{(percent * 100).toFixed(0)}%</tspan>
     </text>
   );
 };
@@ -124,13 +125,21 @@ function BarChartCard({ title, data, viewMode, onViewModeChange, onZoom,
 
   const topLabel = ({ x, y, width, value }) => {
     if (!value) return null;
-    return <text x={x + width / 2} y={y - 4} fill={labelFill} textAnchor="middle" fontSize={10} fontWeight={600}>{value}</text>;
+    return <text x={x + width / 2} y={y - 4} fill={labelFill} textAnchor="middle" fontSize={10} fontWeight={600}>{Math.round(value)}</text>;
   };
 
-  const tooltipStyle = {
-    contentStyle: { backgroundColor: isDarkMode ? '#1e293b' : '#fff', borderColor: isDarkMode ? '#334155' : '#e2e8f0', color: isDarkMode ? '#e2e8f0' : '#1e293b' },
-    itemStyle:    { color: isDarkMode ? '#e2e8f0' : '#1e293b' },
-    labelStyle:   { color: isDarkMode ? '#e2e8f0' : '#1e293b' },
+  const barTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.[0]) return null;
+    return (
+      <div style={{ background: isDarkMode ? '#1e293b' : '#fff', border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`, borderRadius: 8, overflow: 'hidden', boxShadow: '0 6px 20px rgba(0,0,0,0.18)', minWidth: 110 }}>
+        <div style={{ background: `linear-gradient(90deg, ${accent}, ${accent2})`, padding: '5px 10px', color: 'white', fontWeight: 700, fontSize: '0.72rem', textAlign: 'center' }}>
+          {label}
+        </div>
+        <div style={{ padding: '6px 10px', color: isDarkMode ? '#e2e8f0' : '#1e293b', fontWeight: 600, fontSize: '0.88rem', textAlign: 'center' }}>
+          {Math.round(payload[0].value).toLocaleString()}
+        </div>
+      </div>
+    );
   };
 
   const chart = (
@@ -141,7 +150,7 @@ function BarChartCard({ title, data, viewMode, onViewModeChange, onZoom,
         <CartesianGrid strokeDasharray="3 3" stroke={gridClr} />
         <XAxis dataKey="name" tick={{ fontSize: 11, fill: axisClr }} />
         <YAxis tick={{ fontSize: 10, fill: axisClr }} />
-        <Tooltip enabled={false} />
+        <Tooltip content={barTooltip} />
         <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={40} isAnimationActive animationDuration={600}>
           {data.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
           <LabelList dataKey="value" content={topLabel} />
@@ -151,9 +160,10 @@ function BarChartCard({ title, data, viewMode, onViewModeChange, onZoom,
   );
   return (
     <ChartCard title={title} onZoom={() => onZoom(title, chart)}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, flexWrap: 'wrap', marginBottom: 6, alignItems: 'center' }}>
         {isMultiYear ? (
           <>
+            <span style={{ fontSize: '0.7rem', color: labelFill, fontWeight: 600, whiteSpace: 'nowrap' }}>Group by :</span>
             <Select
               options={YR_FILTER_OPTIONS}
               value={YR_FILTER_OPTIONS.find(o => o.value === yrFilterMode) || YR_FILTER_OPTIONS[0]}
@@ -161,6 +171,9 @@ function BarChartCard({ title, data, viewMode, onViewModeChange, onZoom,
               styles={selStyles} isSearchable={false}
               menuPortalTarget={document.body} menuPosition="fixed"
             />
+            <span style={{ fontSize: '0.7rem', color: labelFill, fontWeight: 600, whiteSpace: 'nowrap' }}>
+              {yrFilterMode === 'monthly' ? 'Month :' : yrFilterMode === 'Quarterly' ? 'Quarter :' : 'Period :'}
+            </span>
             <Select
               options={yrSubSelOpts}
               value={yrSubSelOpts.find(o => o.value === yrFilterSub) || yrSubSelOpts[0]}
@@ -171,13 +184,16 @@ function BarChartCard({ title, data, viewMode, onViewModeChange, onZoom,
             />
           </>
         ) : (
-          <Select
-            options={VIEW_OPTIONS}
-            value={VIEW_OPTIONS.find(o => o.value === viewMode) || VIEW_OPTIONS[0]}
-            onChange={sel => onViewModeChange(sel.value)}
-            styles={selStyles} isSearchable={false}
-            menuPortalTarget={document.body} menuPosition="fixed"
-          />
+          <>
+            <span style={{ fontSize: '0.7rem', color: labelFill, fontWeight: 600 }}>View :</span>
+            <Select
+              options={VIEW_OPTIONS}
+              value={VIEW_OPTIONS.find(o => o.value === viewMode) || VIEW_OPTIONS[0]}
+              onChange={sel => onViewModeChange(sel.value)}
+              styles={selStyles} isSearchable={false}
+              menuPortalTarget={document.body} menuPosition="fixed"
+            />
+          </>
         )}
       </div>
       {chart}
@@ -186,7 +202,7 @@ function BarChartCard({ title, data, viewMode, onViewModeChange, onZoom,
 }
 
 // PieChartCard — shows same filters as BarChartCard
-function PieChartCard({ title, data, viewMode, onViewModeChange, onZoom, onPieClick, isMultiYear, 
+function PieChartCard({ title, data, viewMode, onViewModeChange, onZoom, onPieClick, isMultiYear,
   yrFilterMode, yrFilterSub, yrSubOptions, onYrModeChange, onYrSubChange }) {
   const { isDarkMode, selectedAccent } = useColorMode();
   const accent   = selectedAccent?.primary   || '#1a237e';
@@ -194,45 +210,78 @@ function PieChartCard({ title, data, viewMode, onViewModeChange, onZoom, onPieCl
   const colors   = getChartColors(accent, accent2);
   const selStyles  = useSalesSelectStyles({ minHeight: 30, height: 30, fontSize: '0.78rem', borderRadius: 6, minWidth: 130 });
   const legendClr  = isDarkMode ? '#94a3b8' : '#475569';
+  const labelFill  = isDarkMode ? '#94a3b8' : '#475569';
   const nonZero    = data.filter(d => d.value > 0);
   const total      = nonZero.reduce((s, d) => s + d.value, 0);
   const yrSubSelOpts = (yrSubOptions || []).map(v => ({ value: v, label: v }));
-  
-  // Disable Tooltip to remove black box
-  const tooltipStyle = {
-    contentStyle: { backgroundColor: isDarkMode ? '#1e293b' : '#fff', borderColor: isDarkMode ? '#334155' : '#e2e8f0', color: isDarkMode ? '#e2e8f0' : '#1e293b' },
-    itemStyle:    { color: isDarkMode ? '#e2e8f0' : '#1e293b' },
+
+  const [hiddenNames, setHiddenNames] = React.useState(new Set());
+  const toggleHidden = React.useCallback((name) => {
+    setHiddenNames(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  }, []);
+
+  const visibleData = nonZero.filter(d => !hiddenNames.has(d.name));
+
+  const renderTooltip = ({ active, payload }) => {
+    if (!active || !payload?.[0]) return null;
+    const d = payload[0].payload;
+    return (
+      <div style={{ background: isDarkMode ? '#1e293b' : '#fff', border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`, borderRadius: 8, overflow: 'hidden', boxShadow: '0 6px 20px rgba(0,0,0,0.18)', minWidth: 130 }}>
+        <div style={{ background: `linear-gradient(90deg, ${accent}, ${accent2})`, padding: '5px 10px', color: 'white', fontWeight: 700, fontSize: '0.72rem', textAlign: 'center' }}>
+          {d.name}
+        </div>
+        <div style={{ padding: '6px 10px', color: isDarkMode ? '#e2e8f0' : '#1e293b', fontWeight: 600, fontSize: '0.88rem', textAlign: 'center' }}>
+          {Math.round(d.value).toLocaleString()}
+        </div>
+      </div>
+    );
   };
+
   const chart = (
-    <ResponsiveContainer width="100%" height={340}>
-      <PieChart margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
-        <Pie data={nonZero} cx="50%" cy="45%" outerRadius={95}
-          labelLine={false} label={InsidePieLabel} dataKey="value"
-          onClick={onPieClick ? (entry) => onPieClick(entry.name) : undefined}
-          style={{ cursor: onPieClick ? 'pointer' : 'default' }}
-          isAnimationActive animationDuration={700}>
-          {nonZero.map((d) => {
-            const origIdx = data.indexOf(d);
-            return <Cell key={d.name} fill={colors[origIdx % colors.length]} />;
-          })}
-        </Pie>
-        <Tooltip enabled={false} />
-        <Legend layout="horizontal" align="center" verticalAlign="bottom" iconSize={9}
-          wrapperStyle={{ fontSize: '0.67rem', paddingTop: 8, maxWidth: '100%', lineHeight: '18px', color: legendClr }}
-          formatter={(value, entry) => {
-            const item = nonZero.find(d => d.name === entry.payload?.name);
-            const pct  = item && total > 0 ? ((item.value / total) * 100).toFixed(1) : '0';
-            return `${value} (${pct}%)`;
-          }}
-        />
-      </PieChart>
-    </ResponsiveContainer>
+    <>
+      <ResponsiveContainer width="100%" height={260}>
+        <PieChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+          <Pie data={visibleData} cx="50%" cy="50%" outerRadius={100}
+            labelLine={false} label={InsidePieLabel} dataKey="value"
+            onClick={onPieClick ? (entry) => onPieClick(entry.name) : undefined}
+            style={{ cursor: onPieClick ? 'pointer' : 'default' }}
+            isAnimationActive animationDuration={700}>
+            {visibleData.map((d) => {
+              const origIdx = data.indexOf(d);
+              return <Cell key={d.name} fill={colors[origIdx % colors.length]} />;
+            })}
+          </Pie>
+          <Tooltip content={renderTooltip} />
+        </PieChart>
+      </ResponsiveContainer>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 6, justifyContent: 'center', paddingBottom: 2 }}>
+        {nonZero.map((d) => {
+          const origIdx = data.indexOf(d);
+          const isHidden = hiddenNames.has(d.name);
+          const color = colors[origIdx % colors.length];
+          const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0';
+          return (
+            <div key={d.name} onClick={() => toggleHidden(d.name)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.66rem' }}>
+              <div style={{ width: 9, height: 9, borderRadius: 2, background: isHidden ? '#9ca3af' : color, flexShrink: 0 }} />
+              <span style={{ textDecoration: isHidden ? 'line-through' : 'none', opacity: isHidden ? 0.45 : 1, color: legendClr }}>
+                {d.name} ({pct}%)
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
   return (
     <ChartCard title={title} onZoom={() => onZoom(title, chart)}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, flexWrap: 'wrap', marginBottom: 6, alignItems: 'center' }}>
         {isMultiYear ? (
           <>
+            <span style={{ fontSize: '0.7rem', color: labelFill, fontWeight: 600, whiteSpace: 'nowrap' }}>Group by :</span>
             <Select
               options={YR_FILTER_OPTIONS}
               value={YR_FILTER_OPTIONS.find(o => o.value === yrFilterMode) || YR_FILTER_OPTIONS[0]}
@@ -240,6 +289,9 @@ function PieChartCard({ title, data, viewMode, onViewModeChange, onZoom, onPieCl
               styles={selStyles} isSearchable={false}
               menuPortalTarget={document.body} menuPosition="fixed"
             />
+            <span style={{ fontSize: '0.7rem', color: labelFill, fontWeight: 600, whiteSpace: 'nowrap' }}>
+              {yrFilterMode === 'monthly' ? 'Month :' : yrFilterMode === 'Quarterly' ? 'Quarter :' : 'Period :'}
+            </span>
             <Select
               options={yrSubSelOpts}
               value={yrSubSelOpts.find(o => o.value === yrFilterSub) || yrSubSelOpts[0]}
@@ -250,12 +302,15 @@ function PieChartCard({ title, data, viewMode, onViewModeChange, onZoom, onPieCl
             />
           </>
         ) : (
-          <Select options={VIEW_OPTIONS}
-            value={VIEW_OPTIONS.find(o => o.value === viewMode) || VIEW_OPTIONS[0]}
-            onChange={sel => onViewModeChange(sel.value)}
-            styles={selStyles} isSearchable={false}
-            menuPortalTarget={document.body} menuPosition="fixed"
-          />
+          <>
+            <span style={{ fontSize: '0.7rem', color: labelFill, fontWeight: 600 }}>View :</span>
+            <Select options={VIEW_OPTIONS}
+              value={VIEW_OPTIONS.find(o => o.value === viewMode) || VIEW_OPTIONS[0]}
+              onChange={sel => onViewModeChange(sel.value)}
+              styles={selStyles} isSearchable={false}
+              menuPortalTarget={document.body} menuPosition="fixed"
+            />
+          </>
         )}
       </div>
       {chart}
@@ -270,27 +325,66 @@ function DrillPieCard({ title, data, onSliceClick, onZoom }) {
   const colors   = getChartColors(accent, accent2);
   const legendClr = isDarkMode ? '#94a3b8' : '#475569';
   const total = data.reduce((s, r) => s + r.value, 0);
-  const tooltipStyle = {
-    contentStyle: { backgroundColor: isDarkMode ? '#1e293b' : '#fff', borderColor: isDarkMode ? '#334155' : '#e2e8f0', color: isDarkMode ? '#e2e8f0' : '#1e293b' },
-    itemStyle:    { color: isDarkMode ? '#e2e8f0' : '#1e293b' },
+
+  const [hiddenNames, setHiddenNames] = React.useState(new Set());
+  const toggleHidden = React.useCallback((name) => {
+    setHiddenNames(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  }, []);
+
+  const visibleData = data.filter(d => !hiddenNames.has(d.name));
+
+  const renderTooltip = ({ active, payload }) => {
+    if (!active || !payload?.[0]) return null;
+    const d = payload[0].payload;
+    return (
+      <div style={{ background: isDarkMode ? '#1e293b' : '#fff', border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`, borderRadius: 8, overflow: 'hidden', boxShadow: '0 6px 20px rgba(0,0,0,0.18)', minWidth: 130 }}>
+        <div style={{ background: `linear-gradient(90deg, ${accent}, ${accent2})`, padding: '5px 10px', color: 'white', fontWeight: 700, fontSize: '0.72rem', textAlign: 'center' }}>
+          {d.name}
+        </div>
+        <div style={{ padding: '6px 10px', color: isDarkMode ? '#e2e8f0' : '#1e293b', fontWeight: 600, fontSize: '0.88rem', textAlign: 'center' }}>
+          {Math.round(d.value).toLocaleString()}
+        </div>
+      </div>
+    );
   };
+
   const chart = (
-    <ResponsiveContainer width="100%" height={340}>
-      <PieChart margin={{ top: 10, right: 30, bottom: 60, left: 30 }}>
-        <Pie data={data} cx="50%" cy="46%" outerRadius={80}
-          labelLine={false} label={InsidePieLabel} dataKey="value"
-          onClick={(entry) => onSliceClick && onSliceClick(entry.name)}
-          style={{ cursor: onSliceClick ? 'pointer' : 'default' }}
-          isAnimationActive animationDuration={700}>
-          {data.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
-        </Pie>
-        <Legend layout="horizontal" align="center" verticalAlign="bottom" iconSize={9}
-          wrapperStyle={{ fontSize: '0.66rem', paddingTop: 8, maxWidth: '100%', lineHeight: '18px', color: legendClr }}
-          formatter={(value, entry) => `${value}: ${Math.round(entry.payload.value)} (${total > 0 ? ((entry.payload.value / total) * 100).toFixed(1) : 0}%)`}
-        />
-        <Tooltip enabled={false} />
-      </PieChart>
-    </ResponsiveContainer>
+    <>
+      <ResponsiveContainer width="100%" height={240}>
+        <PieChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+          <Pie data={visibleData} cx="50%" cy="50%" outerRadius={90}
+            labelLine={false} label={InsidePieLabel} dataKey="value"
+            onClick={(entry) => onSliceClick && onSliceClick(entry.name)}
+            style={{ cursor: onSliceClick ? 'pointer' : 'default' }}
+            isAnimationActive animationDuration={700}>
+            {visibleData.map((d) => {
+              const origIdx = data.indexOf(d);
+              return <Cell key={d.name} fill={colors[origIdx % colors.length]} />;
+            })}
+          </Pie>
+          <Tooltip content={renderTooltip} />
+        </PieChart>
+      </ResponsiveContainer>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 6, justifyContent: 'center', paddingBottom: 2 }}>
+        {data.map((d, i) => {
+          const isHidden = hiddenNames.has(d.name);
+          const color = colors[i % colors.length];
+          const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0';
+          return (
+            <div key={d.name} onClick={() => toggleHidden(d.name)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.66rem' }}>
+              <div style={{ width: 9, height: 9, borderRadius: 2, background: isHidden ? '#9ca3af' : color, flexShrink: 0 }} />
+              <span style={{ textDecoration: isHidden ? 'line-through' : 'none', opacity: isHidden ? 0.45 : 1, color: legendClr }}>
+                {d.name}: {Math.round(d.value)} ({pct}%)
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
   return (
     <ChartCard title={title} onZoom={() => onZoom(title, chart)} style={{ flex: 1 }}>
@@ -303,19 +397,24 @@ function DrillPieCard({ title, data, onSliceClick, onZoom }) {
 
 // Angular-style tooltip: shows Tonnage, LY Tonnage, Amount, LY Amount
 function DwFullTooltip({ active, payload, isDarkMode: dark }) {
+  const { selectedAccent } = useColorMode();
+  const accent  = selectedAccent?.primary   || '#1a237e';
+  const accent2 = selectedAccent?.secondary || '#283593';
   if (!active || !payload?.[0]) return null;
   const d   = payload[0].payload;
-  const bg  = dark ? '#1e293b' : '#ffffff';
   const clr = dark ? '#e2e8f0' : '#1e293b';
   const mut = dark ? '#94a3b8' : '#64748b';
+  const bg  = dark ? '#1e293b' : '#fff';
   const n   = (v) => (parseFloat(v) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
   return (
-    <div style={{ background: bg, border: `1px solid ${dark ? '#334155' : '#e2e8f0'}`, borderRadius: 8, padding: '7px 11px', fontSize: '0.73rem', boxShadow: '0 4px 14px rgba(0,0,0,0.22)', minWidth: 190 }}>
-      <div style={{ fontWeight: 700, color: clr, marginBottom: 5 }}>{d.name}</div>
-      <div style={{ color: clr }}>Tonnage : <b>{n(d.tonnage ?? d.value)}</b></div>
-      <div style={{ color: mut }}>LY Tonnage : {n(d.ly_tonnage)}</div>
-      <div style={{ color: clr, marginTop: 3 }}>Amount : <b>{n(d.amount)}</b></div>
-      <div style={{ color: mut }}>LY Amount : {n(d.ly_amount)}</div>
+    <div style={{ background: bg, border: `1px solid ${dark ? '#334155' : '#e2e8f0'}`, borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 14px rgba(0,0,0,0.22)', minWidth: 190, fontSize: '0.73rem' }}>
+      <div style={{ background: `linear-gradient(90deg, ${accent}, ${accent2})`, padding: '5px 10px', color: 'white', fontWeight: 700, fontSize: '0.72rem', textAlign: 'center' }}>{d.name}</div>
+      <div style={{ padding: '6px 10px' }}>
+        <div style={{ color: clr }}>Tonnage : <b>{n(d.tonnage ?? d.value)}</b></div>
+        <div style={{ color: mut }}>LY Tonnage : {n(d.ly_tonnage)}</div>
+        <div style={{ color: clr, marginTop: 3 }}>Amount : <b>{n(d.amount)}</b></div>
+        <div style={{ color: mut }}>LY Amount : {n(d.ly_amount)}</div>
+      </div>
     </div>
   );
 }
@@ -330,11 +429,25 @@ function HBarCard({ title, data, onBarClick, onZoom, showFullTooltip = false }) 
   const gridClr  = isDarkMode ? '#334155' : '#f1f5f9';
   const labelClr = isDarkMode ? '#94a3b8' : '#475569';
   const total    = data.reduce((s, r) => s + r.value, 0);
+  const hbarTooltip = ({ active, payload }) => {
+    if (!active || !payload?.[0]) return null;
+    const d = payload[0].payload;
+    return (
+      <div style={{ background: isDarkMode ? '#1e293b' : '#fff', border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`, borderRadius: 8, overflow: 'hidden', boxShadow: '0 6px 20px rgba(0,0,0,0.18)', minWidth: 120 }}>
+        <div style={{ background: `linear-gradient(90deg, ${accent}, ${accent2})`, padding: '5px 10px', color: 'white', fontWeight: 700, fontSize: '0.72rem', textAlign: 'center' }}>
+          {d.name}
+        </div>
+        <div style={{ padding: '6px 10px', color: isDarkMode ? '#e2e8f0' : '#1e293b', fontWeight: 600, fontSize: '0.88rem', textAlign: 'center' }}>
+          {Math.round(d.value).toLocaleString()}
+        </div>
+      </div>
+    );
+  };
   const hbarLabel = ({ x, y, width, height, value }) => {
-    const pct = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
+    const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
     return (
       <text x={x + width + 6} y={y + height / 2} fill={labelClr} dominantBaseline="central" fontSize={9}>
-        {value} ({pct}%)
+        {Math.round(value)} ({pct}%)
       </text>
     );
   };
@@ -346,10 +459,7 @@ function HBarCard({ title, data, onBarClick, onZoom, showFullTooltip = false }) 
         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridClr} />
         <XAxis type="number" tick={{ fontSize: 10, fill: axisClr }} />
         <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 10, fill: textClr, fontWeight: 500 }} />
-        {showFullTooltip
-          ? <Tooltip content={<DwFullTooltip isDarkMode={isDarkMode} />} />
-          : <Tooltip enabled={false} />
-        }
+        <Tooltip content={showFullTooltip ? <DwFullTooltip isDarkMode={isDarkMode} /> : hbarTooltip} />
         <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={24} isAnimationActive animationDuration={600}
           onClick={onBarClick ? (barData) => { if (barData) onBarClick(barData); } : undefined}>
           {data.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
@@ -895,7 +1005,7 @@ export default function ChartsPage({ loggedInRolex }) {
     clearTimeout(dwL4LoadingTimer.current);
     setDwL3Loading(false); setDwL3LoadingVisible(false);
     setDwL4Loading(false); setDwL4LoadingVisible(false);
-    dwL2LoadingTimer.current = setTimeout(() => setDwL2LoadingVisible(true), 150);
+    setDwL2LoadingVisible(true);
     setDwL2Loading(true);
     try {
       const rows = await getGraphSellingDataByCategory({ label: payload.name, daysel: appliedDw.daysel, method: appliedDw.method, company: appliedDw.company, basedon: appliedDw.basedon });
@@ -908,7 +1018,6 @@ export default function ChartsPage({ loggedInRolex }) {
         ly_amount:  parseFloat(r.ly_amount)  || 0,
       })) : []);
     } catch { setDwLevel2([]); }
-    clearTimeout(dwL2LoadingTimer.current);
     setDwL2LoadingVisible(false);
     setDwL2Loading(false);
     scrollTo('dw-section2');
@@ -921,7 +1030,7 @@ export default function ChartsPage({ loggedInRolex }) {
     setDwClickedItem(null);
     clearTimeout(dwL4LoadingTimer.current);
     setDwL4Loading(false); setDwL4LoadingVisible(false);
-    dwL3LoadingTimer.current = setTimeout(() => setDwL3LoadingVisible(true), 150);
+    setDwL3LoadingVisible(true);
     setDwL3Loading(true);
     try {
       const rows = await getGraphSellingDataByItem({ catgory: dwClickedCatgroup, label: payload.name, daysel: appliedDw.daysel, method: appliedDw.method, company: appliedDw.company, basedon: appliedDw.basedon });
@@ -934,7 +1043,6 @@ export default function ChartsPage({ loggedInRolex }) {
         ly_amount:  parseFloat(r.ly_amount)  || 0,
       })) : []);
     } catch { setDwLevel3([]); }
-    clearTimeout(dwL3LoadingTimer.current);
     setDwL3LoadingVisible(false);
     setDwL3Loading(false);
     scrollTo('dw-section3');
@@ -944,7 +1052,7 @@ export default function ChartsPage({ loggedInRolex }) {
     if (!payload?.name) return;
     setDwClickedItem(payload.name);
     setDwLevel4([]);
-    dwL4LoadingTimer.current = setTimeout(() => setDwL4LoadingVisible(true), 150);
+    setDwL4LoadingVisible(true);
     setDwL4Loading(true);
     try {
       const rows = await getGraphSellingDataByItem({
@@ -964,7 +1072,6 @@ export default function ChartsPage({ loggedInRolex }) {
         ly_amount:  parseFloat(r.ly_amount)  || 0,
       })) : []);
     } catch { setDwLevel4([]); }
-    clearTimeout(dwL4LoadingTimer.current);
     setDwL4LoadingVisible(false);
     setDwL4Loading(false);
     scrollTo('dw-section4');
@@ -1159,6 +1266,7 @@ export default function ChartsPage({ loggedInRolex }) {
       </div>
     </div>
   );
+
 
   const tabBg        = isDarkMode ? '#1e293b' : '#f1f5f9';
   const inactiveClr  = isDarkMode ? '#94a3b8' : '#475569';
@@ -1365,7 +1473,7 @@ export default function ChartsPage({ loggedInRolex }) {
             <motion.div id="dw-section2" style={{ marginBottom: 20 }}
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
               {dwL2LoadingVisible ? (
-                <LoaderOverlay text="Generating Report" />
+                <LoaderOverlay text="Loading Category Data" />
               ) : dwLevel2.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
                   <DwTableCard
@@ -1384,7 +1492,7 @@ export default function ChartsPage({ loggedInRolex }) {
             <motion.div id="dw-section3" style={{ marginBottom: 20 }}
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
               {dwL3LoadingVisible ? (
-                <LoaderOverlay text="Generating Report" />
+                <LoaderOverlay text="Loading Category Items" />
               ) : dwLevel3.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
                   <DwTableCard
@@ -1403,7 +1511,7 @@ export default function ChartsPage({ loggedInRolex }) {
             <motion.div id="dw-section4" style={{ marginBottom: 20 }}
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
               {dwL4LoadingVisible ? (
-                <LoaderOverlay text="Generating Report" />
+                <LoaderOverlay text="Loading Item Details" />
               ) : dwLevel4.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
                   <DwTableCard

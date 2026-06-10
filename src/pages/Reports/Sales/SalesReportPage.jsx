@@ -83,7 +83,9 @@ const GROUP_FIELD_TO_DISTFINF = {
 const FULL_DRILL_AFTER = {
   distributors: { distname: 'catgroup', catgroup: 'category', category: 'description', year: 'catgroup' },
   catgroup:     { catgroup: 'distname', distname: 'category', category: 'description', year: 'distname' },
-  asm:          { asm: 'areaname', areaname: 'catgroup', catgroup: 'category', year: 'catgroup' },
+  // areaname removed: the API stores year values in areaname, making asm→areaname = asm→year (redundant).
+  // Single expand goes directly asm→catgroup; year expand button still handles year breakdown.
+  asm:          { asm: 'catgroup', catgroup: 'category', year: 'catgroup' },
   soff:         { soff: 'distname', distname: 'catgroup', catgroup: 'category', year: 'distname' },
 };
 
@@ -231,8 +233,9 @@ const MonthCell = ({ row, rows, rowIdx, level, mKey, mLyKey, accent, isDarkMode,
   if (!isSummary) {
     return (
       <td className="sr-td">
-        <div style={{ fontWeight: 500, color: 'var(--sales-text, #1e293b)' }}>{f(row[mKey])}</div>
-        <ArrowIcon diff={diff} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, fontWeight: 500, color: 'var(--sales-text, #1e293b)' }}>
+          {f(row[mKey])}<ArrowIcon diff={diff} />
+        </div>
       </td>
     );
   }
@@ -249,8 +252,9 @@ const MonthCell = ({ row, rows, rowIdx, level, mKey, mLyKey, accent, isDarkMode,
       accent={accent}
       isDarkMode={isDarkMode}
     >
-      <div style={{ fontWeight: 500, color: 'var(--sales-text, #1e293b)' }}>{f(row[mKey])}</div>
-      <ArrowIcon diff={diff} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, fontWeight: 500, color: 'var(--sales-text, #1e293b)' }}>
+        {f(row[mKey])}<ArrowIcon diff={diff} />
+      </div>
     </CellTooltip>
   );
 };
@@ -262,8 +266,9 @@ const QuarterCell = ({ row, rows, rowIdx, level, qKey, accent, isDarkMode, isSum
   if (!isSummary) {
     return (
       <td className="sr-td" style={{ fontWeight: 700, textAlign: 'center' }}>
-        <div>{f(row[qKey])}</div>
-        <ArrowIcon diff={diff} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+          {f(row[qKey])}<ArrowIcon diff={diff} />
+        </div>
       </td>
     );
   }
@@ -280,8 +285,9 @@ const QuarterCell = ({ row, rows, rowIdx, level, qKey, accent, isDarkMode, isSum
       accent={accent}
       isDarkMode={isDarkMode}
     >
-      <div>{f(row[qKey])}</div>
-      <ArrowIcon diff={diff} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+        {f(row[qKey])}<ArrowIcon diff={diff} />
+      </div>
     </CellTooltip>
   );
 };
@@ -296,9 +302,10 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
   const isNonSummaryL0 = !isSummary && level === 0 && isMultiYear;
   const tillLast = (parseFloat(row.ttltonnage_crnt) || 0) - (parseFloat(row.currentmonthtonnage) || 0);
 
-  // YTD Gr/Degr: L0 rowN>0 → row-to-row diff; L0 row0 → hidden prior-year full YTD; L1+ → _last fields
+  // YTD Gr/Degr: L0 rowN>0 → row-to-row diff; L0 row0 → hidden prior-year full YTD; L1+ → ttltonnage field
   // API quirk: hidden prior-year row has ttltonnage_crnt = current month only (not full YTD).
   // Full YTD for hidden prior year = ttltonnage (up-to-last-month sum) + currentmonthtonnage.
+  // ttltonnage = prev year YTD through same month as current year (not full year)
   const lyYtd = GROUPS.flatMap(g => g.months.map(m => parseFloat(row[m.lyKey]) || 0)).reduce((s, v) => s + v, 0);
   let ytdGr;
   let ytdGrBase;
@@ -313,26 +320,30 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
     }
     ytdGr = (parseFloat(row.ttltonnage_crnt) || 0) - ytdGrBase;
   } else {
-    ytdGrBase = lyYtd;
-    ytdGr = (parseFloat(row.ttltonnage_crnt) || 0) - lyYtd;
+    // L1+ summary rows and non-summary rows: ttltonnage = prev year YTD through current month
+    ytdGrBase = parseFloat(row.ttltonnage) || 0;
+    ytdGr = (parseFloat(row.ttltonnage_crnt) || 0) - ytdGrBase;
   }
 
-  // YTD %: current month vs previous year's equivalent month — mirrors Angular CastNumber_per_per
-  // L0 Summary: API does not return currentmonthtonnage_last; find prev-year row by year number (Angular approach)
-  // Use allSummaryRows (full API list) so the hidden prior year (e.g. 2023 when user selects 2025+2024) is found
-  // L1+ / non-summary: API provides currentmonthtonnage_last directly
+  // YTD %:
+  // L0 Summary: current month vs previous year's current month (Angular CastNumber_per_per)
+  // L1+ / non-summary: YTD Gr/Degr ÷ prev year YTD × 100
   const curMon   = parseFloat(row.currentmonthtonnage) || 0;
   const curMonLy = parseFloat(row.currentmonthtonnage_last) || 0;
-  let prevMonForPct = 0;
+  let ytdPct;
+  let ytdPctFormula;
   if (isSummary && level === 0) {
     const prevYearRow = (allSummaryRows || rows).find(r => String(r.year) === String(parseInt(row.year, 10) - 1));
-    prevMonForPct = prevYearRow
+    const prevMonForPct = prevYearRow
       ? (parseFloat(prevYearRow.currentmonthtonnage_last) || parseFloat(prevYearRow.currentmonthtonnage) || 0)
       : 0;
+    ytdPct = prevMonForPct !== 0 ? ((curMon - prevMonForPct) / Math.abs(prevMonForPct) * 100) : null;
+    ytdPctFormula = `(Current Month − Prev Year Month) ÷ Prev Year Month × 100\n= (${f(curMon)} − ${f(prevMonForPct)}) ÷ ${f(prevMonForPct)} × 100\n= ${(ytdPct ?? 0).toFixed(1)}%`;
   } else {
-    prevMonForPct = curMonLy;
+    ytdPct = ytdGrBase !== 0 ? (ytdGr / Math.abs(ytdGrBase) * 100) : null;
+    const formulaPrefix = isNonSummaryL0 ? 'Multi-year aggregate (sum of all selected years)\n' : '';
+    ytdPctFormula = `${formulaPrefix}YTD Gr/Degr ÷ Prev Year YTD × 100\n= ${f(ytdGr ?? 0)} ÷ ${f(ytdGrBase)} × 100\n= ${(ytdPct ?? 0).toFixed(1)}%`;
   }
-  const ytdPct = prevMonForPct !== 0 ? ((curMon - prevMonForPct) / Math.abs(prevMonForPct) * 100) : null;
 
   const yoyVal   = parseFloat(row.ttltonnage_crntwy) || 0;
   const ttlYtd   = parseFloat(row.ttltonnage_crnt) || 0;
@@ -387,13 +398,15 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
           lastYear={(curMonLy > 0 ? f(curMonLy) : undefined)}
           accent={accent} isDarkMode={isDarkMode}
         >
-          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(row.currentmonthtonnage)}</div>
-          <ArrowIcon diff={l0diff(rows, rowIdx, 'currentmonthtonnage')} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
+            {f(row.currentmonthtonnage)}<ArrowIcon diff={l0diff(rows, rowIdx, 'currentmonthtonnage')} />
+          </div>
         </CellTooltip>
       ) : (
         <td className="sr-td" style={{ fontWeight: 600 }}>
-          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(row.currentmonthtonnage)}</div>
-          <ArrowIcon diff={subDiff(row, 'currentmonthtonnage', 'currentmonthtonnage_last')} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
+            {f(row.currentmonthtonnage)}<ArrowIcon diff={subDiff(row, 'currentmonthtonnage', 'currentmonthtonnage_last')} />
+          </div>
         </td>
       )}
 
@@ -408,13 +421,15 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
           formula="Year-to-date total tonnage"
           accent={accent} isDarkMode={isDarkMode}
         >
-          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(row.ttltonnage_crnt)}</div>
-          {ytdGr !== null && <ArrowIcon diff={ytdGr} />}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
+            {f(row.ttltonnage_crnt)}{ytdGr !== null && <ArrowIcon diff={ytdGr} />}
+          </div>
         </CellTooltip>
       ) : (
         <td className="sr-td" style={{ fontWeight: 700 }}>
-          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(row.ttltonnage_crnt)}</div>
-          {ytdGr !== null && <ArrowIcon diff={ytdGr} />}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
+            {f(row.ttltonnage_crnt)}{ytdGr !== null && <ArrowIcon diff={ytdGr} />}
+          </div>
         </td>
       )}
       <CellTooltip
@@ -423,17 +438,19 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
         formula={isNonSummaryL0 ? `Multi-year aggregate (sum of all selected years)\nCurrent YTD − Prev Year YTD\n= ${f(ttlYtd)} − ${f(ytdGrBase)}\n= ${f(ytdGr ?? 0)}` : `Current YTD − Prev Year YTD\n= ${f(ttlYtd)} − ${f(ytdGrBase)}\n= ${f(ytdGr ?? 0)}`}
         accent={accent} isDarkMode={isDarkMode}
       >
-        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(ytdGr ?? 0)}</div>
-        <ArrowIcon diff={ytdGr ?? 0} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
+          {f(ytdGr ?? 0)}<ArrowIcon diff={ytdGr ?? 0} />
+        </div>
       </CellTooltip>
       <CellTooltip
         className="sr-td"
         title="YTD %"
-        formula={isNonSummaryL0 ? `Multi-year aggregate (sum of all selected years)\n(Current Month − Prev Year Month) ÷ Prev Year Month × 100\n= (${f(curMon)} − ${f(curMonLy)}) ÷ ${f(curMonLy)} × 100\n= ${(ytdPct ?? 0).toFixed(1)}%` : `(Current Month − Prev Year Month) ÷ Prev Year Month × 100\n= (${f(curMon)} − ${f(prevMonForPct)}) ÷ ${f(prevMonForPct)} × 100\n= ${(ytdPct ?? 0).toFixed(1)}%`}
+        formula={ytdPctFormula}
         accent={accent} isDarkMode={isDarkMode}
       >
-        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{`${(ytdPct ?? 0).toFixed(1)}%`}</div>
-        <ArrowIcon diff={ytdPct ?? 0} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
+          {level === 0 ? `${Math.round(ytdPct ?? 0)}%` : `${(ytdPct ?? 0).toFixed(2)}%`}<ArrowIcon diff={ytdPct ?? 0} />
+        </div>
       </CellTooltip>
       <CellTooltip
         className="sr-td"
@@ -444,7 +461,9 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
         formula="Full year comparison (same period)"
         accent={accent} isDarkMode={isDarkMode}
       >
-        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(yoyVal)}</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
+          {f(yoyVal)}<ArrowIcon diff={yoyGr ?? 0} />
+        </div>
       </CellTooltip>
       <CellTooltip
         className="sr-td"
@@ -452,8 +471,9 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
         formula={isNonSummaryL0 ? `Multi-year aggregate (sum of all selected years)\nCurrent YOY − Last Year YOY\n= ${f(ttlYoy)} − ${f(yoyBase)}\n= ${f(yoyGr ?? 0)}` : `Current YOY − Last Year YOY\n= ${f(ttlYoy)} − ${f(yoyBase)}\n= ${f(yoyGr ?? 0)}`}
         accent={accent} isDarkMode={isDarkMode}
       >
-        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(yoyGr ?? 0)}</div>
-        <ArrowIcon diff={yoyGr ?? 0} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
+          {f(yoyGr ?? 0)}<ArrowIcon diff={yoyGr ?? 0} />
+        </div>
       </CellTooltip>
       <CellTooltip
         className="sr-td"
@@ -461,8 +481,9 @@ const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMo
         formula={isNonSummaryL0 ? `Multi-year aggregate (sum of all selected years)\n(YOY Gr/Degr ÷ Last Year YOY) × 100\n= (${f(yoyGr ?? 0)} ÷ ${f(yoyBase)}) × 100\n= ${(yoyPct ?? 0).toFixed(1)}%` : `(YOY Gr/Degr ÷ Last Year YOY) × 100\n= (${f(yoyGr ?? 0)} ÷ ${f(yoyBase)}) × 100\n= ${(yoyPct ?? 0).toFixed(1)}%`}
         accent={accent} isDarkMode={isDarkMode}
       >
-        <div style={{ color: 'var(--sales-text, #1e293b)' }}>{`${(yoyPct ?? 0).toFixed(1)}%`}</div>
-        <ArrowIcon diff={yoyPct ?? 0} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
+          {level === 0 ? `${Math.round(yoyPct ?? 0)}%` : `${(yoyPct ?? 0).toFixed(2)}%`}<ArrowIcon diff={yoyPct ?? 0} />
+        </div>
       </CellTooltip>
     </>
   );
@@ -487,14 +508,18 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
     const isLeafNode = row.final === 1 || row.final === '1';
     const isShopsLeaf = isSummary && monthwisedisttype === 'Shops' && !!(row.disttype && row.description && row.disttype === row.description);
     const maxLevel = (isSummary && monthwisedisttype === 'Shops') ? 5 : 3;
-    const canDrill   = !(isLeafNode || isShopsLeaf) && (isSummary ? level < maxLevel : !!(FULL_DRILL_AFTER[tab]?.[row._groupField]));
+    // Non-summary: drillability is purely client-side (groupByField), so ignore the API's `final` flag.
+    // Summary: `final` marks a true leaf node where the server has no more data.
+    const canDrill = isSummary
+      ? (!(isLeafNode || isShopsLeaf) && level < maxLevel)
+      : !!(FULL_DRILL_AFTER[tab]?.[row._groupField]);
     const yearOpen   = !isSummary && level === 0 && !!expandedYear?.[stateKey];
     const yearChildren = drillData[`year__${stateKey}`] || [];
     const isL0NonSummary = !isSummary && level === 0;
     const showYearBtn   = isL0NonSummary && !!yearRowsEnabled && !isLoading;
     const showExpandBtn = canDrill && !isLoading;
     const clampedLevel = Math.min(level, 3);
-    const indentPx     = level * 16;
+    const indentPx     = level * 10;
     const dfColor      = level === 0 ? getDistfinfColor(row) : null;
 
     const rowBgMap = [
@@ -631,10 +656,31 @@ function GrandTotalRow({ rows, expandedQuarters, isSummary, showTillLast, accent
   const gtBg     = accent ? `color-mix(in srgb, ${accent} 60%, #050505)` : '#1e293b';
   const gtBorder = accent ? `color-mix(in srgb, ${accent} 40%, #000000)` : '#334155';
 
-  // Compute aggregate growth values for summary tab (mirrors SummaryCells logic per-row, then sums)
+  // Compute aggregate growth values for Grand Total row
   const gtGrowth = useMemo(() => {
-    if (!isSummary || rows.length === 0) return null;
-    let totalYtdGr = 0, totalCurMon = 0, totalPrevMon = 0, totalYoyGr = 0, totalYoyBase = 0;
+    if (rows.length === 0) return null;
+
+    // Non-summary tabs (Distributors/Catgroup/ASM/Soff): each L0 row has ttltonnage (prev YTD)
+    // summed from GROUP_SUM_KEYS via groupByField — use directly
+    if (!isSummary) {
+      let prevYtd = 0, currYtd = 0, prevYoy = 0, currYoy = 0;
+      rows.forEach(row => {
+        prevYtd += parseFloat(row.ttltonnage)       || 0;
+        currYtd += parseFloat(row.ttltonnage_crnt)  || 0;
+        prevYoy += parseFloat(row.ttltonnagewy)     || 0;
+        currYoy += parseFloat(row.ttltonnage_crntwy) || 0;
+      });
+      const totalYtdGr = currYtd - prevYtd;
+      const ytdPct     = prevYtd !== 0 ? (totalYtdGr / Math.abs(prevYtd) * 100) : null;
+      const totalYoyGr = currYoy - prevYoy;
+      const yoyPct     = prevYoy !== 0 ? (totalYoyGr / Math.abs(prevYoy) * 100) : null;
+      return { totalYtdGr, ytdPct, totalYoyGr, yoyPct };
+    }
+
+    // Summary tab: mirrors SummaryCells per-row logic then aggregates
+    // YTD% and YOY% are sums of per-row rounded values (e.g. 2024:12% + 2025:12% = 24%)
+    let totalYtdGr = 0, totalYoyGr = 0, totalYoyBase = 0;
+    let ytdPctSum = 0, ytdPctRows = 0, yoyPctSum = 0;
     rows.forEach((row, rowIdx) => {
       // YTD Gr/Degr base — mirrors SummaryCells exactly
       let ytdGrBase;
@@ -648,14 +694,13 @@ function GrandTotalRow({ rows, expandedQuarters, isSummary, showTillLast, accent
       }
       totalYtdGr += (parseFloat(row.ttltonnage_crnt) || 0) - ytdGrBase;
 
-      // YTD % — current month vs prior year current month
+      // YTD % — sum of per-row rounded values (matches Angular: each year's % adds up)
       const curMon = parseFloat(row.currentmonthtonnage) || 0;
       const prevYrRowForPct = (allSummaryRows || rows).find(r => String(r.year) === String(parseInt(row.year, 10) - 1));
       const prevMon = prevYrRowForPct
         ? (parseFloat(prevYrRowForPct.currentmonthtonnage_last) || parseFloat(prevYrRowForPct.currentmonthtonnage) || 0)
         : 0;
-      totalCurMon += curMon;
-      totalPrevMon += prevMon;
+      if (prevMon !== 0) { ytdPctSum += Math.round((curMon - prevMon) / Math.abs(prevMon) * 100); ytdPctRows++; }
 
       // YOY Gr/Degr base
       let yoyBase;
@@ -666,16 +711,17 @@ function GrandTotalRow({ rows, expandedQuarters, isSummary, showTillLast, accent
         yoyBase = prevYrRow ? (parseFloat(prevYrRow.ttltonnagewy) || 0) : 0;
       }
       const yoyVal = parseFloat(row.ttltonnage_crntwy) || 0;
-      if (yoyBase !== 0) totalYoyGr += yoyVal - yoyBase;
+      if (yoyBase !== 0) {
+        totalYoyGr += yoyVal - yoyBase;
+        yoyPctSum += Math.round((yoyVal - yoyBase) / Math.abs(yoyBase) * 100);
+      }
       totalYoyBase += yoyBase;
     });
 
-    const ytdPct = totalPrevMon !== 0 ? ((totalCurMon - totalPrevMon) / Math.abs(totalPrevMon) * 100) : null;
-    const yoyPct = totalYoyBase !== 0 ? (totalYoyGr / Math.abs(totalYoyBase) * 100) : null;
+    const ytdPct = ytdPctRows > 0 ? ytdPctSum : null;
+    const yoyPct = totalYoyBase !== 0 ? yoyPctSum : null;
     return { totalYtdGr, ytdPct, totalYoyGr, yoyPct };
   }, [rows, allSummaryRows, isSummary]);
-
-  const gClr = (v) => v == null ? 'rgba(255,255,255,0.55)' : v >= 0 ? '#86efac' : '#fca5a5';
 
   return (
     <tr style={{ background: gtBg, borderTop: `2px solid ${gtBorder}`, borderBottom: `2px solid ${gtBorder}` }}>
@@ -685,25 +731,25 @@ function GrandTotalRow({ rows, expandedQuarters, isSummary, showTillLast, accent
       </td>
       {GROUPS.flatMap(g => [
         ...(expandedQuarters[g.qKey] ? g.months.map(m => (
-          <td key={m.key} className="sr-td" style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>{fmtR(gt[m.key])}</td>
+          <td key={m.key} className="sr-td" style={{ background: gtBg, color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>{fmtR(gt[m.key])}</td>
         )) : []),
-        <td key={g.qKey} className="sr-td" style={{ fontWeight: 800, color: 'white', textAlign: 'center' }}>{fmtR(gt[g.qKey])}</td>,
+        <td key={g.qKey} className="sr-td" style={{ background: gtBg, fontWeight: 800, color: 'white', textAlign: 'center' }}>{fmtR(gt[g.qKey])}</td>,
       ])}
-      {showTillLast && <td className="sr-td" style={{ color: 'white', fontWeight: 600 }}>{fmtR(tillLast)}</td>}
-      <td className="sr-td" style={{ color: 'white', fontWeight: 600 }}>{fmtR(gt.currentmonthtonnage)}</td>
-      <td className="sr-td" style={{ color: 'white', fontWeight: 800 }}>{fmtR(gt.ttltonnage_crnt)}</td>
-      <td className="sr-td" style={{ color: gClr(gtGrowth?.totalYtdGr), fontWeight: 700 }}>
+      {showTillLast && <td className="sr-td" style={{ background: gtBg, color: 'white', fontWeight: 600 }}>{fmtR(tillLast)}</td>}
+      <td className="sr-td" style={{ background: gtBg, color: 'white', fontWeight: 600 }}>{fmtR(gt.currentmonthtonnage)}</td>
+      <td className="sr-td" style={{ background: gtBg, color: 'white', fontWeight: 800 }}>{fmtR(gt.ttltonnage_crnt)}</td>
+      <td className="sr-td" style={{ background: gtBg, color: 'white', fontWeight: 700 }}>
         {gtGrowth != null ? fmtR(gtGrowth.totalYtdGr) : '—'}
       </td>
-      <td className="sr-td" style={{ color: gClr(gtGrowth?.ytdPct) }}>
-        {gtGrowth?.ytdPct != null ? `${gtGrowth.ytdPct.toFixed(1)}%` : '—'}
+      <td className="sr-td" style={{ background: gtBg, color: 'white', fontWeight: 700 }}>
+        {gtGrowth?.ytdPct != null ? `${Math.round(gtGrowth.ytdPct)}%` : '—'}
       </td>
-      <td className="sr-td" style={{ color: 'white', fontWeight: 800 }}>{fmtR(gt.ttltonnage_crntwy)}</td>
-      <td className="sr-td" style={{ color: gClr(gtGrowth?.totalYoyGr), fontWeight: 700 }}>
+      <td className="sr-td" style={{ background: gtBg, color: 'white', fontWeight: 800 }}>{fmtR(gt.ttltonnage_crntwy)}</td>
+      <td className="sr-td" style={{ background: gtBg, color: 'white', fontWeight: 700 }}>
         {gtGrowth != null ? fmtR(gtGrowth.totalYoyGr) : '—'}
       </td>
-      <td className="sr-td" style={{ color: gClr(gtGrowth?.yoyPct) }}>
-        {gtGrowth?.yoyPct != null ? `${gtGrowth.yoyPct.toFixed(1)}%` : '—'}
+      <td className="sr-td" style={{ background: gtBg, color: 'white', fontWeight: 700 }}>
+        {gtGrowth?.yoyPct != null ? `${Math.round(gtGrowth.yoyPct)}%` : '—'}
       </td>
     </tr>
   );
@@ -1083,6 +1129,29 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
         return true;
       });
       const children = groupByField(filtered, nextGroupField, parentFilters);
+
+      // When drilling from a year row (parentFilters has 'year'), the raw rows for
+      // year=Y don't carry the prior year's comparison in ttltonnagewy at individual-row
+      // level. Fix YOY by cross-referencing year=Y-1 rows from rawRows.
+      if (parentFilters.year) {
+        const priorYear = String(parseInt(parentFilters.year, 10) - 1);
+        const priorFilters = { ...parentFilters, year: priorYear };
+        const priorFiltered = rawRowsRef.current.filter(r =>
+          Object.entries(priorFilters).every(([f, v]) =>
+            String(r[f] ?? '').trim() === String(v ?? '').trim()
+          )
+        );
+        if (priorFiltered.length > 0) {
+          const priorGroups = groupByField(priorFiltered, nextGroupField, priorFilters);
+          const priorMap = {};
+          priorGroups.forEach(r => { priorMap[String(r[nextGroupField] ?? '').trim()] = r; });
+          children.forEach(child => {
+            const priorRow = priorMap[String(child[nextGroupField] ?? '').trim()];
+            if (priorRow) child.ttltonnagewy = parseFloat(priorRow.ttltonnage_crntwy) || 0;
+          });
+        }
+      }
+
       drillDataRef.current = { ...drillDataRef.current, [key]: children };
       setDrillData(p => ({ ...p, [key]: children }));
       setExpanded(p => ({ ...p, [key]: true }));
@@ -1177,40 +1246,92 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
         const isShopsSblDeep = monthwisedisttype === 'Shops' && (monthwisecompany === 'SBL' || monthwisecompany === 'BALAJI');
         if (isShopsSblDeep && level === 2) {
           // Shops+SBL L2→L3: distributor row → catgroup rows
-          // getFifthLevelDispatch groups DB by a.category for a specific distid
-          // row.id from getCatgroupForCatAR1: {shoptype}_{company}_{distname}_{distid}_{idx}_{year}
-          // → idParts[0]=shoptype, idParts[3]=distid — correct for getFifthLevelDispatch
           appLog('[SHOPS L2→L3] row.id:', row.id, '| row.distid:', row.distid, '| row.disttype:', row.disttype, '| row.distname:', row.distname);
+          const rowYear = row.year || selectedyear;
           const raw = await getFifthLevelDispatch({
             id: row.id,
             dispatchtype: monthwisedisttype,
-            selectedyear: row.year || selectedyear,
+            selectedyear: rowYear,
             monthwisecompany,
           });
           data = (Array.isArray(raw) ? raw : []).map(r => ({ ...r, distfinf: 3 }));
+          // Cross-year patch: getFifthLevelDispatch may return ttltonnagewy=0 — fetch prior year to fill it
+          if (data.length > 0 && !data.some(r => (parseFloat(r.ttltonnagewy) || 0) > 0)) {
+            const priorYear = String(parseInt(rowYear, 10) - 1);
+            const priorId = String(row.id || '').replace(new RegExp(`_${rowYear}$`), `_${priorYear}`);
+            try {
+              const priorRaw = await getFifthLevelDispatch({ id: priorId, dispatchtype: monthwisedisttype, selectedyear: priorYear, monthwisecompany });
+              const priorMap = {};
+              (Array.isArray(priorRaw) ? priorRaw : []).forEach(r => {
+                const k = String(r.catgroup ?? r.description ?? '').trim();
+                if (k) priorMap[k] = r;
+              });
+              data = data.map(r => {
+                const k = String(r.catgroup ?? r.description ?? '').trim();
+                const pr = priorMap[k];
+                return pr ? { ...r, ttltonnagewy: parseFloat(pr.ttltonnage_crntwy) || 0 } : r;
+              });
+            } catch { /* keep current data */ }
+          }
         } else if (isShopsSblDeep && level === 3) {
           // Shops+SBL L3→L4: catgroup row → item-code rows
-          // getFifthLevelDispatch L3 rows have: distid, company, disttype (shoptype), catgroup
-          // getSixthLevelDispatch expects id: {distid}_{company}_{shoptype}_{catgroup}_{idx}_{year}
-          const builtId = `${row.distid || ''}_${row.company || monthwisecompany}_${row.disttype || ''}_${row.catgroup || row.category || ''}_0_${selectedyear}`;
+          const rowYear = row.year || selectedyear;
+          const builtId = `${row.distid || ''}_${row.company || monthwisecompany}_${row.disttype || ''}_${row.catgroup || row.category || ''}_0_${rowYear}`;
           appLog('[SHOPS L3→L4] row.id:', row.id, '| builtId:', builtId, '| row.distid:', row.distid, '| row.catgroup:', row.catgroup, '| row.disttype:', row.disttype);
           const raw = await getSixthLevelDispatch({
             id: builtId,
             dispatchtype: monthwisedisttype,
-            selectedyear: row.year || selectedyear,
+            selectedyear: rowYear,
             monthwisecompany,
           });
           data = (Array.isArray(raw) ? raw : []).map(r => ({ ...r, distfinf: 1 }));
+          // Cross-year patch: getSixthLevelDispatch may return ttltonnagewy=0 — fetch prior year to fill it
+          if (data.length > 0 && !data.some(r => (parseFloat(r.ttltonnagewy) || 0) > 0)) {
+            const priorYear = String(parseInt(rowYear, 10) - 1);
+            const priorBuiltId = `${row.distid || ''}_${row.company || monthwisecompany}_${row.disttype || ''}_${row.catgroup || row.category || ''}_0_${priorYear}`;
+            try {
+              const priorRaw = await getSixthLevelDispatch({ id: priorBuiltId, dispatchtype: monthwisedisttype, selectedyear: priorYear, monthwisecompany });
+              const priorMap = {};
+              (Array.isArray(priorRaw) ? priorRaw : []).forEach(r => {
+                const k = String(r.description ?? r.catgroup ?? '').trim();
+                if (k) priorMap[k] = r;
+              });
+              data = data.map(r => {
+                const k = String(r.description ?? r.catgroup ?? '').trim();
+                const pr = priorMap[k];
+                return pr ? { ...r, ttltonnagewy: parseFloat(pr.ttltonnage_crntwy) || 0 } : r;
+              });
+            } catch { /* keep current data */ }
+          }
         } else if (isShopsSblDeep && level === 4) {
           // Angular getfourthlevel for Shops — item description rows (leaf, distfinf=1)
+          const rowYear = row.year || selectedyear;
           const raw = await getSixthLevelDispatch({
             id: row.id,
             dispatchtype: monthwisedisttype,
             disttype: row.distid || row.disttype,
-            selectedyear: row.year || selectedyear,
+            selectedyear: rowYear,
             monthwisecompany,
           });
           data = (Array.isArray(raw) ? raw : []).map(r => ({ ...r, distfinf: 1 }));
+          // Cross-year patch for leaf item rows
+          if (data.length > 0 && !data.some(r => (parseFloat(r.ttltonnagewy) || 0) > 0)) {
+            const priorYear = String(parseInt(rowYear, 10) - 1);
+            const priorId = String(row.id || '').replace(new RegExp(`_${rowYear}$`), `_${priorYear}`);
+            try {
+              const priorRaw = await getSixthLevelDispatch({ id: priorId, dispatchtype: monthwisedisttype, disttype: row.distid || row.disttype, selectedyear: priorYear, monthwisecompany });
+              const priorMap = {};
+              (Array.isArray(priorRaw) ? priorRaw : []).forEach(r => {
+                const k = String(r.description ?? r.catgroup ?? '').trim();
+                if (k) priorMap[k] = r;
+              });
+              data = data.map(r => {
+                const k = String(r.description ?? r.catgroup ?? '').trim();
+                const pr = priorMap[k];
+                return pr ? { ...r, ttltonnagewy: parseFloat(pr.ttltonnage_crntwy) || 0 } : r;
+              });
+            } catch { /* keep current data */ }
+          }
         } else {
           const categoryVal = row.category || '';
           const distnameVal = row.distname  || '';
