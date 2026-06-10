@@ -1,169 +1,329 @@
-# MERN Dashboard
+# Sri Bhagyalakshmi Group — Operations Dashboard
 
-Version: `0.0.0`
+**Version:** `0.0.0`  
+**Stack:** React 19 + Vite 7 frontend · Express + MySQL backend  
+**Company:** Sri Bhagyalakshmi Group — Tested. Tasted. Trusted.
 
-A React + Vite dashboard application with an Express backend. In this project, the two main real working modules are:
+A full-stack business intelligence dashboard for sales, production, and supply-chain monitoring. All report modules connect to live APIs with real company data.
 
-- `SignIn` page
-- `Production Report` page
+---
 
-Most other pages are dummy or placeholder screens used for dashboard flow, layout, and navigation only.
+## Live Modules
 
-## Core Focus
+| Module | Path | Status |
+|---|---|---|
+| Sign In | `/` | Live |
+| Dashboard | `/dashboard` | Live — real API data |
+| Production Report | `/reports/production` | Live |
+| Sales Report | `/reports/sales` | Live |
+| Short Supply | `/reports/sales` (tab) | Live |
 
-This project mainly demonstrates:
-
-- JWT-based authentication and protected routing
-- A production dashboard with filters, tables, totals, charts, theme support, and fullscreen viewing
+---
 
 ## Tech Stack
 
-- Frontend: React 19, Vite, React Router, Framer Motion, Recharts, Bootstrap, MUI
-- Backend: Express, MySQL, JWT, Axios
-- Styling: CSS Modules
+### Frontend
+| Package | Version | Purpose |
+|---|---|---|
+| React | 19.2 | UI framework |
+| Vite | 7.2.2 | Build tool & dev server |
+| React Router DOM | 7.9 | Client-side routing |
+| Framer Motion | 12 | Page & component animations |
+| Recharts | 3.6 | Bar, Pie, Line, Area charts |
+| React Select | 5.10 | Themed multi-select dropdowns |
+| MUI / Emotion | 7.3 | Date pickers, icon set |
+| Bootstrap + Icons | 5.3 / 1.13 | Utility classes, icon font |
+| Zustand | 5.0 | Global filter state store |
+| Axios | 1.13 | HTTP API client |
+| date-fns / dayjs / moment | latest | Date formatting utilities |
+| xlsx / file-saver | latest | Excel export |
 
-## Main Working Pages
+### Backend
+| Package | Purpose |
+|---|---|
+| Express 4 | REST API server |
+| mysql2 | MySQL database driver |
+| jsonwebtoken | JWT auth tokens |
+| cors | Cross-origin request handling |
+| dotenv | Environment configuration |
 
-## 1. SignIn Page
+---
 
-Path: `/`
+## Project Structure
 
-Purpose:
+```
+src/
+├── components/
+│   ├── Sidebar.jsx                  # Animated sidebar with role-aware nav
+│   ├── SummaryCardsSystem/          # Shared KPI card system (Dashboard + Reports)
+│   └── ui/Tooltip.jsx               # Global themed tooltip (zero-re-render DOM impl)
+├── context/
+│   ├── AuthContext.jsx              # JWT auth state + protected route
+│   └── SummaryCardsContext.jsx      # Shared API data for summary cards
+├── hooks/
+│   └── useTooltip.js                # Imperative tooltip attachment hook
+├── layouts/
+│   └── MainLayout.jsx               # App shell: sidebar + topbar + content area
+├── pages/
+│   ├── SignIn/SignIn.jsx            # Login page
+│   ├── Dashboard.jsx                # Home dashboard with live stats
+│   ├── Reports/
+│   │   ├── Reports.jsx              # Reports hub page
+│   │   ├── Production/Production.jsx
+│   │   └── Sales/
+│   │       ├── SalesDashboard.jsx   # Sales module root + tab host
+│   │       ├── SalesReportPage.jsx  # Year-on-year multi-year sales table
+│   │       ├── ChartsPage.jsx       # Month Wise / Day Wise charts
+│   │       ├── DayWisePage.jsx      # Day-by-day sales grid
+│   │       ├── ShortSupplyPage.jsx  # Short supply dispatch report
+│   │       ├── Sales.css            # All static styles for Sales module
+│   │       └── filters/             # Reusable filter components + hooks
+│   └── Management/
+│       ├── Employees.jsx            # Placeholder
+│       └── Vendors.jsx              # Placeholder
+├── store/
+│   └── salesFilterStore.js          # Zustand store for Sales filter state
+├── theme/
+│   └── ThemeContext.jsx             # Dark/light mode + accent color system
+└── utils/
+    └── salesFormatters.js           # Date / number formatters
+```
 
-- Authenticates users before giving access to protected routes
-- Stores user token/session
-- Redirects unauthorized users back to login
+---
 
-Main implemented features:
+## 1. Sign In Page
 
-- Username and password login
-- JWT/session handling
-- Logout/session-expiry message support
-- Protected route integration
-- Styled animated login experience
+**Path:** `/`
 
-Related files:
+- Username + password authentication via JWT
+- Token stored in session; expired/invalid tokens redirect back to login
+- Protected route wrapper (`ProtectedRoute`) guards all report pages
+- Animated login card with theme-aware styling
 
-- [SignIn.jsx](/src/pages/SignIn.jsx)
-- [AuthContext.jsx](/src/context/AuthContext.jsx)
-- [main.jsx](/src/main.jsx)
+**Files:** `src/pages/SignIn/SignIn.jsx`, `src/context/AuthContext.jsx`
 
-## 2. Production Report Page
+---
 
-Path: `/reports/production`
+## 2. Dashboard
 
-Purpose:
+**Path:** `/dashboard`
 
-- Fetches production report data from API
-- Displays finished goods, raw materials, and packing summaries
-- Supports visualization and fullscreen report reading
+Live home page shown immediately after login. All data comes from real API calls.
 
-Main implemented features:
+**Features:**
+- Animated count-up KPI stats: YTD Tonnage, Current Month Sales, Full Year YOY, Short Supply items
+- Monthly Sales sparkline: 12 bar chart built from `jantonnage`–`dectonnage` fields; current month highlighted
+- Year comparison: animated horizontal progress bars for each year in `multiYearData`
+- Short supply ticker: infinite scrolling marquee listing all short supply items with tonnage
+- Short supply progress bars: proportional bar per item with red gradient
+- Summary Cards: shared KPI card system (also shown in Reports pages)
+- Report quick-access cards linking to Production and Sales reports
 
-- Date-range filter
-- Category group selector
-- Generate report action
-- Sticky / collapsible filter area
+**Files:** `src/pages/Dashboard.jsx`, `src/context/SummaryCardsContext.jsx`, `src/components/SummaryCardsSystem/`
+
+---
+
+## 3. Production Report
+
+**Path:** `/reports/production`
+
+Manufacturing output report with filters and multi-section data tables.
+
+**Features:**
+- Date-range filter + category group selector
+- Finished Goods, Raw Materials, Packing sections with expand/collapse rows
+- Totals and subtotals per section
+- Visualization: Bar, Line, Pie, Area charts
+- Quick item-category buttons + All mode
 - Fullscreen report mode
-- Finished goods section
-- Raw materials usage section
-- Packing section
-- Totals and subtotals
-- Rounded production percentage display
-- Expand / collapse subtotal rows
-- Visualization with:
-  - Bar chart
-  - Line chart
-  - Pie chart
-  - Area chart
-- `All` item-category support
-- Quick item-category buttons
-- Theme-aware styling
-- Mobile responsive behavior
+- Theme-aware styling + mobile responsive
 - Toast notifications
 
-Related files:
+**Files:** `src/pages/Reports/Production/Production.jsx`, `src/pages/Reports/Production/Production.module.css`
 
-- [Production.jsx](/src/pages/Reports/Production.jsx)
-- [Production.module.css](/src/pages/Reports/Production.module.css)
-- [MainLayout.jsx](/src/layouts/MainLayout.jsx)
-- [Sidebar.jsx](/src/components/Sidebar.jsx)
+---
 
-## Dummy / Placeholder Pages
+## 4. Sales Module
 
-These pages currently exist mainly for navigation/demo layout and are not the core project focus:
+**Root path:** `/reports/sales`
 
-- Dashboard
-- Reports home
-- Sales
+The most comprehensive module. Ported from an Angular legacy system, matching all Angular formulas, role conditions, and UI behavior exactly.
+
+### 4.1 Sales Report (Year-on-Year Table)
+
+**Tab:** Reports → Month Wise
+
+Multi-year, multi-level drill-down YoY sales comparison table.
+
+**Sub-tabs (role-based visibility):**
+| Tab | Visible when |
+|---|---|
+| YoY Summary | Always |
+| Distributors | Always |
+| Catgroup | Always |
+| ASM | `disttype !== Shops` AND role is not Distributor/Sales Man/Sales Executive |
+| Sales Officer | `disttype !== Shops` AND role is not Distributor |
+
+**Table features:**
+- Multi-year column layout: Q1–Q4 (expand to months), Till Last Month, Current Tonnage, YTD, YTD Gr/Degr, YTD%, YOY, YOY Gr/Degr, YOY%
+- All formulas match Angular source exactly (YTD%, YOY Gr/Degr, YOY% validated)
+- Drill-down: up to 4 levels (Distributor → Catgroup → Category → Item)
+- Dual expand buttons: `▼` single-level drill, `▼▼` year breakdown (multi-year mode)
+- Cross-year YOY% patch for L3/L4 levels when prior-year data is absent in API response
+- Row color coding: traffic-light (green/lightgreen/yellow/red) based on quarterly degrowth count; fixed palette per `distfinf` type
+- Color legend for non-summary tabs
+- Table virtualization: renders only visible rows + spacers (handles 20k+ rows without freeze)
+- Pre-grouped cache: all tab groups computed once after fetch, tab switches are instant (O(1))
+- Multi-select filters per tab with real checkbox dropdowns
+- Cell tooltips on summary columns showing live formula values
+
+**Files:** `src/pages/Reports/Sales/SalesReportPage.jsx`
+
+---
+
+### 4.2 Charts Page
+
+**Tab:** Charts → Month Wise / Day Wise
+
+**Month Wise charts:**
+- Bar chart + Pie chart for monthly tonnage (single year or multi-year mode)
+- Single year: Year (monthly) / Quarterly view modes
+- Multi-year: Group by Monthly/Quarterly with month/quarter sub-filter
+- Clicking bar or pie slice drills down to 3 category pie charts (DrillPieCard)
+- Category pie clicks drill to HBar (category items) → HBar (item codes)
+- Pie slices show value + % permanently on slice; hover tooltip with accent gradient header
+- Custom div-based legend: all items always visible, hidden items strikethrough; click to toggle
+- All chart tooltips: themed accent gradient header (centered) + centered value body
+
+**Day Wise charts:**
+- Date selector + Method/Company/Filter/Value dropdowns
+- Apply isolation: dropdowns don't update charts until Apply clicked
+- Level 1: DwTableCard (ranked table) + HBarCard side-by-side
+- Level 2: Category breakdown HBar
+- Level 3: Catgroup item HBar
+- Level 4: Item code HBar
+- Butterfly (mirrored) chart: Tonnage vs Amount comparison with split tooltips
+- Full-screen `LoaderOverlay` on every drill click (no timer delay — always shows)
+
+**Files:** `src/pages/Reports/Sales/ChartsPage.jsx`
+
+---
+
+### 4.3 Day Wise Page
+
+**Tab:** Reports → Day Wise
+
+Day-by-day sales grid for a selected month with expandable distributor rows.
+
+**Files:** `src/pages/Reports/Sales/DayWisePage.jsx`
+
+---
+
+### 4.4 Short Supply Page
+
+**Tab:** Reports → Short Supply
+
+Short supply dispatch report by date range.
+
+**Features:**
+- Date range picker
+- Paginated table with configurable page size (5/10/15/20/25/50)
+- LY comparison with ▲/▼ triangle indicators (red = increased shortage, green = decreased)
+- API "Total" row filtered out (dashboard computes its own total)
+- Themed `SSEntriesSelect` custom dropdown for page size
+
+**Files:** `src/pages/Reports/Sales/ShortSupplyPage.jsx`
+
+---
+
+### 4.5 Sales Module — Shared Architecture
+
+**CSS variable system** (`SalesDashboard.jsx` sets on root):
+| Variable | Purpose |
+|---|---|
+| `--sr-accent` | Primary accent color |
+| `--sr-accent2` | Secondary accent color |
+| `--sr-label-clr` | Filter label color (dark-mode safe) |
+| `--sr-text` | Body text |
+| `--sr-muted` | Muted text |
+| `--sr-card-bg` | Card background |
+| `--sr-border` | Border color |
+| `--sr-font` | Font family |
+
+**Filter bar:** Year, Company, Distribution Type, Month selectors — all themed via `useSalesSelectStyles` hook; sync button re-fetches from API.
+
+**Files:** `src/pages/Reports/Sales/Sales.css`, `src/pages/Reports/Sales/filters/`
+
+---
+
+## 5. Theme System
+
+Every page adapts to the selected theme automatically.
+
+- **Dark / Light mode** toggle — stored in `ThemeContext`
+- **Accent color** — 8 presets (Deep Blue, Crimson, Teal, Emerald, Amber, Violet, Slate, Rose); all charts, tooltips, headers, and cards derive from the selected accent
+- **Sidebar** — active item shows continuous pulse/glow animation; accent propagated via `--sidebar-accent` CSS variable
+- **Tooltip** — `src/components/ui/Tooltip.jsx` — global themed tooltip using direct DOM manipulation (zero React re-renders on mouse events); all interactive elements use this; no native `title=` attributes
+
+---
+
+## Placeholder Pages
+
+The following pages exist for navigation structure only and contain no real data:
+
 - Inventory
 - Employees
 - Vendors
 - Profile
 - System Settings
 
+---
+
 ## Authentication Flow
 
-- Login page is available at `/`
-- Protected routes are wrapped using `ProtectedRoute`
-- If token is missing or invalid, the user is redirected to login
-- Report pages are not meant to be opened without authentication
+- Login at `/` — submits credentials, receives JWT
+- JWT stored in context + session
+- `ProtectedRoute` wraps all pages behind `/dashboard`
+- Invalid or expired token → redirected to `/`
+- `window.salesReportBusy` flag prevents navigation away during active API loads
 
-## Frontend Setup
+---
 
-1. Install dependencies
+## Setup
+
+### Frontend
 
 ```bash
+# Install dependencies
 npm install
-```
 
-2. Configure frontend `.env`
-
-```env
-VITE_API_URL=https://***************:5000
-```
-
-Current configured value in this project:
-
-```env
-VITE_API_URL=https://***************:5000
-```
-
-3. Start frontend
-
-```bash
+# Development server
 npm run dev
-```
 
-4. Build frontend
-
-```bash
+# Production build
 npm run build
-```
 
-5. Preview build
-
-```bash
+# Preview build
 npm run preview
+
+# Lint
+npm run lint
 ```
 
-## Backend Setup
+**.env**
+```env
+VITE_API_URL=https://<your-server>:5000
+```
 
-Backend folder:
-
-- [backend](/backend)
-
-1. Install backend dependencies
+### Backend
 
 ```bash
 cd backend
 npm install
+node server.js
 ```
 
-2. Configure backend environment
-
-Example:
-
+**.env**
 ```env
 PORT=5000
 DB_HOST=...
@@ -173,53 +333,27 @@ DB_NAME=...
 JWT_SECRET=...
 ```
 
-3. Start backend
+The backend serves the frontend production build from `dist/`.
 
-```bash
-node server.js
-```
+---
 
-Note:
+## Routes
 
-- Backend `package.json` does not currently include a `start` or `dev` script
-- Backend serves the frontend production build from `dist`
+| Route | Page |
+|---|---|
+| `/` | Sign In |
+| `/dashboard` | Dashboard |
+| `/reports` | Reports hub |
+| `/reports/production` | Production Report |
+| `/reports/sales` | Sales module (Reports tab) |
+| `/reports/sales?tab=charts` | Sales module (Charts tab) |
 
-## Useful Scripts
+---
 
-- `npm run dev` - start frontend development server
-- `npm run build` - build frontend
-- `npm run preview` - preview built frontend
-- `npm run lint` - run ESLint
+## Key Design Decisions
 
-## Important Routes
-
-- `/` - SignIn
-- `/dashboard` - Dashboard
-- `/reports/production` - Production Report
-
-## Production Visualization Notes
-
-- Pie chart percentages are calculated by `Recharts`, not taken directly from the API
-- The displayed pie `%` depends on:
-  - selected metric
-  - visible pie slices
-  - positive values only
-- In `All` mode, finished-goods visualization data is aggregated by category
-
-## Current Scope
-
-If you are documenting or presenting this project, the two main pages to highlight are:
-
-1. SignIn page
-2. Production Report page
-
-Everything else can be treated as supporting dashboard structure unless expanded later.
-
-## Suggested Additions
-
-- Add backend `start` and `dev` scripts
-- Add a root script for frontend + backend together
-- Add database setup documentation
-- Add screenshots for SignIn and Production pages
-- Add deployment notes
-- Add automated tests
+- **Tooltip implementation** — zero `useState` DOM-manipulation approach eliminates hover-triggered re-renders that were causing table flicker with 500+ visible rows
+- **Table virtualization** — only visible rows rendered; top/bottom spacers maintain scroll position; virtualization disabled when drill rows are open (avoids spacer-height mismatch)
+- **Pre-grouped cache** — all 4 non-summary tab groups computed once after API fetch; tab switches are O(1) cache reads, not repeated `groupByField` computations on 20k rows
+- **Apply isolation** — chart filter dropdowns (Charts page + Day Wise) never update titles or trigger API calls until the Apply button is clicked (`appliedDw` snapshot state pattern)
+- **Cross-year YOY% patch** — when L3/L4 APIs return `ttltonnagewy=0`, prior year is fetched separately and patched in by matching on `catgroup`/`description` key
