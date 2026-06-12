@@ -1,9 +1,11 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Select from 'react-select';
 import { getShortSupplyByCategory } from '../../../services/salesDashboardApi';
 import { AppDatePicker } from '../../../components/FormControls';
 import { useAuth } from '../../../context/AuthContext';
 import { useColorMode } from '../../../theme/ThemeContext';
+import SrLoader from '../../../components/ui/SrLoader';
 import { appLog } from '../../../config/appConfig';
 import Tooltip from '../../../components/ui/Tooltip';
 import './Sales.css';
@@ -70,9 +72,76 @@ const strToDate = (s) => {
   return new Date(y, mo - 1, d);
 };
 
-const initDateStr = () => {
-  const d = new Date();
-  return toYMD(new Date(d.getFullYear(), d.getMonth() - 1, d.getDate()));
+const initDateStr = () => toYMD(new Date());
+
+const PERIOD_OPTIONS = [
+  { value: 'today',         label: 'Today'          },
+  { value: 'yesterday',     label: 'Yesterday'      },
+  { value: 'thisweek',      label: 'This Week'      },
+  { value: 'thismonth',     label: 'This Month'     },
+  { value: 'lastmonth',     label: 'Last Month'     },
+  { value: 'quarter',       label: 'Quarter'        },
+  { value: 'financialyear', label: 'Financial Year' },
+  { value: 'year',          label: 'Year'           },
+  { value: 'month',         label: 'Month'          },
+  { value: 'custom',        label: 'Custom Range'   },
+];
+
+const MONTH_OPTS = [
+  { v:'01',l:'Jan' },{ v:'02',l:'Feb' },{ v:'03',l:'Mar' },
+  { v:'04',l:'Apr' },{ v:'05',l:'May' },{ v:'06',l:'Jun' },
+  { v:'07',l:'Jul' },{ v:'08',l:'Aug' },{ v:'09',l:'Sep' },
+  { v:'10',l:'Oct' },{ v:'11',l:'Nov' },{ v:'12',l:'Dec' },
+];
+
+const computePeriodDates = (type, opts = {}) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = (y, m, day) => new Date(y, m, day);
+  switch (type) {
+    case 'today':     return { from: new Date(today), to: new Date(today) };
+    case 'yesterday': { const y = new Date(today); y.setDate(y.getDate() - 1); return { from: y, to: new Date(y) }; }
+    case 'thisweek': {
+      const day = today.getDay(), mon = new Date(today);
+      mon.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+      return { from: mon, to: new Date(today) };
+    }
+    case 'thismonth': return { from: d(today.getFullYear(), today.getMonth(), 1), to: new Date(today) };
+    case 'lastmonth': {
+      return { from: d(today.getFullYear(), today.getMonth() - 1, 1), to: d(today.getFullYear(), today.getMonth(), 0) };
+    }
+    case 'quarter': {
+      const yr = parseInt(opts.qYear || today.getFullYear(), 10);
+      if (opts.quarterType === 'calendar') {
+        const cm = { Q1:{from:d(yr,0,1),to:d(yr,2,31)}, Q2:{from:d(yr,3,1),to:d(yr,5,30)}, Q3:{from:d(yr,6,1),to:d(yr,8,30)}, Q4:{from:d(yr,9,1),to:d(yr,11,31)} };
+        return cm[opts.quarter] || cm['Q1'];
+      } else {
+        const fm = { Q1:{from:d(yr,3,1),to:d(yr,5,30)}, Q2:{from:d(yr,6,1),to:d(yr,8,30)}, Q3:{from:d(yr,9,1),to:d(yr,11,31)}, Q4:{from:d(yr+1,0,1),to:d(yr+1,2,31)} };
+        return fm[opts.quarter] || fm['Q1'];
+      }
+    }
+    case 'financialyear': {
+      const fy = parseInt(opts.fy || today.getFullYear(), 10);
+      return { from: d(fy, 3, 1), to: d(fy + 1, 2, 31) };
+    }
+    case 'year': {
+      const yr = parseInt(opts.year || today.getFullYear(), 10);
+      return { from: d(yr, 0, 1), to: d(yr, 11, 31) };
+    }
+    case 'month': {
+      const yr = parseInt(opts.monthYear || today.getFullYear(), 10);
+      const mo = parseInt(opts.monthVal || 1, 10);
+      return { from: d(yr, mo - 1, 1), to: d(yr, mo, 0) };
+    }
+    default: return { from: opts.customFrom instanceof Date ? opts.customFrom : today, to: opts.customTo instanceof Date ? opts.customTo : today };
+  }
+};
+
+const DM = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fmtDisplayDate = (ymd) => {
+  if (!ymd) return '';
+  const [y, m, d] = ymd.split('-').map(Number);
+  return `${String(d).padStart(2,'0')} ${DM[m-1]} ${y}`;
 };
 
 function ShortSupplyTable({
@@ -83,7 +152,38 @@ function ShortSupplyTable({
 }) {
   const [page, setPage]               = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(15);
+  const [periodType,       setPeriodType]       = useState('today');
+  const [customFrom,       setCustomFrom]       = useState(() => new Date());
+  const [customTo,         setCustomTo]         = useState(() => new Date());
+  const [quarterType,      setQuarterType]      = useState('financial');
+  const [selectedQuarter,  setSelectedQuarter]  = useState('Q1');
+  const [selectedQYear,    setSelectedQYear]    = useState(() => {
+    const n = new Date(); return String(n.getMonth() >= 3 ? n.getFullYear() : n.getFullYear() - 1);
+  });
+  const [selectedFY,       setSelectedFY]       = useState(() => {
+    const n = new Date(); return String(n.getMonth() >= 3 ? n.getFullYear() : n.getFullYear() - 1);
+  });
+  const [selectedYear,     setSelectedYear]     = useState(() => String(new Date().getFullYear()));
+  const [selectedMonthYear,setSelectedMonthYear]= useState(() => String(new Date().getFullYear()));
+  const [selectedMonthVal, setSelectedMonthVal] = useState(() => String(new Date().getMonth() + 1).padStart(2, '0'));
+
   useEffect(() => { setPage(1); }, [data, rowsPerPage]);
+
+  // Sync computed dates up to parent whenever any period option changes
+  useEffect(() => {
+    const { from, to } = computePeriodDates(periodType, {
+      quarterType, quarter: selectedQuarter, qYear: selectedQYear,
+      fy: selectedFY, year: selectedYear,
+      monthYear: selectedMonthYear, monthVal: selectedMonthVal,
+      customFrom, customTo,
+    });
+    setFromDate(toYMD(from));
+    setToDate(toYMD(to));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodType, quarterType, selectedQuarter, selectedQYear, selectedFY, selectedYear, selectedMonthYear, selectedMonthVal, customFrom, customTo]);
+
+  const curYear = new Date().getFullYear();
+  const yearOpts = Array.from({ length: 10 }, (_, i) => ({ v: String(curYear - i), l: String(curYear - i) }));
 
   const totals = useMemo(() => ({
     order:    data.reduce((s, r) => s + (parseFloat(r.ordertonnage)          || 0), 0),
@@ -118,6 +218,12 @@ function ShortSupplyTable({
     fontWeight: 600, fontSize: '0.72rem', color: mutedClr,
     whiteSpace: 'nowrap', display: 'block', marginBottom: 2,
   };
+  const ssz = (v, digits = 3) => {
+    const n = parseFloat(v) || 0;
+    return n === 0
+      ? <span style={{ color: 'var(--sr-zero-dim, #cbd5e1)' }}>{n.toFixed(digits)}</span>
+      : n.toFixed(digits);
+  };
 
   return (
     <div style={{ width: '100%', '--ss-muted': mutedClr }}>
@@ -131,39 +237,89 @@ function ShortSupplyTable({
           <i className="bi bi-table" style={{ color: accent }} />
           {title}
         </span>
-        <div style={{ display: 'flex', flexDirection: 'row', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={labelStyle}>From Date</label>
-            {/* state holds YYYY-MM-DD string; AppDatePicker receives a Date object */}
-            <AppDatePicker
-              value={strToDate(fromDate)}
-              onChange={(d) => setFromDate(toYMD(d))}
-              max={strToDate(toDate)}
-            />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={labelStyle}>To Date</label>
-            <AppDatePicker
-              value={strToDate(toDate)}
-              onChange={(d) => setToDate(toYMD(d))}
-              min={strToDate(fromDate)}
-            />
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          {/* Period — themed React Select */}
+          {(() => {
+            const selStyles = {
+              control: (b, s) => ({ ...b, minHeight: 36, height: 36, border: `1.5px solid ${s.isFocused ? accent : (isDarkMode ? '#334155' : '#e2e8f0')}`, borderRadius: 7, background: isDarkMode ? '#1e293b' : 'white', boxShadow: 'none', cursor: 'pointer', minWidth: 148 }),
+              singleValue: b => ({ ...b, color: isDarkMode ? '#e2e8f0' : '#1e293b', fontWeight: 600, fontSize: '0.8rem', fontFamily }),
+              menu: b => ({ ...b, background: isDarkMode ? '#1e293b' : 'white', zIndex: 99999, borderRadius: 8, border: `1.5px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`, boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }),
+              menuPortal: b => ({ ...b, zIndex: 99999 }),
+              option: (b, s) => ({ ...b, background: s.isSelected ? accent : s.isFocused ? (isDarkMode ? '#334155' : '#f1f5f9') : 'transparent', color: s.isSelected ? 'white' : (isDarkMode ? '#e2e8f0' : '#1e293b'), fontWeight: s.isSelected ? 600 : 400, fontSize: '0.8rem', cursor: 'pointer', fontFamily }),
+              indicatorSeparator: () => ({ display: 'none' }),
+              dropdownIndicator: (b, s) => ({ ...b, color: s.isFocused ? accent : mutedClr, padding: '0 6px' }),
+              valueContainer: b => ({ ...b, padding: '0 8px' }),
+              indicatorsContainer: b => ({ ...b, height: 36 }),
+            };
+            const SubSel = (lbl, val, onChg, opts, minW = 120) => (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={labelStyle}>{lbl}</label>
+                <Select
+                  options={opts} value={opts.find(o => o.value === val) || null}
+                  onChange={o => onChg(o.value)}
+                  styles={{ ...selStyles, control: (b, s) => ({ ...selStyles.control(b, s), minWidth: minW }) }}
+                  isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" menuPlacement="auto"
+                />
+              </div>
+            );
+            const qTypeOpts = [
+              { value: 'financial', label: 'Financial Year Quarter (Apr-Mar)' },
+              { value: 'calendar',  label: 'Calendar Year Quarter (Jan-Dec)'  },
+            ];
+            const qOpts = quarterType === 'financial'
+              ? [{value:'Q1',label:'Q1 (Apr-Jun)'},{value:'Q2',label:'Q2 (Jul-Sep)'},{value:'Q3',label:'Q3 (Oct-Dec)'},{value:'Q4',label:'Q4 (Jan-Mar)'}]
+              : [{value:'Q1',label:'Q1 (Jan-Mar)'},{value:'Q2',label:'Q2 (Apr-Jun)'},{value:'Q3',label:'Q3 (Jul-Sep)'},{value:'Q4',label:'Q4 (Oct-Dec)'}];
+            const fyFmt = v => `FY ${v}-${String(parseInt(v)+1).slice(-2)}`;
+            const fyOpts    = yearOpts.map(o => ({ value: o.v, label: fyFmt(o.v) }));
+            const qYrOpts   = quarterType === 'financial' ? fyOpts : yearOpts.map(o => ({ value: o.v, label: o.v }));
+            const qYrLabel  = quarterType === 'financial' ? 'FY Start Year' : 'Year';
+            const yrOpts    = yearOpts.map(o => ({ value: o.v, label: o.v }));
+            const moOpts    = MONTH_OPTS.map(o => ({ value: o.v, label: o.l }));
+            return (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={labelStyle}>Period</label>
+                  <Select options={PERIOD_OPTIONS} value={PERIOD_OPTIONS.find(o => o.value === periodType)} onChange={o => setPeriodType(o.value)} styles={selStyles} isSearchable={false} menuPortalTarget={document.body} menuPosition="fixed" menuPlacement="auto" />
+                </div>
+                {periodType === 'quarter' && <>
+                  {SubSel('Quarter Type', quarterType, setQuarterType, qTypeOpts, 230)}
+                  {SubSel(qYrLabel, selectedQYear, setSelectedQYear, qYrOpts, 145)}
+                  {SubSel('Quarter', selectedQuarter, setSelectedQuarter, qOpts, 145)}
+                </>}
+                {periodType === 'financialyear' && SubSel('Financial Year', selectedFY, setSelectedFY, fyOpts, 148)}
+                {periodType === 'year'          && SubSel('Year', selectedYear, setSelectedYear, yrOpts, 100)}
+                {periodType === 'month' && <>
+                  {SubSel('Month', selectedMonthVal, setSelectedMonthVal, moOpts, 110)}
+                  {SubSel('Year', selectedMonthYear, setSelectedMonthYear, yrOpts, 100)}
+                </>}
+                {periodType === 'custom' && <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={labelStyle}>From Date</label>
+                    <AppDatePicker value={customFrom} onChange={setCustomFrom} max={customTo} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={labelStyle}>To Date</label>
+                    <AppDatePicker value={customTo} onChange={setCustomTo} min={customFrom} />
+                  </div>
+                </>}
+                {periodType !== 'custom' && (
+                  <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 6 }}>
+                    <span style={{ fontSize: '0.72rem', color: mutedClr, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      {fmtDisplayDate(fromDate)} → {fmtDisplayDate(toDate)}
+                    </span>
+                  </div>
+                )}
+              </>
+            );
+          })()}
           <button
             onClick={onApply}
             disabled={loading}
-            className="sr-apply-btn"
-            style={{
-              background: `linear-gradient(135deg,${accent},${accent2})`,
-              opacity: loading ? 0.7 : 1,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              fontFamily,
-              alignSelf: 'flex-end',
-              height: 36,
-            }}
+            className="sr-apply-btn btn-generate-anim"
+            style={{ background: `linear-gradient(135deg,${accent},${accent2})`, opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer', fontFamily, alignSelf: 'flex-end', height: 36 }}
           >
-            <i className="bi bi-funnel-fill" style={{ marginRight: 4 }} />
-            {loading ? 'Loading…' : 'Apply'}
+            <i className="bi bi-play-fill" style={{ marginRight: 4 }} />
+            {loading ? 'Loading…' : 'Generate'}
           </button>
         </div>
       </div>
@@ -173,32 +329,6 @@ function ShortSupplyTable({
         className="ss-table-card"
         style={{ background: cardBg, border: `1px solid ${borderClr}` }}
       >
-        {/* Loading overlay */}
-        {loading && (
-          <div
-            className="ss-loading-overlay"
-            style={{ background: isDarkMode ? 'rgba(15,23,42,0.82)' : 'rgba(255,255,255,0.84)' }}
-          >
-            <div style={{
-              width: 52, height: 52, borderRadius: '50%', marginBottom: 16,
-              border: `3px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
-              borderTopColor: accent,
-              animation: 'sspin 1s linear infinite',
-            }} />
-            <div style={{ fontWeight: 700, fontSize: '0.88rem', color: textClr, marginBottom: 14 }}>
-              Generating Report
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {[0, 1, 2].map(i => (
-                <div key={i} style={{
-                  width: 8, height: 8, borderRadius: '50%', background: accent,
-                  animation: `ssdot 1.4s infinite ${i * 0.22}s`,
-                }} />
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Table */}
         <div style={{ overflowX: 'auto', maxHeight: '55vh', overflowY: 'auto' }}>
           {error ? (
@@ -244,15 +374,15 @@ function ShortSupplyTable({
                       <td className="ss-td" style={{ textAlign: 'left', color: textClr, fontWeight: 500, whiteSpace: 'normal' }}>
                         {row.description}
                       </td>
-                      <td className="ss-td">{parseFloat(row.ordertonnage  || 0).toFixed(3)}</td>
-                      <td className="ss-td">{parseFloat(row.supplytonnage || 0).toFixed(3)}</td>
-                      <td className="ss-td">{curVal.toFixed(3)}</td>
+                      <td className="ss-td">{ssz(row.ordertonnage)}</td>
+                      <td className="ss-td">{ssz(row.supplytonnage)}</td>
+                      <td className="ss-td">{ssz(curVal)}</td>
                       <td className="ss-td">
                         <Tooltip content={lyTooltip}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, cursor: 'default' }}>
                             {isUp   && <span style={{ color: '#c62828', fontWeight: 700, fontSize: '0.72rem', lineHeight: 1, marginRight: 2 }}>▲</span>}
                             {isDown && <span style={{ color: '#2e7d32', fontWeight: 700, fontSize: '0.72rem', lineHeight: 1, marginRight: 2 }}>▼</span>}
-                            {lyVal.toFixed(3)}
+                            {ssz(lyVal)}
                           </span>
                         </Tooltip>
                       </td>
@@ -531,18 +661,8 @@ export default function ShortSupplyPage() {
         </div>
       </motion.div>
 
-      {(leftLoading || rightLoading) && initialLoad && (
-        <div className="sr-loader-overlay">
-          <div className={`sr-loader-card${isDarkMode ? ' sr-loader-card-dark' : ''}`}>
-            <div className="sr-loader-spinner" style={{ borderTopColor: accent }} />
-            <div className="sr-loader-text">Generating Report</div>
-            <div className="sr-loader-dots">
-              <span style={{ background: accent }} />
-              <span style={{ background: accent }} />
-              <span style={{ background: accent }} />
-            </div>
-          </div>
-        </div>
+      {(leftLoading || rightLoading) && (
+        <SrLoader accent={accent} isDarkMode={isDarkMode} text="Generating Report" />
       )}
     </div>
   );

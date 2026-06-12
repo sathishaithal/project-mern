@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import ThemedTooltip from '../../../components/ui/Tooltip';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -7,6 +8,7 @@ import {
 } from 'recharts';
 import Select from 'react-select';
 import './Sales.css';
+import SrLoader from '../../../components/ui/SrLoader';
 import { useSalesSelectStyles } from './filters/useSalesSelectStyles';
 import FilterBar from './filters/FilterBar';
 import { useSalesFilterStore } from '../../../store/salesFilterStore';
@@ -68,17 +70,16 @@ function ZoomModal({ chart, onClose }) {
 
 function ChartCard({ title, onZoom, children, style = {} }) {
   const { isDarkMode, selectedAccent } = useColorMode();
-  const accent    = selectedAccent?.primary || '#1a237e';
+  const accent    = selectedAccent?.primary   || '#1a237e';
+  const accent2   = selectedAccent?.secondary || '#283593';
   const cardBg    = isDarkMode ? '#1e293b' : 'white';
   const borderClr = isDarkMode ? '#334155' : '#e2e8f0';
-  const titleClr  = isDarkMode ? '#e2e8f0' : '#1e293b';
-  const headerBg  = isDarkMode ? 'rgba(0,0,0,0.22)' : '#f8fafc';
   return (
     <div style={{ flex: 1, background: cardBg, borderRadius: 12, border: `1px solid ${borderClr}`, overflow: 'visible', boxShadow: '0 2px 10px rgba(37,99,235,0.07)', ...style }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.55rem 1rem', borderBottom: `1px solid ${borderClr}`, background: headerBg, borderRadius: '12px 12px 0 0' }}>
-        <span style={{ fontWeight: 700, fontSize: '0.75rem', color: titleClr, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>{title}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.55rem 1rem', background: `linear-gradient(90deg, ${accent}, ${accent2})`, borderRadius: '12px 12px 0 0' }}>
+        <span style={{ fontWeight: 700, fontSize: '0.75rem', color: '#fff', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '85%' }}>{title}</span>
         <ThemedTooltip content="Expand">
-          <button onClick={onZoom} style={{ background: 'none', border: 'none', cursor: 'pointer', color: accent, fontSize: '1rem', lineHeight: 1, padding: 0, flexShrink: 0 }}>⛶</button>
+          <button onClick={onZoom} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.85)', fontSize: '1rem', lineHeight: 1, padding: 0, flexShrink: 0 }}>⛶</button>
         </ThemedTooltip>
       </div>
       <div style={{ padding: '0.8rem 1rem' }}>{children}</div>
@@ -458,7 +459,7 @@ function HBarCard({ title, data, onBarClick, onZoom, showFullTooltip = false }) 
         style={{ cursor: onBarClick ? 'pointer' : 'default' }}>
         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridClr} />
         <XAxis type="number" tick={{ fontSize: 10, fill: axisClr }} />
-        <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 10, fill: textClr, fontWeight: 500 }} />
+        <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 9, fill: textClr, fontWeight: 500 }} />
         <Tooltip content={showFullTooltip ? <DwFullTooltip isDarkMode={isDarkMode} /> : hbarTooltip} />
         <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={24} isAnimationActive animationDuration={600}
           onClick={onBarClick ? (barData) => { if (barData) onBarClick(barData); } : undefined}>
@@ -529,18 +530,43 @@ function MirroredHBarCard({ title, data, onBarClick, onZoom }) {
   const tonnageTooltip = makeTooltip('_tonnage', 'ly_tonnage', 'Tonnage', 'LY Tonnage');
   const amountTooltip  = makeTooltip('_amount',  'ly_amount',  'Amount',  'LY Amount');
 
-  // Custom tick: centers label text within the 110px YAxis column
+  // Custom tick: centers label text within the 120px YAxis column; wraps to two lines for long names
   const centerTick = ({ x, y, payload }) => {
-    const label = payload.value.length > 16 ? payload.value.slice(0, 15) + '…' : payload.value;
+    const full = payload.value;
+    if (full.length <= 17) {
+      return (
+        <text x={x + 60} y={y} fill={textClr} textAnchor="middle" dominantBaseline="central" fontSize={9} fontWeight={500}>
+          {full}
+        </text>
+      );
+    }
+    // Split at the nearest word boundary to the middle
+    const mid = Math.floor(full.length / 2);
+    let split = full.lastIndexOf(' ', mid + 5);
+    if (split < 2) split = mid;
+    const l1 = full.slice(0, split).trim();
+    const l2 = full.slice(split).trim();
     return (
-      <text x={x + 55} y={y} fill={textClr} textAnchor="middle" dominantBaseline="central" fontSize={9} fontWeight={500}>
-        {label}
+      <text textAnchor="middle" fontSize={8} fontWeight={500}>
+        <tspan x={x + 60} y={y - 5} fill={textClr}>{l1.length > 17 ? l1.slice(0, 16) + '…' : l1}</tspan>
+        <tspan x={x + 60} y={y + 6} fill={textClr}>{l2.length > 17 ? l2.slice(0, 16) + '…' : l2}</tspan>
       </text>
     );
   };
 
   const chart = (
-    <div style={{ display: 'flex', width: '100%', cursor: onBarClick ? 'pointer' : 'default' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', cursor: onBarClick ? 'pointer' : 'default' }}>
+      {/* Side labels row */}
+      <div style={{ display: 'flex', width: '100%', marginBottom: 2 }}>
+        <div style={{ flex: 1, textAlign: 'center', fontSize: '0.68rem', fontWeight: 700, color: accent, letterSpacing: '0.04em' }}>
+          ◄ Tonnage
+        </div>
+        <div style={{ width: 120, flexShrink: 0 }} />
+        <div style={{ flex: 1, textAlign: 'center', fontSize: '0.68rem', fontWeight: 700, color: accent2 || accent, letterSpacing: '0.04em' }}>
+          Amount (Lacs) ►
+        </div>
+      </div>
+      <div style={{ display: 'flex', width: '100%' }}>
       {/* LEFT — tonnage, axis reversed so bars grow leftward from center */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <ResponsiveContainer width="100%" height={barH}>
@@ -552,12 +578,12 @@ function MirroredHBarCard({ title, data, onBarClick, onZoom }) {
               tick={{ fontSize: 9, fill: axisClr }}
               tickFormatter={v => v === 0 ? '' : `${Math.round(v)}`}
             />
-            <YAxis dataKey="name" type="category" orientation="right" width={110}
+            <YAxis dataKey="name" type="category" orientation="right" width={120}
               tick={centerTick} tickLine={false} axisLine={false}
             />
             <Tooltip content={tonnageTooltip} />
             <Bar dataKey="tonnage" barSize={16} isAnimationActive animationDuration={600} animationBegin={0} onClick={handleBarClick}>
-              {chartData.map((_, i) => <Cell key={`t${i}`} fill={colors[i % colors.length]} />)}
+              {chartData.map((_, i) => <Cell key={`t${i}`} fill={colors[(i + 6) % colors.length]} />)}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -577,10 +603,11 @@ function MirroredHBarCard({ title, data, onBarClick, onZoom }) {
             <YAxis dataKey="name" type="category" hide width={0} />
             <Tooltip content={amountTooltip} />
             <Bar dataKey="amount" barSize={16} isAnimationActive animationDuration={600} animationBegin={0} onClick={handleBarClick}>
-              {chartData.map((_, i) => <Cell key={`a${i}`} fill={colors[(i + 6) % colors.length]} />)}
+              {chartData.map((_, i) => <Cell key={`a${i}`} fill={colors[i % colors.length]} />)}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+      </div>
       </div>
     </div>
   );
@@ -649,14 +676,16 @@ function EntriesSelect({ value, onChange, accent, isDarkMode, borderClr }) {
 // DwTableCard — full Angular columns + pagination like ShortSupplyPage
 function DwTableCard({ title, data, basedon }) {
   const { isDarkMode, selectedAccent } = useColorMode();
-  const accent    = selectedAccent?.primary || '#1a237e';
+  const accent    = selectedAccent?.primary   || '#1a237e';
+  const accent2   = selectedAccent?.secondary || '#283593';
   const cardBg    = isDarkMode ? '#1e293b' : 'white';
   const borderClr = isDarkMode ? '#334155' : '#e2e8f0';
-  const titleClr  = isDarkMode ? '#e2e8f0' : '#1e293b';
   const headerBg  = isDarkMode ? 'rgba(0,0,0,0.22)' : '#f8fafc';
+  const titleClr  = isDarkMode ? '#e2e8f0' : '#1e293b';
   const rowEven   = isDarkMode ? '#0f172a' : 'white';
   const rowOdd    = isDarkMode ? '#1e293b' : '#f8fafc';
   const muted     = isDarkMode ? '#94a3b8' : '#64748b';
+  const dz = (v) => { const n = v ?? 0; return n === 0 ? <span style={{ color: 'var(--sr-zero-dim, #cbd5e1)' }}>0</span> : n; };
 
   const [page, setPage]           = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(15);
@@ -685,8 +714,8 @@ function DwTableCard({ title, data, basedon }) {
 
   return (
     <div style={{ flex: 1, background: cardBg, borderRadius: 12, border: `1px solid ${borderClr}`, overflow: 'hidden', boxShadow: '0 2px 10px rgba(37,99,235,0.07)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '0.55rem 1rem', borderBottom: `1px solid ${borderClr}`, background: headerBg, borderRadius: '12px 12px 0 0' }}>
-        <span style={{ fontWeight: 700, fontSize: '0.75rem', color: titleClr }}>{title}</span>
+      <div style={{ padding: '0.55rem 1rem', borderBottom: `1px solid ${borderClr}`, background: `linear-gradient(90deg, ${accent}, ${accent2})`, borderRadius: '12px 12px 0 0' }}>
+        <span style={{ fontWeight: 700, fontSize: '0.75rem', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{title}</span>
       </div>
       <div style={{ flex: 1, overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
@@ -707,10 +736,10 @@ function DwTableCard({ title, data, basedon }) {
                 <tr key={r.name} style={{ background: i % 2 === 0 ? rowEven : rowOdd }}>
                   <td style={{ padding: '4px 8px', textAlign: 'center', color: muted }}>{globalIdx}</td>
                   <td style={{ padding: '4px 8px', color: titleClr, fontWeight: 500 }}>{r.name}</td>
-                  <td style={{ padding: '4px 8px', textAlign: 'right', color: titleClr }}>{r.tonnage ?? r.value ?? 0}</td>
-                  <td style={{ padding: '4px 8px', textAlign: 'right', color: titleClr }}>{r.amount ?? 0}</td>
-                  <td style={{ padding: '4px 8px', textAlign: 'right', color: titleClr }}>{r.ly_tonnage ?? 0}</td>
-                  <td style={{ padding: '4px 8px', textAlign: 'right', color: titleClr }}>{r.ly_amount ?? 0}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', color: titleClr }}>{dz(r.tonnage ?? r.value)}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', color: titleClr }}>{dz(r.amount)}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', color: titleClr }}>{dz(r.ly_tonnage)}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', color: titleClr }}>{dz(r.ly_amount)}</td>
                 </tr>
               );
             })}
@@ -971,7 +1000,7 @@ export default function ChartsPage({ loggedInRolex }) {
 
   // ── Day Wise fetch + drill-down (keeps raw fields for full table) ────────────
   const fetchDwData = useCallback(async () => {
-    setDwL1Loading(true);
+    flushSync(() => setDwL1Loading(true));
     setDwLevel1([]); setDwLevel2([]); setDwLevel3([]); setDwLevel4([]);
     setDwClickedCatgroup(null); setDwClickedCategory(null);
     setDwClickedItem(null);
@@ -1005,8 +1034,7 @@ export default function ChartsPage({ loggedInRolex }) {
     clearTimeout(dwL4LoadingTimer.current);
     setDwL3Loading(false); setDwL3LoadingVisible(false);
     setDwL4Loading(false); setDwL4LoadingVisible(false);
-    setDwL2LoadingVisible(true);
-    setDwL2Loading(true);
+    flushSync(() => { setDwL2LoadingVisible(true); setDwL2Loading(true); });
     try {
       const rows = await getGraphSellingDataByCategory({ label: payload.name, daysel: appliedDw.daysel, method: appliedDw.method, company: appliedDw.company, basedon: appliedDw.basedon });
       setDwLevel2(Array.isArray(rows) ? rows.map(r => ({
@@ -1030,8 +1058,7 @@ export default function ChartsPage({ loggedInRolex }) {
     setDwClickedItem(null);
     clearTimeout(dwL4LoadingTimer.current);
     setDwL4Loading(false); setDwL4LoadingVisible(false);
-    setDwL3LoadingVisible(true);
-    setDwL3Loading(true);
+    flushSync(() => { setDwL3LoadingVisible(true); setDwL3Loading(true); });
     try {
       const rows = await getGraphSellingDataByItem({ catgory: dwClickedCatgroup, label: payload.name, daysel: appliedDw.daysel, method: appliedDw.method, company: appliedDw.company, basedon: appliedDw.basedon });
       setDwLevel3(Array.isArray(rows) ? rows.map(r => ({
@@ -1052,8 +1079,7 @@ export default function ChartsPage({ loggedInRolex }) {
     if (!payload?.name) return;
     setDwClickedItem(payload.name);
     setDwLevel4([]);
-    setDwL4LoadingVisible(true);
-    setDwL4Loading(true);
+    flushSync(() => { setDwL4LoadingVisible(true); setDwL4Loading(true); });
     try {
       const rows = await getGraphSellingDataByItem({
         catgory: dwClickedCatgroup,
@@ -1113,7 +1139,7 @@ export default function ChartsPage({ loggedInRolex }) {
     mwPieTitles.current = { t1, t2, t3 };
     setPieTitle1(t1); setPieTitle2(t2); setPieTitle3(t3);
 
-    setCatgroupLoading(true);
+    flushSync(() => setCatgroupLoading(true));
     try {
       const rows = await getGraphCatgroup({ selectedyear: String(year), month: apiMonth, monthwisecompany, monthwisedisttype, employeename });
       const arr1 = [], arr2 = [], arr3 = [];
@@ -1188,7 +1214,7 @@ export default function ChartsPage({ loggedInRolex }) {
     setClickedCategory(null);
     setHbarTitle(hTitle);
     setHbar2Title('');
-    setCategoryLoading(true);
+    flushSync(() => setCategoryLoading(true));
     try {
       const rows = await getGraphCategoryForCatgroup({ selectedyear: year, month, catgroup: catgroupName, dataget: pieNum, monthwisedisttype, monthwisecompany });
       setCategoryData(Array.isArray(rows) ? rows.map(r => ({ name: r.category ?? r.catgroup ?? r.name, value: parseFloat(r.monthval) || 0 })) : []);
@@ -1219,7 +1245,7 @@ export default function ChartsPage({ loggedInRolex }) {
     setClickedCategory(categoryName);
     setCodeData([]);
     setHbar2Title(hTitle.replace('Overview', `with ${categoryName} Category Overview`));
-    setCodeLoading(true);
+    flushSync(() => setCodeLoading(true));
     try {
       const rows = await getGraphCategoryWithCode({ selectedyear: year, month, catgroup, category: categoryName, dataget: pieNum, monthwisedisttype, monthwisecompany, employeename });
       setCodeData(Array.isArray(rows) ? rows.map(r => ({ name: r.code ?? r.category ?? r.name, value: parseFloat(r.monthval) || 0 })) : []);
@@ -1253,19 +1279,7 @@ export default function ChartsPage({ loggedInRolex }) {
     setClickedMonth(null); setClickedCatgroup(null); setClickedCategory(null); setClickedPieNum(null);
   }, []);
 
-  const LoaderOverlay = ({ text = 'Loading Chart Data' }) => (
-    <div className="sr-loader-overlay">
-      <div className={`sr-loader-card${isDarkMode ? ' sr-loader-card-dark' : ''}`}>
-        <div className="sr-loader-spinner" style={{ borderTopColor: accent }} />
-        <div className="sr-loader-text">{text}</div>
-        <div className="sr-loader-dots">
-          <span style={{ background: accent }} />
-          <span style={{ background: accent }} />
-          <span style={{ background: accent }} />
-        </div>
-      </div>
-    </div>
-  );
+  const LoaderOverlay = ({ text = 'Loading Chart Data' }) => <SrLoader accent={accent} isDarkMode={isDarkMode} text={text} />;
 
 
   const tabBg        = isDarkMode ? '#1e293b' : '#f1f5f9';
@@ -1292,7 +1306,7 @@ export default function ChartsPage({ loggedInRolex }) {
         </div>
       </div>
 
-      {chartTab === 'monthwise' && <FilterBar mode="monthwise" onApply={fetchGraphData} isLoading={loading} />}
+      {chartTab === 'monthwise' && <FilterBar mode="monthwise" isLoading={loading} />}
 
       {/* ── MONTH WISE ── */}
       {chartTab === 'monthwise' && (
@@ -1303,15 +1317,7 @@ export default function ChartsPage({ loggedInRolex }) {
             </div>
           )}
           {loading ? (
-            <div className="sr-loader-overlay">
-              <div className={`sr-loader-card${isDarkMode ? ' sr-loader-card-dark' : ''}`}>
-                <div className="sr-loader-spinner" style={{ borderTopColor: accent }} />
-                <div className="sr-loader-text">Generating Report</div>
-                <div className="sr-loader-dots">
-                  <span style={{ background: accent }} /><span style={{ background: accent }} /><span style={{ background: accent }} />
-                </div>
-              </div>
-            </div>
+            <SrLoader accent={accent} isDarkMode={isDarkMode} text="Generating Report" />
           ) : (
             <motion.div
               key={`${String(isMultiYear)}-${viewMode}`}
@@ -1348,10 +1354,11 @@ export default function ChartsPage({ loggedInRolex }) {
           )}
 
           {/* Section 2 — 3 DrillPie cards */}
+          {catgroupLoading && <LoaderOverlay text="Loading Category Groups" />}
           {(catgroupLoading || pieData1.length > 0 || pieData2.length > 0 || pieData3.length > 0) && (
             <motion.div id="mw-section2" style={{ marginBottom: 20 }}
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-              {catgroupLoading ? <LoaderOverlay text="Loading Category Groups" /> : (
+              {!catgroupLoading && (
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
                   <DrillPieCard title={pieTitle1} data={pieData1} onSliceClick={handlePie1Click} onZoom={handleZoom} />
                   <DrillPieCard title={pieTitle2} data={pieData2} onSliceClick={handlePie2Click} onZoom={handleZoom} />
@@ -1362,21 +1369,20 @@ export default function ChartsPage({ loggedInRolex }) {
           )}
 
           {/* Section 3 — category HBar, then code HBar below */}
+          {categoryLoading && <LoaderOverlay text="Loading Categories" />}
+          {codeLoading && <LoaderOverlay text="Loading Codes" />}
           {(categoryLoading || categoryData.length > 0 || codeLoading || codeData.length > 0) && (
             <motion.div id="mw-section3" style={{ marginBottom: 20 }}
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-              {categoryLoading ? <LoaderOverlay text="Loading Categories" /> : (
-                categoryData.length > 0 && (
-                  <HBarCard
-                    title={hbarTitle}
-                    data={categoryData}
-                    onBarClick={handleCategoryClick}
-                    onZoom={handleZoom}
-                  />
-                )
+              {!categoryLoading && categoryData.length > 0 && (
+                <HBarCard
+                  title={hbarTitle}
+                  data={categoryData}
+                  onBarClick={handleCategoryClick}
+                  onZoom={handleZoom}
+                />
               )}
-              {codeLoading && <LoaderOverlay text="Loading Codes" />}
-              {codeData.length > 0 && !codeLoading && (
+              {!codeLoading && codeData.length > 0 && (
                 <motion.div style={{ marginTop: 16 }}
                   initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
                   <HBarCard
@@ -1428,14 +1434,14 @@ export default function ChartsPage({ loggedInRolex }) {
                 onChange={o => setDwBasedon(o.value)} styles={selStyles} isSearchable={false}
                 menuPortalTarget={document.body} menuPosition="fixed" />
             </div>
-            <button onClick={handleDwApply} disabled={dwL1Loading} style={{
+            <button onClick={handleDwApply} disabled={dwL1Loading} className="btn-generate-anim" style={{
               background: `linear-gradient(135deg,${accent},${accent2})`,
               border: 'none', color: 'white', borderRadius: 6,
               padding: '0.35rem 1rem', fontSize: '0.78rem', fontWeight: 600,
               cursor: dwL1Loading ? 'not-allowed' : 'pointer', opacity: dwL1Loading ? 0.6 : 1,
               alignSelf: 'flex-end',
             }}>
-              {dwL1Loading ? 'Loading…' : 'Apply'}
+              {dwL1Loading ? 'Loading…' : 'Generate'}
             </button>
             <div style={{ display: 'flex', gap: 4, background: isDarkMode ? '#0f172a' : '#f1f5f9', borderRadius: 8, padding: 3, alignSelf: 'flex-end' }}>
               {[{ id: 'topview', label: 'Top Selling' }, { id: 'lowview', label: 'Low Selling' }].map(t => (
@@ -1452,10 +1458,11 @@ export default function ChartsPage({ loggedInRolex }) {
           </div>
 
           {/* DW Level 1 — table + chart side by side */}
+          {dwL1Loading && <LoaderOverlay text="Loading Day-Wise Data" />}
           {(dwL1Loading || dwLevel1.length > 0) && (
             <motion.div id="dw-section1" style={{ marginBottom: 20 }}
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-              {dwL1Loading ? <LoaderOverlay text="Loading Day-Wise Data" /> : (
+              {!dwL1Loading && (
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
                   <DwTableCard
                     title={`${appliedDw.company} ${appliedDw.method} Wise Overview (${appliedDw.daysel})`}
@@ -1469,12 +1476,11 @@ export default function ChartsPage({ loggedInRolex }) {
           )}
 
           {/* DW Level 2 — table + chart side by side */}
+          {dwL2LoadingVisible && <LoaderOverlay text="Loading Category Data" />}
           {(dwL2Loading || dwLevel2.length > 0) && (
             <motion.div id="dw-section2" style={{ marginBottom: 20 }}
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-              {dwL2LoadingVisible ? (
-                <LoaderOverlay text="Loading Category Data" />
-              ) : dwLevel2.length > 0 ? (
+              {!dwL2LoadingVisible && dwLevel2.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
                   <DwTableCard
                     title={`${appliedDw.company} ${appliedDw.method} And ${dwClickedCatgroup} Wise Overview (${appliedDw.daysel})`}
@@ -1483,17 +1489,16 @@ export default function ChartsPage({ loggedInRolex }) {
                     title={`Day Wise — ${dwClickedCatgroup} breakdown (${appliedDw.basedon})`}
                     data={sortedDwLevel2} onBarClick={handleDwCategoryClick} onZoom={handleZoom} />
                 </div>
-              ) : null}
+              )}
             </motion.div>
           )}
 
           {/* DW Level 3 — table + chart side by side */}
+          {dwL3LoadingVisible && <LoaderOverlay text="Loading Category Items" />}
           {(dwL3Loading || dwLevel3.length > 0) && (
             <motion.div id="dw-section3" style={{ marginBottom: 20 }}
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-              {dwL3LoadingVisible ? (
-                <LoaderOverlay text="Loading Category Items" />
-              ) : dwLevel3.length > 0 ? (
+              {!dwL3LoadingVisible && dwLevel3.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
                   <DwTableCard
                     title={`${appliedDw.company} ${appliedDw.method} And ${dwClickedCatgroup} and ${dwClickedCategory} Category Wise Overview (${appliedDw.daysel})`}
@@ -1502,17 +1507,16 @@ export default function ChartsPage({ loggedInRolex }) {
                     title={`Day Wise — ${dwClickedCatgroup} → ${dwClickedCategory} items (${appliedDw.basedon})`}
                     data={sortedDwLevel3} onBarClick={handleDwItemClick} onZoom={handleZoom} />
                 </div>
-              ) : null}
+              )}
             </motion.div>
           )}
 
           {/* DW Level 4 — table + chart side by side */}
+          {dwL4LoadingVisible && <LoaderOverlay text="Loading Item Details" />}
           {(dwL4Loading || dwLevel4.length > 0) && (
             <motion.div id="dw-section4" style={{ marginBottom: 20 }}
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-              {dwL4LoadingVisible ? (
-                <LoaderOverlay text="Loading Item Details" />
-              ) : dwLevel4.length > 0 ? (
+              {!dwL4LoadingVisible && dwLevel4.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
                   <DwTableCard
                     title={`${appliedDw.company} ${appliedDw.method} — ${dwClickedCatgroup} → ${dwClickedCategory} → ${dwClickedItem} Items (${appliedDw.daysel})`}
@@ -1526,7 +1530,7 @@ export default function ChartsPage({ loggedInRolex }) {
                     onZoom={handleZoom}
                   />
                 </div>
-              ) : null}
+              )}
             </motion.div>
           )}
 

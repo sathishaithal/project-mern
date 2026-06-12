@@ -26,6 +26,12 @@ import SummaryCardsSystem from "../../../components/SummaryCardsSystem/SummaryCa
 
 const toNumber = (value) => Number(value) || 0;
 
+const flattenUnitArray = (arr) => {
+  const result = {};
+  (arr || []).forEach(obj => { Object.assign(result, obj); });
+  return result;
+};
+
 const hasRoundedDisplayValue = (...values) =>
   values.some((value) => Math.round(toNumber(value)) !== 0);
 
@@ -84,6 +90,10 @@ const Production = () => {
   const [chartCollapsed, setChartCollapsed] = useState(false);
   const [collapsedCats, setCollapsedCats] = useState({});
 
+  // Unit toggle (bags / tonnage / kg)
+  const [unitType, setUnitType] = useState('tonnage');
+  const [allUnitsData, setAllUnitsData] = useState(null);
+
   // Chart states
   const [selectedCategory, setSelectedCategory] = useState("finished");
   const [selectedBrand, setSelectedBrand] = useState("all");
@@ -91,7 +101,7 @@ const Production = () => {
   const [chartType, setChartType] = useState("bar");
   const [dataView, setDataView] = useState("produced");
 
-  const [periodType, setPeriodType] = useState('custom');
+  const [periodType, setPeriodType] = useState('today');
   const [customFrom, setCustomFrom] = useState(new Date());
   const [customTo,   setCustomTo]   = useState(new Date());
 
@@ -450,6 +460,12 @@ const Production = () => {
   if (rounded < 0) formatted = '-' + formatted;
   return formatted;
 };
+  const dimProd = (v) => {
+    const n = Math.round(typeof v === 'number' ? v : parseFloat(v) || 0);
+    return n === 0
+      ? <span style={{ color: isDarkMode ? '#475569' : '#cbd5e1' }}>{formatIndianNumber(v)}</span>
+      : formatIndianNumber(v);
+  };
 
 const CustomXAxisTick = ({ x, y, payload }) => {
   const text = payload.value || "";
@@ -609,13 +625,8 @@ let othersProdPercentage = 0;
 
   const fetchReport = async () => {
     setLoading(true);
-    console.log('[Production] API date range →', {
-      periodType,
-      fromdate: formatPayloadDate(fromDate),
-      todate:   formatPayloadDate(toDate),
-      fromDate,
-      toDate,
-    });
+    setAllUnitsData(null);
+    setData(null);
     showToast("Loading", "Fetching production report...", "info");
 
     try {
@@ -628,7 +639,7 @@ let othersProdPercentage = 0;
       };
 
       const res = await axios.post(
-        `${import.meta.env.VITE_API_URL}/Report/production-report`,
+        `${import.meta.env.VITE_API_URL}/Report/production-report-tonnage`,
         payload,
         {
           headers: {
@@ -638,24 +649,32 @@ let othersProdPercentage = 0;
         }
       );
 
-      console.log("API Response:", res.data);
-
       if (!res.data || Object.keys(res.data).length === 0) {
         setData(null);
+        setAllUnitsData(null);
         setIsReportFullscreen(false);
         showToast("No Data", "No production data found for selected date range.", "warning");
         return;
       }
 
-      setData(res.data);
+      const parsed = {
+        bags:    flattenUnitArray(res.data.bags),
+        tonnage: flattenUnitArray(res.data.tonnage),
+        kg:      flattenUnitArray(res.data.kg),
+      };
+      setAllUnitsData(parsed);
+
+      const activeData = parsed[unitType] || parsed.tonnage;
+      setData(activeData);
+
       const obj = {};
-      [...Object.keys(res.data.finished || {}), ...Object.keys(res.data.finished2 || {})].forEach((k) => (obj[k] = true));
-      [...Object.keys(res.data.finishedOthers || {}), ...Object.keys(res.data.finishedOthers2 || {})].forEach((k) => (obj[`others:${k}`] = true));
+      [...Object.keys(activeData.finished || {}), ...Object.keys(activeData.finished2 || {})].forEach((k) => (obj[k] = true));
+      [...Object.keys(activeData.finishedOthers || {}), ...Object.keys(activeData.finishedOthers2 || {})].forEach((k) => (obj[`others:${k}`] = true));
       setCollapsedCats(obj);
 
-      if (res.data.finished && Object.keys(res.data.finished).length > 0) {
-        const availableBrands = Object.keys(res.data.finished).filter(
-          (b) => Array.isArray(res.data.finished[b]) && res.data.finished[b].length > 0
+      if (activeData.finished && Object.keys(activeData.finished).length > 0) {
+        const availableBrands = Object.keys(activeData.finished).filter(
+          (b) => Array.isArray(activeData.finished[b]) && activeData.finished[b].length > 0
         );
         if (availableBrands.length > 0) {
           setSelectedBrand("all");
@@ -695,6 +714,12 @@ let othersProdPercentage = 0;
       setLoading(false);
     }
   };
+
+  // Auto-fetch on initial mount (uses default 'today' date range)
+  useEffect(() => {
+    fetchReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const prepareChartData = () => {
     if (!data) return [];
@@ -1304,12 +1329,12 @@ case "pie":
                     <td className={`${styles.tableCellDescription} ${styles.tableCellBold}`}>
                       Sub Total - {cat}
                     </td>
-                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.opening)}</td>
-                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.produced)}</td>
-                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.total)}</td>
-                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.dispatch)}</td>
-                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.returned)}</td>
-                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.closing)}</td>
+                    <td className={styles.tableCellNumber}>{dimProd(subtotal.opening)}</td>
+                    <td className={styles.tableCellNumber}>{dimProd(subtotal.produced)}</td>
+                    <td className={styles.tableCellNumber}>{dimProd(subtotal.total)}</td>
+                    <td className={styles.tableCellNumber}>{dimProd(subtotal.dispatch)}</td>
+                    <td className={styles.tableCellNumber}>{dimProd(subtotal.returned)}</td>
+                    <td className={styles.tableCellNumber}>{dimProd(subtotal.closing)}</td>
                     <td className={styles.tableCellPercentage}>{formatPercentage(subtotalPercentage)}</td>
                   </tr>
 
@@ -1322,12 +1347,12 @@ case "pie":
                       <td className={`${styles.tableCellDescription} ${styles.tableCellIndented}`}>
                         {item.description || 'No Description'}
                       </td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).opening)}</td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).production)}</td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).total)}</td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).dispatch)}</td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).returned)}</td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).closing)}</td>
+                      <td className={styles.tableCellNumber}>{dimProd(getFinishedItemMetrics(item).opening)}</td>
+                      <td className={styles.tableCellNumber}>{dimProd(getFinishedItemMetrics(item).production)}</td>
+                      <td className={styles.tableCellNumber}>{dimProd(getFinishedItemMetrics(item).total)}</td>
+                      <td className={styles.tableCellNumber}>{dimProd(getFinishedItemMetrics(item).dispatch)}</td>
+                      <td className={styles.tableCellNumber}>{dimProd(getFinishedItemMetrics(item).returned)}</td>
+                      <td className={styles.tableCellNumber}>{dimProd(getFinishedItemMetrics(item).closing)}</td>
                       <td className={styles.tableCellPercentage}>{formatPercentage(item.prod_percentage)}</td>
                     </tr>
                   ))}
@@ -1337,12 +1362,12 @@ case "pie":
 
             <tr className={styles.tableGrandTotal}>
               <td colSpan="2" className={styles.tableCellDescription}>Grand Total - Finished Goods</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.opening)}</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.production)}</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.total)}</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.dispatch)}</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.returned)}</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.closing)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(grandTotals.opening)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(grandTotals.production)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(grandTotals.total)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(grandTotals.dispatch)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(grandTotals.returned)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(grandTotals.closing)}</td>
               <td className={styles.tableCellPercentage}>{formatPercentage(calcRoundedProdPercentage(brands.flatMap(cat => finishedData[cat] || [])))}</td>
             </tr>
           </tbody>
@@ -1482,12 +1507,12 @@ case "pie":
                     <td className={`${styles.tableCellDescription} ${styles.tableCellBold}`}>
                       Sub Total - {cat}
                     </td>
-                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.opening)}</td>
-                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.produced)}</td>
-                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.total)}</td>
-                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.dispatch)}</td>
-                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.returned)}</td>
-                    <td className={styles.tableCellNumber}>{formatIndianNumber(subtotal.closing)}</td>
+                    <td className={styles.tableCellNumber}>{dimProd(subtotal.opening)}</td>
+                    <td className={styles.tableCellNumber}>{dimProd(subtotal.produced)}</td>
+                    <td className={styles.tableCellNumber}>{dimProd(subtotal.total)}</td>
+                    <td className={styles.tableCellNumber}>{dimProd(subtotal.dispatch)}</td>
+                    <td className={styles.tableCellNumber}>{dimProd(subtotal.returned)}</td>
+                    <td className={styles.tableCellNumber}>{dimProd(subtotal.closing)}</td>
                     <td className={styles.tableCellPercentage}>{formatPercentage(subtotalPercentage)}</td>
                   </tr>
 
@@ -1500,12 +1525,12 @@ case "pie":
                       <td className={`${styles.tableCellDescription} ${styles.tableCellIndented}`}>
                         {item.description || 'No Description'}
                       </td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).opening)}</td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).production)}</td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).total)}</td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).dispatch)}</td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).returned)}</td>
-                      <td className={styles.tableCellNumber}>{formatIndianNumber(getFinishedItemMetrics(item).closing)}</td>
+                      <td className={styles.tableCellNumber}>{dimProd(getFinishedItemMetrics(item).opening)}</td>
+                      <td className={styles.tableCellNumber}>{dimProd(getFinishedItemMetrics(item).production)}</td>
+                      <td className={styles.tableCellNumber}>{dimProd(getFinishedItemMetrics(item).total)}</td>
+                      <td className={styles.tableCellNumber}>{dimProd(getFinishedItemMetrics(item).dispatch)}</td>
+                      <td className={styles.tableCellNumber}>{dimProd(getFinishedItemMetrics(item).returned)}</td>
+                      <td className={styles.tableCellNumber}>{dimProd(getFinishedItemMetrics(item).closing)}</td>
                       <td className={styles.tableCellPercentage}>{formatPercentage(item.prod_percentage)}</td>
                     </tr>
                   ))}
@@ -1515,12 +1540,12 @@ case "pie":
 
             <tr className={styles.tableGrandTotalOthers}>
               <td colSpan="2" className={styles.tableCellDescription}>Grand Total - By Products and Packing Section Material</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.opening)}</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.production)}</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.total)}</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.dispatch)}</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.returned)}</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(grandTotals.closing)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(grandTotals.opening)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(grandTotals.production)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(grandTotals.total)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(grandTotals.dispatch)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(grandTotals.returned)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(grandTotals.closing)}</td>
               <td className={styles.tableCellPercentage}>{formatPercentage(calcRoundedProdPercentage(othersBrands.flatMap(cat => finishedOthersData[cat] || [])))}</td>
             </tr>
           </tbody>
@@ -1605,22 +1630,22 @@ case "pie":
               <tr key={i} className={i % 2 === 0 ? styles.tableRowEven : ''}>
                 <td className={styles.tableCellArrow}></td>
                 <td className={styles.tableCellDescription}>{item.description || 'No Description'}</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber(getRawItemMetrics(item).opening)}</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber(toNumber(item["purchased/transfer in"]))}</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber(getRawItemMetrics(item).total)}</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber(getRawItemMetrics(item).used)}</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber(getRawItemMetrics(item).returned)}</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber(getRawItemMetrics(item).closing)}</td>
+                <td className={styles.tableCellNumber}>{dimProd(getRawItemMetrics(item).opening)}</td>
+                <td className={styles.tableCellNumber}>{dimProd(toNumber(item["purchased/transfer in"]))}</td>
+                <td className={styles.tableCellNumber}>{dimProd(getRawItemMetrics(item).total)}</td>
+                <td className={styles.tableCellNumber}>{dimProd(getRawItemMetrics(item).used)}</td>
+                <td className={styles.tableCellNumber}>{dimProd(getRawItemMetrics(item).returned)}</td>
+                <td className={styles.tableCellNumber}>{dimProd(getRawItemMetrics(item).closing)}</td>
               </tr>
             ))}
             <tr className={styles.tableGrandTotalRaw}>
               <td colSpan="2" className={styles.tableCellDescription}>Grand Total - Raw Materials</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(rawTotals.opening)}</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(rawTotals.arrival)}</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(rawTotals.total)}</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(rawTotals.used)}</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(rawTotals.returned)}</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(rawTotals.closing)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(rawTotals.opening)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(rawTotals.arrival)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(rawTotals.total)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(rawTotals.used)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(rawTotals.returned)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(rawTotals.closing)}</td>
             </tr>
           </tbody>
         </table>
@@ -1722,7 +1747,7 @@ case "pie":
           <tfoot>
             <tr className={styles.tableGrandTotal}>
               <td className={styles.tableCellDescription}>Total</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(totalQty)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(totalQty)}</td>
               <td className={styles.tableCellNumber}>{totalPct}</td>
             </tr>
           </tfoot>
@@ -1829,33 +1854,33 @@ case "pie":
               <tr key={`fried-${i}`}>
                 <td className={styles.tableCellArrow}>  </td>
                 <td className={styles.tableCellDescription}>{item.description || 'No Description'}</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber(toNumber(item["purchased/transfer in"]))}</td>
+                <td className={styles.tableCellNumber}>{dimProd(toNumber(item["purchased/transfer in"]))}</td>
               </tr>
             ))}
             {friedGram.length > 0 && (
               <tr className={styles.tableSubTotal}>
                 <td className={styles.tableCellArrow}>  </td>
                 <td className={styles.tableCellDescription}>Sub Total - FRIED GRAM</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber(friedGramTotal)}</td>
+                <td className={styles.tableCellNumber}>{dimProd(friedGramTotal)}</td>
               </tr>
             )}
             {bengalGram.map((item, i) => (
               <tr key={`bengal-${i}`}>
                 <td className={styles.tableCellArrow}>  </td>
                 <td className={styles.tableCellDescription}>{item.description || 'No Description'}</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber(toNumber(item["purchased/transfer in"]))}</td>
+                <td className={styles.tableCellNumber}>{dimProd(toNumber(item["purchased/transfer in"]))}</td>
               </tr>
             ))}
             {bengalGram.length > 0 && (
               <tr className={styles.tableSubTotal}>
                 <td className={styles.tableCellArrow}>  </td>
                 <td className={styles.tableCellDescription}>Sub Total - BENGAL GRAM</td>
-                <td className={styles.tableCellNumber}>{formatIndianNumber(bengalGramTotal)}</td>
+                <td className={styles.tableCellNumber}>{dimProd(bengalGramTotal)}</td>
               </tr>
             )}
             <tr className={styles.tableGrandTotalPacking}>
               <td colSpan="2" className={styles.tableCellDescription}>Grand Total - Packing</td>
-              <td className={styles.tableCellNumber}>{formatIndianNumber(friedGramTotal + bengalGramTotal)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(friedGramTotal + bengalGramTotal)}</td>
             </tr>
           </tbody>
         </table>
@@ -1902,12 +1927,14 @@ case "pie":
         </div>
       )}
 
-      <SummaryCardsSystem
-        context="production"
-        productionData={data}
-        accent={selectedAccent.primary}
-        accent2={selectedAccent.secondary}
-      />
+      {!isReportFullscreen && (
+        <SummaryCardsSystem
+          context="production"
+          productionData={data}
+          accent={selectedAccent.primary}
+          accent2={selectedAccent.secondary}
+        />
+      )}
 
       {!isReportFullscreen && (
         <div className={styles.productionTabBar}>
@@ -1939,14 +1966,48 @@ case "pie":
           <i className={`bi ${mobileFiltersOpen ? "bi-chevron-up" : "bi-chevron-down"}`}></i>
         </button>
 
-        {data && (
+        {data && !isReportFullscreen && (
           <button
             type="button"
-            className={styles.reportViewToggle}
             onClick={toggleReportFullscreen}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '0.38rem 0.85rem',
+              borderRadius: 8,
+              border: `1px solid ${selectedAccent.primary}`,
+              background: isDarkMode ? '#1e293b' : '#fff',
+              color: selectedAccent.primary,
+              fontSize: '0.78rem', fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+              whiteSpace: 'nowrap',
+            }}
           >
-            <i className={`bi ${isReportFullscreen ? "bi-fullscreen-exit" : "bi-arrows-fullscreen"}`}></i>
-            {isReportFullscreen ? "Close Full Screen" : "Full Screen"}
+            <i className="bi bi-arrows-fullscreen" style={{ fontSize: '0.82rem' }} />
+            Full Screen
+          </button>
+        )}
+
+        {isReportFullscreen && (
+          <button
+            type="button"
+            onClick={toggleReportFullscreen}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '0.42rem 1rem',
+              borderRadius: 8,
+              border: 'none',
+              background: selectedAccent.primary,
+              color: '#fff',
+              fontSize: '0.78rem', fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 4px 18px rgba(0,0,0,0.28)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <i className="bi bi-fullscreen-exit" style={{ fontSize: '0.82rem' }} />
+            Close Full Screen
           </button>
         )}
       </div>
@@ -2250,8 +2311,6 @@ case "pie":
               className={styles.generateBtn}
               onClick={fetchReport}
               disabled={loading}
-              whileHover={{ scale: 1.01, y: -2 }}
-              whileTap={{ scale: 0.985 }}
             >
               {loading ? (
                 <>
@@ -2268,6 +2327,76 @@ case "pie":
           </motion.div>
         </div>
       </div>
+
+      {/* Unit Toggle — shown after data is loaded */}
+      <AnimatePresence>
+        {allUnitsData && (
+          <motion.div
+            key="unit-toggle"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.28, ease: 'easeOut' }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              margin: '14px 0 6px',
+              padding: '10px 16px',
+              borderRadius: 12,
+              background: isDarkMode ? '#1e293b' : '#f1f5f9',
+              border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
+              flexWrap: 'wrap',
+              boxShadow: isDarkMode ? '0 2px 8px rgba(0,0,0,0.25)' : '0 1px 4px rgba(0,0,0,0.07)',
+            }}
+          >
+            <span style={{
+              fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em',
+              color: isDarkMode ? '#94a3b8' : '#64748b',
+              textTransform: 'uppercase', marginRight: 4,
+            }}>
+              View Unit
+            </span>
+            {[
+              { key: 'tonnage', label: 'Tonnage', icon: 'bi-stack'   },
+              { key: 'bags',    label: 'Bags',    icon: 'bi-bag'     },
+              { key: 'kg',      label: 'Kg',      icon: 'bi-speedometer2' },
+            ].map(({ key, label, icon }, idx) => {
+              const isActive = unitType === key;
+              return (
+                <motion.button
+                  key={key}
+                  onClick={() => {
+                    setUnitType(key);
+                    setData(allUnitsData[key]);
+                  }}
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.22, delay: idx * 0.06 }}
+                  whileHover={{ scale: 1.06, y: -1 }}
+                  whileTap={{ scale: 0.95 }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '6px 16px',
+                    borderRadius: 20,
+                    border: `1.5px solid ${isActive ? selectedAccent.primary : (isDarkMode ? '#475569' : '#cbd5e1')}`,
+                    background: isActive
+                      ? `linear-gradient(90deg, ${selectedAccent.primary}, ${selectedAccent.secondary})`
+                      : (isDarkMode ? '#0f172a' : '#fff'),
+                    color: isActive ? '#fff' : (isDarkMode ? '#94a3b8' : '#475569'),
+                    fontSize: '0.8rem',
+                    fontWeight: isActive ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'background 0.2s, border-color 0.2s, color 0.2s',
+                    boxShadow: isActive ? `0 3px 10px ${selectedAccent.primary}44` : 'none',
+                  }}
+                >
+                  <i className={`bi ${icon}`} style={{ fontSize: '0.82rem' }} />
+                  {label}
+                </motion.button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Report Content */}
       {data && (
@@ -2351,7 +2480,7 @@ case "pie":
                     style={{ transformOrigin: "top center", transformStyle: "preserve-3d" }}
                   >
                     <div className={styles.totalCardItemLabel}>{item.label}</div>
-                    <div className={styles.totalCardItemValue}>{formatIndianNumber(item.value)}</div>
+                    <div className={styles.totalCardItemValue}>{dimProd(item.value)}</div>
                   </motion.div>
                 ))}
               </div>

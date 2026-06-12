@@ -514,6 +514,49 @@
   white-space: nowrap;
 }
 
+/* ── Inline Generate button (sits in the filter group) ───── */
+.fb-generate-btn {
+  height: 34px;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0 1.1rem;
+  font-weight: 700;
+  font-size: 0.82rem;
+  font-family: var(--sr-font, 'Manrope', sans-serif);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+}
+
+/* ── Floating + shimmer animation (applied to all Generate buttons) */
+@keyframes btn-generate-float {
+  0%, 100% { transform: translateY(0)    scale(1);     }
+  50%       { transform: translateY(-3px) scale(1.025); }
+}
+@keyframes btn-generate-shine {
+  0%   { transform: translateX(-200%) skewX(-10deg); }
+  100% { transform: translateX(300%)  skewX(-10deg); }
+}
+.btn-generate-anim {
+  animation: btn-generate-float 2s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+.btn-generate-anim::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0; width: 35%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+  animation: btn-generate-shine 2.2s linear infinite;
+  pointer-events: none;
+}
+.btn-generate-anim:disabled { animation: none; }
+.btn-generate-anim:disabled::after { display: none; }
+
 /* ── Last update text ─────────────────────────────────────── */
 .fb-last-update {
   font-size: 0.72rem;

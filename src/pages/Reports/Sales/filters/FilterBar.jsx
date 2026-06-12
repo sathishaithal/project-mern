@@ -25,6 +25,22 @@ const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateD
           {mode === 'daywise' && <MonthSelector />}
           <CompanySelector mode={mode} />
           <DistTypeSelector mode={mode} activeReportTab={activeReportTab} />
+          {onApply && (
+            <>
+              <div style={{ width: 1, height: 28, background: isDarkMode ? '#334155' : '#e2e8f0', alignSelf: 'center' }} />
+              <button
+                onClick={onApply}
+                disabled={isLoading}
+                className="fb-generate-btn btn-generate-anim"
+                style={{ background: `linear-gradient(135deg, ${accent}, ${accent2})`, opacity: isLoading ? 0.6 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }}
+              >
+                {isLoading
+                  ? <><i className="bi bi-arrow-clockwise" style={{ marginRight: 4 }} />Loading…</>
+                  : <><i className="bi bi-play-fill" style={{ marginRight: 4 }} />Generate</>
+                }
+              </button>
+            </>
+          )}
         </div>
 
         {children && (

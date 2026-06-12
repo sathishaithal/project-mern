@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+﻿import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Select, { components } from 'react-select';
 import Tooltip from '../../../components/ui/Tooltip';
+import SrLoader from '../../../components/ui/SrLoader';
 import './Sales.css';
 import { useColorMode } from '../../../theme/ThemeContext';
 import FilterBar from './filters/FilterBar';
@@ -20,6 +21,15 @@ import {
   getSixthLevelDispatch,
 } from '../../../services/salesDashboardApi';
 import { fmt, fmtR, fmtDate } from '../../../utils/salesFormatters';
+import {
+  groupByField, getDistfinfColor,
+  FULL_DRILL_AFTER, GROUP_SUM_KEYS, GROUP_FIELD_TO_DISTFINF, ALL_NUM_KEYS,
+} from '../../../utils/salesGrouping';
+import {
+  GROUPS, tooltipRegistry,
+  ArrowIcon, l0diff, subDiff, CellTooltip,
+  MonthCell, QuarterCell, numColor, SummaryCells,
+} from './components/SalesCells';
 import { useAuth } from '../../../context/AuthContext';
 import { useSalesSelectStyles } from './filters/useSalesSelectStyles';
 import { appLog } from '../../../config/appConfig';
@@ -38,79 +48,6 @@ const CheckboxOption = (props) => (
     </div>
   </components.Option>
 );
-
-const GROUPS = [
-  { months: [
-      { key: 'jantonnage', lyKey: 'jantonnage_last', label: 'Jan' },
-      { key: 'febtonnage', lyKey: 'febtonnage_last', label: 'Feb' },
-      { key: 'martonnage', lyKey: 'martonnage_last', label: 'Mar' },
-    ], qKey: 'Q1', qLabel: 'Q1' },
-  { months: [
-      { key: 'aprtonnage', lyKey: 'aprtonnage_last', label: 'Apr' },
-      { key: 'maytonnage', lyKey: 'maytonnage_last', label: 'May' },
-      { key: 'juntonnage', lyKey: 'juntonnage_last', label: 'Jun' },
-    ], qKey: 'Q2', qLabel: 'Q2' },
-  { months: [
-      { key: 'jultonnage', lyKey: 'jultonnage_last', label: 'July' },
-      { key: 'augtonnage', lyKey: 'augtonnage_last', label: 'Aug' },
-      { key: 'septonnage', lyKey: 'septonnage_last', label: 'Sep' },
-    ], qKey: 'Q3', qLabel: 'Q3' },
-  { months: [
-      { key: 'octtonnage', lyKey: 'octtonnage_last', label: 'Oct' },
-      { key: 'novtonnage', lyKey: 'novtonnage_last', label: 'Nov' },
-      { key: 'dectonnage', lyKey: 'dectonnage_last', label: 'Dec' },
-    ], qKey: 'Q4', qLabel: 'Q4' },
-];
-
-const ALL_NUM_KEYS = [
-  'jantonnage','febtonnage','martonnage','aprtonnage','maytonnage','juntonnage',
-  'jultonnage','augtonnage','septonnage','octtonnage','novtonnage','dectonnage',
-  'jantonnage_last','febtonnage_last','martonnage_last','aprtonnage_last','maytonnage_last','juntonnage_last',
-  'jultonnage_last','augtonnage_last','septonnage_last','octtonnage_last','novtonnage_last','dectonnage_last',
-  'Q1','Q2','Q3','Q4','Q1_last','Q2_last','Q3_last','Q4_last',
-  'ttltonnage_crnt','ttltonnage_crntwy','ttltonnagewy','currentmonthtonnage','currentmonthtonnage_last',
-];
-
-// Keys summed during grouping (superset of ALL_NUM_KEYS — adds ttltonnage and lastmonthtonnage)
-const GROUP_SUM_KEYS = [...ALL_NUM_KEYS, 'ttltonnage', 'lastmonthtonnage'];
-
-// Mirrors Angular datafilter_new() distfinf assignments: groupField → distfinf value
-const GROUP_FIELD_TO_DISTFINF = {
-  description: 1, category: 2, catgroup: 3, year: 4,
-  distname: 5, soff: 6, areaname: 7, asm: 8,
-};
-
-const FULL_DRILL_AFTER = {
-  distributors: { distname: 'catgroup', catgroup: 'category', category: 'description', year: 'catgroup' },
-  catgroup:     { catgroup: 'distname', distname: 'category', category: 'description', year: 'distname' },
-  // areaname removed: the API stores year values in areaname, making asm→areaname = asm→year (redundant).
-  // Single expand goes directly asm→catgroup; year expand button still handles year breakdown.
-  asm:          { asm: 'catgroup', catgroup: 'category', year: 'catgroup' },
-  soff:         { soff: 'distname', distname: 'catgroup', catgroup: 'category', year: 'distname' },
-};
-
-// Groups a flat API response by groupField and sums all numeric tonnage fields — mirrors Angular datafilter_new()
-function groupByField(rows, groupField, parentFilters = {}) {
-  const distfinf = GROUP_FIELD_TO_DISTFINF[groupField];
-  const map = new Map();
-  for (const row of rows) {
-    const key = String(row[groupField] ?? '').trim();
-    if (!key) continue;
-    if (!map.has(key)) {
-      const entry = { ...row, id: key, _groupField: groupField, _filters: { ...parentFilters, [groupField]: key } };
-      GROUP_SUM_KEYS.forEach(k => { entry[k] = 0; });
-      map.set(key, entry);
-    }
-    const entry = map.get(key);
-    GROUP_SUM_KEYS.forEach(k => { entry[k] += parseFloat(row[k]) || 0; });
-  }
-  return Array.from(map.values())
-    .sort((a, b) => String(a[groupField]).localeCompare(String(b[groupField])))
-    .map(row => {
-      if (distfinf !== undefined) row.distfinf = distfinf;
-      return row;
-    });
-}
 
 const TABS = [
   { id: 'summary',      label: 'YoY Summary' },
@@ -134,32 +71,7 @@ const TILL_LAST_MONTH_TABS = { summary: true, distributors: false, catgroup: fal
 
 const NAME_COL_WIDTH = { summary: 130, distributors: 200, catgroup: 160, asm: 150, soff: 160 };
 
-// Returns { bg, text } based on Angular's distfinf color classes.
-// distfinf 5/6/8 (distname/soff/asm): traffic light from Q degrowth count — all tabs.
-// All other distfinf: fixed palette matching Angular SCSS classes.
-function getDistfinfColor(row) {
-  const df = parseInt(row.distfinf, 10);
-  if (isNaN(df)) return null;
-  if (df === 5 || df === 6 || df === 8) {
-    const dg =
-      ((parseFloat(row.Q1) || 0) <= (parseFloat(row.Q1_last) || 0) ? 1 : 0) +
-      ((parseFloat(row.Q2) || 0) <= (parseFloat(row.Q2_last) || 0) ? 1 : 0) +
-      ((parseFloat(row.Q3) || 0) <= (parseFloat(row.Q3_last) || 0) ? 1 : 0) +
-      ((parseFloat(row.Q4) || 0) <= (parseFloat(row.Q4_last) || 0) ? 1 : 0);
-    if (dg === 0) return { bg: 'green',      text: '#ffffff' };
-    if (dg === 1) return { bg: 'lightgreen', text: '#14532d' };
-    if (dg === 2) return { bg: 'yellow',     text: '#713f12' };
-    return           { bg: 'red',         text: '#ffffff' };
-  }
-  const MAP = {
-    1: { bg: '#a3aba3',        text: '#1e293b' },  // itemcolour
-    2: { bg: '#f1a689',        text: '#1e293b' },  // catcolour
-    3: { bg: 'rgb(129,93,136)', text: '#ffffff' }, // catgcolour
-    4: { bg: '#e9d77c',        text: '#1e293b' },  // yearcolour
-    7: { bg: '#ebbad3',        text: '#1e293b' },  // areanamecolour
-  };
-  return MAP[df] || null;
-}
+// getDistfinfColor imported from src/utils/salesGrouping.js
 
 const fyToCalYear = (fy) => {
   const s = String(fy ?? '');
@@ -170,324 +82,14 @@ const fyToCalYear = (fy) => {
   return s || '—';
 };
 
-const ArrowIcon = ({ diff }) => {
-  if (diff === null || diff === undefined || diff === 0) return null;
-  return (
-    <span style={{
-      fontWeight: 700,
-      fontSize: '0.72rem',
-      marginLeft: 2,
-      color: diff > 0 ? '#2e7d32' : '#c62828',
-      display: 'inline-flex',
-      alignItems: 'center',
-      verticalAlign: 'middle',
-      lineHeight: 1,
-      flexShrink: 0,
-    }}>
-      {diff > 0 ? '▲' : '▼'}
-    </span>
-  );
-};
+// Cell components (ArrowIcon, l0diff, subDiff, tooltipRegistry, CellTooltip,
+// MonthCell, QuarterCell, numColor, SummaryCells) and GROUPS are imported from
+// ./components/SalesCells.jsx — see imports at the top of this file.
 
-const l0diff  = (rows, i, key) => {
-  if (i === 0) return null;
-  const curr = parseFloat(rows[i][key]), prev = parseFloat(rows[i - 1][key]);
-  if (isNaN(curr) || isNaN(prev)) return null;
-  return curr - prev;
-};
-const subDiff = (row, key, lyKey) => {
-  const curr = parseFloat(row[key]), prev = parseFloat(row[lyKey]);
-  if (isNaN(curr) || isNaN(prev)) return null;
-  return curr - prev;
-};
+// tooltipRegistry is exported from ./components/SalesCells.jsx and imported above.
+// Wire it to setTooltip inside the SalesReportPage component function (see useEffect below).
 
-// Single module-level tooltip registry — wired to one useState in SalesReportPage.
-// Eliminates ~1560 per-cell useState instances (60 rows × 13 cols × 2 states).
-const tooltipRegistry = { setter: null };
-
-function CellTooltip({ className, style, title, thisYear, lastYear, formula, unit = '', accent, isDarkMode, children }) {
-  const timerRef = useRef(null);
-  useEffect(() => () => clearTimeout(timerRef.current), []);
-  const handleEnter = (e) => {
-    clearTimeout(timerRef.current);
-    const x = e.clientX, y = e.clientY;
-    timerRef.current = setTimeout(() => {
-      tooltipRegistry.setter?.({ x, y, title, thisYear, lastYear, formula, unit });
-    }, 120);
-  };
-  const handleLeave = () => {
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => tooltipRegistry.setter?.(null), 80);
-  };
-  return (
-    <td className={className} style={style} onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
-      {children}
-    </td>
-  );
-}
-
-const MonthCell = ({ row, rows, rowIdx, level, mKey, mLyKey, accent, isDarkMode, isSummary }) => {
-  const isL0Summary = isSummary && level === 0;
-  const f = level === 0 ? fmtR : fmt;
-  const diff = isL0Summary ? l0diff(rows, rowIdx, mKey) : subDiff(row, mKey, mLyKey);
-  if (!isSummary) {
-    return (
-      <td className="sr-td">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, fontWeight: 500, color: 'var(--sales-text, #1e293b)' }}>
-          {f(row[mKey])}<ArrowIcon diff={diff} />
-        </div>
-      </td>
-    );
-  }
-  const label = mKey.replace('tonnage', '').replace(/^./, c => c.toUpperCase());
-  const lyVal = isL0Summary
-    ? (rowIdx > 0 ? rows[rowIdx - 1][mKey] : undefined)
-    : row[mLyKey];
-  return (
-    <CellTooltip
-      className="sr-td"
-      title={`${label} Tonnage`}
-      thisYear={f(row[mKey])}
-      lastYear={lyVal !== undefined && lyVal !== null && lyVal !== '' ? f(lyVal) : undefined}
-      accent={accent}
-      isDarkMode={isDarkMode}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, fontWeight: 500, color: 'var(--sales-text, #1e293b)' }}>
-        {f(row[mKey])}<ArrowIcon diff={diff} />
-      </div>
-    </CellTooltip>
-  );
-};
-
-const QuarterCell = ({ row, rows, rowIdx, level, qKey, accent, isDarkMode, isSummary }) => {
-  const isL0Summary = isSummary && level === 0;
-  const f = level === 0 ? fmtR : fmt;
-  const diff = isL0Summary ? l0diff(rows, rowIdx, qKey) : subDiff(row, qKey, qKey + '_last');
-  if (!isSummary) {
-    return (
-      <td className="sr-td" style={{ fontWeight: 700, textAlign: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-          {f(row[qKey])}<ArrowIcon diff={diff} />
-        </div>
-      </td>
-    );
-  }
-  const lyVal = isL0Summary
-    ? (rowIdx > 0 ? rows[rowIdx - 1][qKey] : undefined)
-    : row[qKey + '_last'];
-  return (
-    <CellTooltip
-      className="sr-td"
-      style={{ fontWeight: 700, textAlign: 'center' }}
-      title={`${qKey} Total`}
-      thisYear={f(row[qKey])}
-      lastYear={lyVal !== undefined && lyVal !== null && lyVal !== '' ? f(lyVal) : undefined}
-      accent={accent}
-      isDarkMode={isDarkMode}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-        {f(row[qKey])}<ArrowIcon diff={diff} />
-      </div>
-    </CellTooltip>
-  );
-};
-
-const numColor = (v) => (v === null || v === undefined) ? '#94a3b8' : v >= 0 ? '#2e7d32' : '#c62828';
-
-const SummaryCells = ({ row, rows, rowIdx, level, showTillLast, accent, isDarkMode, isSummary, allSummaryRows, isMultiYear }) => {
-  const f = level === 0 ? fmtR : fmt;
-  // For non-summary L0 rows with multiple years selected, the row is a multi-year aggregate;
-  // _last fields are summed across all years → "last year" comparison is meaningless, suppress it.
-  // Single-year selection: _last fields are valid prior-year data — show comparison normally.
-  const isNonSummaryL0 = !isSummary && level === 0 && isMultiYear;
-  const tillLast = (parseFloat(row.ttltonnage_crnt) || 0) - (parseFloat(row.currentmonthtonnage) || 0);
-
-  // YTD Gr/Degr: L0 rowN>0 → row-to-row diff; L0 row0 → hidden prior-year full YTD; L1+ → ttltonnage field
-  // API quirk: hidden prior-year row has ttltonnage_crnt = current month only (not full YTD).
-  // Full YTD for hidden prior year = ttltonnage (up-to-last-month sum) + currentmonthtonnage.
-  // ttltonnage = prev year YTD through same month as current year (not full year)
-  const lyYtd = GROUPS.flatMap(g => g.months.map(m => parseFloat(row[m.lyKey]) || 0)).reduce((s, v) => s + v, 0);
-  let ytdGr;
-  let ytdGrBase;
-  if (isSummary && level === 0) {
-    if (rowIdx > 0) {
-      ytdGrBase = parseFloat(rows[rowIdx - 1].ttltonnage_crnt) || 0;
-    } else {
-      const prevYrRow = allSummaryRows?.find(r => String(r.year) === String(parseInt(row.year, 10) - 1));
-      ytdGrBase = prevYrRow
-        ? (parseFloat(prevYrRow.ttltonnage) || 0) + (parseFloat(prevYrRow.currentmonthtonnage) || 0)
-        : lyYtd;
-    }
-    ytdGr = (parseFloat(row.ttltonnage_crnt) || 0) - ytdGrBase;
-  } else {
-    // L1+ summary rows and non-summary rows: ttltonnage = prev year YTD through current month
-    ytdGrBase = parseFloat(row.ttltonnage) || 0;
-    ytdGr = (parseFloat(row.ttltonnage_crnt) || 0) - ytdGrBase;
-  }
-
-  // YTD %:
-  // L0 Summary: current month vs previous year's current month (Angular CastNumber_per_per)
-  // L1+ / non-summary: YTD Gr/Degr ÷ prev year YTD × 100
-  const curMon   = parseFloat(row.currentmonthtonnage) || 0;
-  const curMonLy = parseFloat(row.currentmonthtonnage_last) || 0;
-  let ytdPct;
-  let ytdPctFormula;
-  if (isSummary && level === 0) {
-    const prevYearRow = (allSummaryRows || rows).find(r => String(r.year) === String(parseInt(row.year, 10) - 1));
-    const prevMonForPct = prevYearRow
-      ? (parseFloat(prevYearRow.currentmonthtonnage_last) || parseFloat(prevYearRow.currentmonthtonnage) || 0)
-      : 0;
-    ytdPct = prevMonForPct !== 0 ? ((curMon - prevMonForPct) / Math.abs(prevMonForPct) * 100) : null;
-    ytdPctFormula = `(Current Month − Prev Year Month) ÷ Prev Year Month × 100\n= (${f(curMon)} − ${f(prevMonForPct)}) ÷ ${f(prevMonForPct)} × 100\n= ${(ytdPct ?? 0).toFixed(1)}%`;
-  } else {
-    ytdPct = ytdGrBase !== 0 ? (ytdGr / Math.abs(ytdGrBase) * 100) : null;
-    const formulaPrefix = isNonSummaryL0 ? 'Multi-year aggregate (sum of all selected years)\n' : '';
-    ytdPctFormula = `${formulaPrefix}YTD Gr/Degr ÷ Prev Year YTD × 100\n= ${f(ytdGr ?? 0)} ÷ ${f(ytdGrBase)} × 100\n= ${(ytdPct ?? 0).toFixed(1)}%`;
-  }
-
-  const yoyVal   = parseFloat(row.ttltonnage_crntwy) || 0;
-  const ttlYtd   = parseFloat(row.ttltonnage_crnt) || 0;
-  const ttlYoy   = parseFloat(row.ttltonnage_crntwy) || 0;
-  const ttlYoyLy = parseFloat(row.ttltonnagewy) || 0;
-
-  // YOY Gr/Degr and %: use the same base for both so % is never zero when Gr/Degr is non-zero
-  let yoyGr = null;
-  let yoyBase = 0;
-  if (isSummary && level === 0) {
-    if (rowIdx > 0) {
-      yoyBase = parseFloat(rows[rowIdx - 1].ttltonnagewy) || 0;
-    } else {
-      // First selected year: rows doesn't include the prior year; look it up in allSummaryRows (full API list)
-      const prevYrRow = allSummaryRows?.find(r => String(r.year) === String(parseInt(row.year, 10) - 1));
-      yoyBase = prevYrRow ? (parseFloat(prevYrRow.ttltonnagewy) || 0) : 0;
-    }
-    yoyGr = yoyBase !== 0 ? yoyVal - yoyBase : null;
-  } else {
-    yoyBase = ttlYoyLy;
-    yoyGr = yoyVal - yoyBase;
-  }
-  const yoyPct   = (yoyGr !== null && yoyBase !== 0) ? (yoyGr / Math.abs(yoyBase) * 100) : null;
-
-  return (
-    <>
-      {/* Till Last Month — tooltip on summary only */}
-      {showTillLast && (isSummary ? (
-        <CellTooltip
-          className="sr-td"
-          style={{ fontWeight: 600 }}
-          title="Till Last Month"
-          thisYear={f(tillLast)}
-          formula={`Total YTD − Current Month\n= ${f(ttlYtd)} − ${f(curMon)}`}
-          accent={accent} isDarkMode={isDarkMode}
-        >
-          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(tillLast)}</div>
-        </CellTooltip>
-      ) : (
-        <td className="sr-td" style={{ fontWeight: 600 }}>
-          <div style={{ color: 'var(--sales-text, #1e293b)' }}>{f(tillLast)}</div>
-        </td>
-      ))}
-
-      {/* Current Month — tooltip on summary only */}
-      {isSummary ? (
-        <CellTooltip
-          className="sr-td"
-          style={{ fontWeight: 600 }}
-          title="Current Month"
-          thisYear={f(row.currentmonthtonnage)}
-          lastYear={(curMonLy > 0 ? f(curMonLy) : undefined)}
-          accent={accent} isDarkMode={isDarkMode}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
-            {f(row.currentmonthtonnage)}<ArrowIcon diff={l0diff(rows, rowIdx, 'currentmonthtonnage')} />
-          </div>
-        </CellTooltip>
-      ) : (
-        <td className="sr-td" style={{ fontWeight: 600 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
-            {f(row.currentmonthtonnage)}<ArrowIcon diff={subDiff(row, 'currentmonthtonnage', 'currentmonthtonnage_last')} />
-          </div>
-        </td>
-      )}
-
-      {/* Total (YTD) — tooltip on summary only */}
-      {isSummary ? (
-        <CellTooltip
-          className="sr-td"
-          style={{ fontWeight: 700 }}
-          title="Total (YTD)"
-          thisYear={f(row.ttltonnage_crnt)}
-          lastYear={ytdGrBase > 0 ? f(ytdGrBase) : undefined}
-          formula="Year-to-date total tonnage"
-          accent={accent} isDarkMode={isDarkMode}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
-            {f(row.ttltonnage_crnt)}{ytdGr !== null && <ArrowIcon diff={ytdGr} />}
-          </div>
-        </CellTooltip>
-      ) : (
-        <td className="sr-td" style={{ fontWeight: 700 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
-            {f(row.ttltonnage_crnt)}{ytdGr !== null && <ArrowIcon diff={ytdGr} />}
-          </div>
-        </td>
-      )}
-      <CellTooltip
-        className="sr-td"
-        title="YTD Growth / Degrowth"
-        formula={isNonSummaryL0 ? `Multi-year aggregate (sum of all selected years)\nCurrent YTD − Prev Year YTD\n= ${f(ttlYtd)} − ${f(ytdGrBase)}\n= ${f(ytdGr ?? 0)}` : `Current YTD − Prev Year YTD\n= ${f(ttlYtd)} − ${f(ytdGrBase)}\n= ${f(ytdGr ?? 0)}`}
-        accent={accent} isDarkMode={isDarkMode}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
-          {f(ytdGr ?? 0)}<ArrowIcon diff={ytdGr ?? 0} />
-        </div>
-      </CellTooltip>
-      <CellTooltip
-        className="sr-td"
-        title="YTD %"
-        formula={ytdPctFormula}
-        accent={accent} isDarkMode={isDarkMode}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
-          {level === 0 ? `${Math.round(ytdPct ?? 0)}%` : `${(ytdPct ?? 0).toFixed(2)}%`}<ArrowIcon diff={ytdPct ?? 0} />
-        </div>
-      </CellTooltip>
-      <CellTooltip
-        className="sr-td"
-        style={{ fontWeight: 700 }}
-        title="Total (YOY)"
-        thisYear={f(ttlYoy)}
-        lastYear={(!isNonSummaryL0 && yoyBase > 0) ? f(yoyBase) : undefined}
-        formula="Full year comparison (same period)"
-        accent={accent} isDarkMode={isDarkMode}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
-          {f(yoyVal)}<ArrowIcon diff={yoyGr ?? 0} />
-        </div>
-      </CellTooltip>
-      <CellTooltip
-        className="sr-td"
-        title="YOY Growth / Degrowth"
-        formula={isNonSummaryL0 ? `Multi-year aggregate (sum of all selected years)\nCurrent YOY − Last Year YOY\n= ${f(ttlYoy)} − ${f(yoyBase)}\n= ${f(yoyGr ?? 0)}` : `Current YOY − Last Year YOY\n= ${f(ttlYoy)} − ${f(yoyBase)}\n= ${f(yoyGr ?? 0)}`}
-        accent={accent} isDarkMode={isDarkMode}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
-          {f(yoyGr ?? 0)}<ArrowIcon diff={yoyGr ?? 0} />
-        </div>
-      </CellTooltip>
-      <CellTooltip
-        className="sr-td"
-        title="YOY %"
-        formula={isNonSummaryL0 ? `Multi-year aggregate (sum of all selected years)\n(YOY Gr/Degr ÷ Last Year YOY) × 100\n= (${f(yoyGr ?? 0)} ÷ ${f(yoyBase)}) × 100\n= ${(yoyPct ?? 0).toFixed(1)}%` : `(YOY Gr/Degr ÷ Last Year YOY) × 100\n= (${f(yoyGr ?? 0)} ÷ ${f(yoyBase)}) × 100\n= ${(yoyPct ?? 0).toFixed(1)}%`}
-        accent={accent} isDarkMode={isDarkMode}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
-          {level === 0 ? `${Math.round(yoyPct ?? 0)}%` : `${(yoyPct ?? 0).toFixed(2)}%`}<ArrowIcon diff={yoyPct ?? 0} />
-        </div>
-      </CellTooltip>
-    </>
-  );
-};
+// ↑ all cell component definitions removed — they live in ./components/SalesCells.jsx
 
 const isGrandTotal = (r) =>
   r.disttype === 'Grand Total' || String(r.year) === 'Grand Total' || r.id === '';
@@ -798,13 +400,21 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
   const { user } = useAuth();
   const employeename = user?.username;
   const { multiyear, monthwisecompany, monthwisedisttype, setMonthwiseDisttype } = useSalesFilterStore();
+  // Refs keep current filter values so fetchData can read them without being in its dep array
+  const multiyearRef         = useRef(multiyear);
+  const monthwisecompanyRef  = useRef(monthwisecompany);
+  const monthwisedisttypeRef = useRef(monthwisedisttype);
+  useEffect(() => { multiyearRef.current = multiyear; }, [multiyear]);
+  useEffect(() => { monthwisecompanyRef.current = monthwisecompany; }, [monthwisecompany]);
+  useEffect(() => { monthwisedisttypeRef.current = monthwisedisttype; }, [monthwisedisttype]);
   const { isDarkMode, selectedAccent, selectedFont } = useColorMode();
 
   const [toast, setToast]       = useState({ show: false, message: '', type: 'info', title: '' });
   const [toastVisible, setToastVisible] = useState(false);
   const toastTimeoutRef = useRef(null);
 
-  const [rawRows,    setRawRows]    = useState([]);
+  const [rawRows,        setRawRows]        = useState([]);
+  const [appliedMultiyear, setAppliedMultiyear] = useState(multiyear);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
   const [activeTab, setActiveTab] = useState('summary');
@@ -973,6 +583,10 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
   }, []);
 
   const fetchData = useCallback(async () => {
+    // Read current filter values from refs — avoids auto-refetch when filters change
+    const multiyear         = multiyearRef.current;
+    const monthwisecompany  = monthwisecompanyRef.current;
+    const monthwisedisttype = monthwisedisttypeRef.current;
     const tab = activeTabRef.current;
 
     // Clear pre-grouped cache — will be rebuilt below
@@ -985,6 +599,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
         appLog('[CACHE] Non-summary cache hit — reusing joined data');
         setRawRows(nonSummaryRawRef.current);
         preGroupAll(nonSummaryRawRef.current);
+        setAppliedMultiyear(multiyear);
         return;
       }
     }
@@ -1003,6 +618,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
       if (tab === 'summary') {
         const data = await getMultiYearSales(baseParams);
         setRawRows(Array.isArray(data) ? data.filter(r => !isGrandTotal(r)) : []);
+        setAppliedMultiyear(multiyear);
       } else {
         // Non-summary tabs: call both APIs in parallel
         // API 12 → lookup table (distname → asm, soff, catgroup, description, method)
@@ -1057,6 +673,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
         nonSummaryParamsRef.current = paramsKey;
         setRawRows(filtered);
         preGroupAll(filtered);
+        setAppliedMultiyear(multiyear);
       }
     } catch (err) {
       const msg = err?.response?.data?.error || err?.message || 'Failed to load data';
@@ -1065,7 +682,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
     } finally {
       setLoading(false);
     }
-  }, [multiyear, monthwisecompany, monthwisedisttype, employeename, preGroupAll]); // activeTab intentionally excluded — use activeTabRef.current
+  }, [employeename, preGroupAll]); // filter values read from refs; activeTab intentionally excluded
 
   // Effect 1: fetch when params change (tab is irrelevant to this effect)
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -1128,33 +745,38 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
         }
         return true;
       });
-      const children = groupByField(filtered, nextGroupField, parentFilters);
+      // Show loading briefly so the spinner appears while groupByField computes
+      setDrillLoading(p => ({ ...p, [key]: true }));
+      setTimeout(() => {
+        const children = groupByField(filtered, nextGroupField, parentFilters);
 
-      // When drilling from a year row (parentFilters has 'year'), the raw rows for
-      // year=Y don't carry the prior year's comparison in ttltonnagewy at individual-row
-      // level. Fix YOY by cross-referencing year=Y-1 rows from rawRows.
-      if (parentFilters.year) {
-        const priorYear = String(parseInt(parentFilters.year, 10) - 1);
-        const priorFilters = { ...parentFilters, year: priorYear };
-        const priorFiltered = rawRowsRef.current.filter(r =>
-          Object.entries(priorFilters).every(([f, v]) =>
-            String(r[f] ?? '').trim() === String(v ?? '').trim()
-          )
-        );
-        if (priorFiltered.length > 0) {
-          const priorGroups = groupByField(priorFiltered, nextGroupField, priorFilters);
-          const priorMap = {};
-          priorGroups.forEach(r => { priorMap[String(r[nextGroupField] ?? '').trim()] = r; });
-          children.forEach(child => {
-            const priorRow = priorMap[String(child[nextGroupField] ?? '').trim()];
-            if (priorRow) child.ttltonnagewy = parseFloat(priorRow.ttltonnage_crntwy) || 0;
-          });
+        // When drilling from a year row (parentFilters has 'year'), the raw rows for
+        // year=Y don't carry the prior year's comparison in ttltonnagewy at individual-row
+        // level. Fix YOY by cross-referencing year=Y-1 rows from rawRows.
+        if (parentFilters.year) {
+          const priorYear = String(parseInt(parentFilters.year, 10) - 1);
+          const priorFilters = { ...parentFilters, year: priorYear };
+          const priorFiltered = rawRowsRef.current.filter(r =>
+            Object.entries(priorFilters).every(([f, v]) =>
+              String(r[f] ?? '').trim() === String(v ?? '').trim()
+            )
+          );
+          if (priorFiltered.length > 0) {
+            const priorGroups = groupByField(priorFiltered, nextGroupField, priorFilters);
+            const priorMap = {};
+            priorGroups.forEach(r => { priorMap[String(r[nextGroupField] ?? '').trim()] = r; });
+            children.forEach(child => {
+              const priorRow = priorMap[String(child[nextGroupField] ?? '').trim()];
+              if (priorRow) child.ttltonnagewy = parseFloat(priorRow.ttltonnage_crntwy) || 0;
+            });
+          }
         }
-      }
 
-      drillDataRef.current = { ...drillDataRef.current, [key]: children };
-      setDrillData(p => ({ ...p, [key]: children }));
-      setExpanded(p => ({ ...p, [key]: true }));
+        drillDataRef.current = { ...drillDataRef.current, [key]: children };
+        setDrillData(p => ({ ...p, [key]: children }));
+        setExpanded(p => ({ ...p, [key]: true }));
+        setDrillLoading(p => ({ ...p, [key]: false }));
+      }, 0);
       return;
     }
 
@@ -1447,15 +1069,38 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
   const lastUpdateDate = lastUpdate ? fmtDate(lastUpdate.dispatchlastupdate) : null;
   const isDrillLoading = Object.values(drillLoading).some(Boolean);
 
-  // Filter option arrays — derived from raw API response (unique sorted values)
+  // Filter option arrays — cascading: each dropdown only shows values valid given upstream selections
   const optCatgroups  = useMemo(() => [...new Set(rawRows.map(r => r.catgroup).filter(Boolean))].sort(), [rawRows]);
-  const optCategories = useMemo(() => [...new Set(rawRows.map(r => r.category).filter(Boolean))].sort(), [rawRows]);
-  const optItemTypes  = useMemo(() => [...new Set(rawRows.map(r => r.method).filter(Boolean))].sort(), [rawRows]);
-  const optItems      = useMemo(() => [...new Set(rawRows.map(r => r.description).filter(Boolean))].sort(), [rawRows]);
+  const optCategories = useMemo(() => {
+    const base = fCatgroup.length > 0 ? rawRows.filter(r => fCatgroup.includes(r.catgroup)) : rawRows;
+    return [...new Set(base.map(r => r.category).filter(Boolean))].sort();
+  }, [rawRows, fCatgroup]);
+  const optItemTypes  = useMemo(() => {
+    let base = rawRows;
+    if (fCatgroup.length > 0) base = base.filter(r => fCatgroup.includes(r.catgroup));
+    if (fCategory.length > 0) base = base.filter(r => fCategory.includes(r.category));
+    return [...new Set(base.map(r => r.method).filter(Boolean))].sort();
+  }, [rawRows, fCatgroup, fCategory]);
+  const optItems      = useMemo(() => {
+    let base = rawRows;
+    if (fCatgroup.length > 0) base = base.filter(r => fCatgroup.includes(r.catgroup));
+    if (fCategory.length > 0) base = base.filter(r => fCategory.includes(r.category));
+    if (fItemType.length > 0) base = base.filter(r => fItemType.includes(r.method));
+    return [...new Set(base.map(r => r.description).filter(Boolean))].sort();
+  }, [rawRows, fCatgroup, fCategory, fItemType]);
   const optDistNames  = useMemo(() => [...new Set(rawRows.map(r => r.distname).filter(Boolean))].sort(), [rawRows]);
   const optAsms       = useMemo(() => [...new Set(rawRows.map(r => r.asm).filter(Boolean))].sort(), [rawRows]);
-  const optAreaNames  = useMemo(() => [...new Set(rawRows.map(r => r.areaname).filter(Boolean))].sort(), [rawRows]);
+  const optAreaNames  = useMemo(() => {
+    const base = fAsm.length > 0 ? rawRows.filter(r => fAsm.includes(r.asm)) : rawRows;
+    return [...new Set(base.map(r => r.areaname).filter(Boolean))].sort();
+  }, [rawRows, fAsm]);
   const optSoffs      = useMemo(() => [...new Set(rawRows.map(r => r.soff).filter(Boolean))].sort(), [rawRows]);
+
+  // Cascade handlers — clear downstream selections when an upstream filter changes
+  const handleCatgroupChange = useCallback((val) => { setFCatgroup(val); setFCategory([]); setFItemType([]); setFItem([]); }, []);
+  const handleCategoryChange = useCallback((val) => { setFCategory(val); setFItemType([]); setFItem([]); }, []);
+  const handleItemTypeChange = useCallback((val) => { setFItemType(val); setFItem([]); }, []);
+  const handleAsmChange      = useCallback((val) => { setFAsm(val); setFAreaName([]); }, []);
 
   // Filter rawRows FIRST, then group — mirrors Angular's datafilter_new() on the raw response
   // Fast path: if no filters are active and the pre-grouped cache is ready, return it directly (O(1) lookup).
@@ -1463,7 +1108,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
   const displayRows = useMemo(() => {
     if (activeTab === 'summary') {
       const selectedYearSet = new Set(
-        (Array.isArray(multiyear) ? multiyear : [multiyear]).map(y => String(y))
+        (Array.isArray(appliedMultiyear) ? appliedMultiyear : [appliedMultiyear]).map(y => String(y))
       );
       return rawRows.filter(r => selectedYearSet.has(String(r.year)));
     }
@@ -1515,7 +1160,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
   // groupedCacheRef is a ref — intentionally excluded from deps. Cache populated via setTimeout after fetch;
   // re-render on tab switch reads it naturally since activeTab is in deps.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawRows, activeTab, multiyear, fCatgroup, fCategory, fItemType, fItem, fDistName, fAsm, fAreaName, fSoff]);
+  }, [rawRows, activeTab, appliedMultiyear, fCatgroup, fCategory, fItemType, fItem, fDistName, fAsm, fAreaName, fSoff]);
 
   // ── Table virtualization ───────────────────────────────────────────────────────
   const ROW_HEIGHT = 52; // px — accounts for potential 2-line wrapped names
@@ -1624,59 +1269,49 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
         {/* Tab-specific filter rows — options derived from rawRows unique values */}
         {activeTab === 'distributors' && (
           <div className="sr-tab-filter-row">
-            <TabFilter label="Distributor"    value={fDistName}  onChange={setFDistName}  options={optDistNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-            <TabFilter label="Category Group" value={fCatgroup}  onChange={setFCatgroup}  options={optCatgroups}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-            <TabFilter label="Category"       value={fCategory}  onChange={setFCategory}  options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-            <TabFilter label="Item Type"      value={fItemType}  onChange={setFItemType}  options={optItemTypes}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-            <TabFilter label="Item"           value={fItem}      onChange={setFItem}      options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Distributor"    value={fDistName}  onChange={setFDistName}          options={optDistNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Category Group" value={fCatgroup}  onChange={handleCatgroupChange}  options={optCatgroups}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Category"       value={fCategory}  onChange={handleCategoryChange}  options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Item Type"      value={fItemType}  onChange={handleItemTypeChange}  options={optItemTypes}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Item"           value={fItem}      onChange={setFItem}              options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
           </div>
         )}
 
         {activeTab === 'catgroup' && (
           <div className="sr-tab-filter-row">
-            <TabFilter label="Category Group" value={fCatgroup}  onChange={setFCatgroup}  options={optCatgroups}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-            <TabFilter label="Category"       value={fCategory}  onChange={setFCategory}  options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-            <TabFilter label="Item Type"      value={fItemType}  onChange={setFItemType}  options={optItemTypes}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-            <TabFilter label="Item"           value={fItem}      onChange={setFItem}      options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-            <TabFilter label="Distributor"    value={fDistName}  onChange={setFDistName}  options={optDistNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Category Group" value={fCatgroup}  onChange={handleCatgroupChange}  options={optCatgroups}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Category"       value={fCategory}  onChange={handleCategoryChange}  options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Item Type"      value={fItemType}  onChange={handleItemTypeChange}  options={optItemTypes}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Item"           value={fItem}      onChange={setFItem}              options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Distributor"    value={fDistName}  onChange={setFDistName}          options={optDistNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
           </div>
         )}
 
         {activeTab === 'asm' && (
           <div className="sr-tab-filter-row">
-            <TabFilter label="ASM Name"       value={fAsm}       onChange={setFAsm}       options={optAsms}       styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-            <TabFilter label="Area Name"      value={fAreaName}  onChange={setFAreaName}  options={optAreaNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-            <TabFilter label="Category Group" value={fCatgroup}  onChange={setFCatgroup}  options={optCatgroups}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-            <TabFilter label="Category"       value={fCategory}  onChange={setFCategory}  options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-            <TabFilter label="Item"           value={fItem}      onChange={setFItem}      options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="ASM Name"       value={fAsm}       onChange={handleAsmChange}       options={optAsms}       styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Area Name"      value={fAreaName}  onChange={setFAreaName}          options={optAreaNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Category Group" value={fCatgroup}  onChange={handleCatgroupChange}  options={optCatgroups}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Category"       value={fCategory}  onChange={handleCategoryChange}  options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Item"           value={fItem}      onChange={setFItem}              options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
           </div>
         )}
 
         {activeTab === 'soff' && (
           <div className="sr-tab-filter-row">
-            <TabFilter label="ASM Name"      value={fAsm}      onChange={setFAsm}      options={optAsms}       styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-            <TabFilter label="Sales Officer" value={fSoff}     onChange={setFSoff}     options={optSoffs}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-            <TabFilter label="Distributor"   value={fDistName} onChange={setFDistName} options={optDistNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-            <TabFilter label="Category Group" value={fCatgroup} onChange={setFCatgroup} options={optCatgroups} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-            <TabFilter label="Category"      value={fCategory} onChange={setFCategory} options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
-            <TabFilter label="Item"          value={fItem}     onChange={setFItem}     options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="ASM Name"       value={fAsm}      onChange={handleAsmChange}       options={optAsms}       styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Sales Officer"  value={fSoff}     onChange={setFSoff}              options={optSoffs}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Distributor"    value={fDistName} onChange={setFDistName}          options={optDistNames}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Category Group" value={fCatgroup} onChange={handleCatgroupChange}  options={optCatgroups}  styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Category"       value={fCategory} onChange={handleCategoryChange}  options={optCategories} styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
+            <TabFilter label="Item"           value={fItem}     onChange={setFItem}              options={optItems}      styles={tabSelStyles} isDarkMode={isDarkMode} accent={accent} />
           </div>
         )}
       </div>
       {/* ── End contained section — table card below has no overflow:hidden ancestor ── */}
 
       {loading && (
-        <div className="sr-loader-overlay">
-          <div className={`sr-loader-card${isDarkMode ? ' sr-loader-card-dark' : ''}`}>
-            <div className="sr-loader-spinner" style={{ borderTopColor: accent }} />
-            <div className="sr-loader-text">Generating Report</div>
-            <div className="sr-loader-dots">
-              <span style={{ background: accent }} />
-              <span style={{ background: accent }} />
-              <span style={{ background: accent }} />
-            </div>
-          </div>
-        </div>
+        <SrLoader accent={accent} isDarkMode={isDarkMode} text="Generating Report" />
       )}
 
       {/* Color legend — only for tabs with traffic-light row colors */}

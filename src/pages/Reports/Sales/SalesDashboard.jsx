@@ -62,6 +62,7 @@ export default function SalesDashboard() {
     '--sr-card-bg':   isDarkMode ? '#1e293b' : 'white',
     '--sr-border':    isDarkMode ? '#334155' : 'rgba(148,163,184,0.15)',
     '--sr-font':      fontFamily,
+    '--sr-zero-dim':  isDarkMode ? '#475569' : '#cbd5e1',
   };
 
   const toggleFullscreen = () => setIsFullscreen(p => !p);
