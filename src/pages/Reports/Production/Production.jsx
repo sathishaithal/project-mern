@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import ThemedTooltip from "../../../components/ui/Tooltip";
 import { motion, AnimatePresence } from "framer-motion";
-import axios from "axios";
+import { getProductionReportTonnage } from '../../../services/productionApi';
+import {
+  toNumber, flattenUnitArray,
+  hasRoundedDisplayValue, hasFinishedDisplayValue,
+  hasRawDisplayValue, filterGroupedData,
+} from '../../../utils/productionHelpers';
 import {
   BarChart,
   Bar,
@@ -24,44 +29,6 @@ import { AppDatePicker, AppSelect } from "../../../components/FormControls";
 import styles from "./Production.module.css";
 import SummaryCardsSystem from "../../../components/SummaryCardsSystem/SummaryCardsSystem";
 
-const toNumber = (value) => Number(value) || 0;
-
-const flattenUnitArray = (arr) => {
-  const result = {};
-  (arr || []).forEach(obj => { Object.assign(result, obj); });
-  return result;
-};
-
-const hasRoundedDisplayValue = (...values) =>
-  values.some((value) => Math.round(toNumber(value)) !== 0);
-
-const hasFinishedDisplayValue = (item = {}) =>
-  hasRoundedDisplayValue(
-    item.opening,
-    item["purchased/transfer in"],
-    item.sold,
-    item.returned ?? item.return ?? item["sales return"],
-    item.closing,
-    item.prod_percentage
-  );
-
-const hasRawDisplayValue = (item = {}) =>
-  hasRoundedDisplayValue(
-    item.opening,
-    item["purchased/transfer in"],
-    item["consumed/transfer out"],
-    item.returned ?? item.return,
-    item.closing
-  );
-
-const filterGroupedData = (grouped = {}, predicate) =>
-  Object.entries(grouped || {}).reduce((acc, [key, items]) => {
-    const filteredItems = (items || []).filter(predicate);
-    if (filteredItems.length > 0) {
-      acc[key] = filteredItems;
-    }
-    return acc;
-  }, {});
 
 const PRODUCTION_TABS = [
   { id: "reports", label: "Reports" },
@@ -100,6 +67,16 @@ const Production = () => {
   const [metricType, setMetricType] = useState("opening");
   const [chartType, setChartType] = useState("bar");
   const [dataView, setDataView] = useState("produced");
+
+  // Pie chart slice toggle (click legend to hide/show)
+  const [hiddenPieNames, setHiddenPieNames] = useState(new Set());
+  const toggleHiddenPie = React.useCallback((name) => {
+    setHiddenPieNames(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  }, []);
 
   const [periodType, setPeriodType] = useState('today');
   const [customFrom, setCustomFrom] = useState(new Date());
@@ -630,26 +607,12 @@ let othersProdPercentage = 0;
     showToast("Loading", "Fetching production report...", "info");
 
     try {
-      const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
-
-      const payload = {
+      const res = await getProductionReportTonnage({
         fromdate: formatPayloadDate(fromDate),
         todate: formatPayloadDate(toDate),
-        catgroup: "Fried Gram Mill",
-      };
+      });
 
-      const res = await axios.post(
-        `${import.meta.env.VITE_API_URL}/Report/production-report-tonnage`,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!res.data || Object.keys(res.data).length === 0) {
+      if (!res || Object.keys(res).length === 0) {
         setData(null);
         setAllUnitsData(null);
         setIsReportFullscreen(false);
@@ -658,9 +621,9 @@ let othersProdPercentage = 0;
       }
 
       const parsed = {
-        bags:    flattenUnitArray(res.data.bags),
-        tonnage: flattenUnitArray(res.data.tonnage),
-        kg:      flattenUnitArray(res.data.kg),
+        bags:    flattenUnitArray(res.bags),
+        tonnage: flattenUnitArray(res.tonnage),
+        kg:      flattenUnitArray(res.kg),
       };
       setAllUnitsData(parsed);
 
@@ -935,7 +898,7 @@ let othersProdPercentage = 0;
                 tick={{ fontSize: isMobile ? 10 : 12, fill: isDarkMode ? '#b0b0b0' : '#666' }}
                 tickFormatter={(value) => formatIndianNumber(value)}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip />} cursor={false} />
               <Legend />
               {isSingleMetric ? (
                 <Bar dataKey={metricLabel} fill={colors[0]} name={metricLabel} radius={[4, 4, 0, 0]} />
@@ -973,7 +936,7 @@ let othersProdPercentage = 0;
                 tick={{ fontSize: isMobile ? 10 : 12, fill: isDarkMode ? '#b0b0b0' : '#666' }}
                 tickFormatter={(value) => formatIndianNumber(value)}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip />} cursor={false} />
               <Legend />
               {isSingleMetric ? (
                 <Line type="monotone" dataKey={metricLabel} stroke={colors[0]} name={metricLabel} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
@@ -989,7 +952,7 @@ let othersProdPercentage = 0;
         );
 
 
-case "pie":
+case "pie": {
   if (pieChartData.length === 0) {
     return (
       <div className={styles.noDataMessage}>
@@ -999,141 +962,103 @@ case "pie":
     );
   }
 
+  const visiblePieData = pieChartData.filter(d => !hiddenPieNames.has(d.name));
+  const visibleTotal   = visiblePieData.reduce((s, d) => s + Number(d[pieMetricKey] || 0), 0);
+  const legendClr      = isDarkMode ? '#cbd5e1' : '#374151';
+
+  const PieInsideLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }) => {
+    if (percent <= 0.03) return null;
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    return (
+      <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight="600">
+        {formatIndianNumber(value)}{'\n'}{(percent * 100).toFixed(0)}%
+      </text>
+    );
+  };
+
+  const renderPieTooltip = ({ active, payload }) => {
+    if (!active || !payload?.[0]) return null;
+    const d = payload[0].payload;
+    const val = Number(d[pieMetricKey] || 0);
+    const pct = visibleTotal > 0 ? ((val / visibleTotal) * 100).toFixed(1) : '0';
+    return (
+      <div style={{ background: isDarkMode ? '#1e293b' : '#fff', border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`, borderRadius: 8, overflow: 'hidden', boxShadow: '0 6px 20px rgba(0,0,0,0.18)', minWidth: 130 }}>
+        <div style={{ background: `linear-gradient(90deg, ${selectedAccent.primary}, ${selectedAccent.secondary})`, padding: '5px 10px', color: 'white', fontWeight: 700, fontSize: '0.72rem', textAlign: 'center' }}>
+          {d.name}
+        </div>
+        <div style={{ padding: '6px 10px', color: isDarkMode ? '#e2e8f0' : '#1e293b', fontWeight: 600, fontSize: '0.88rem', textAlign: 'center' }}>
+          {formatIndianNumber(val)} ({pct}%)
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
-      {/* Warning */}
       {negativeItems.length > 0 && (
-        <div
-          style={{
-            fontSize: "12px",
-            color: isDarkMode ? "#fbbf24" : "#b45309",
-            marginBottom: "6px",
-          }}
-        >
+        <div style={{ fontSize: '12px', color: isDarkMode ? '#fbbf24' : '#b45309', marginBottom: '6px' }}>
           ⚠ Negative / zero values are excluded from pie chart
         </div>
       )}
 
-      {/* ✅ MAIN WRAPPER FIX */}
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
+      <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
         {/* Chart */}
         <div style={{ flex: 1, minHeight: 0 }}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={pieChartData}
-                cx="50%"
-                cy="50%"
+                data={visiblePieData}
+                cx="50%" cy="50%"
                 labelLine={false}
-                label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-                  const RADIAN = Math.PI / 180;
-                  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-                  return percent > 0.03 ? (
-                    <text
-                      x={x}
-                      y={y}
-                      fill="#fff"
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      fontSize={12}
-                      fontWeight="600"
-                    >
-                      {(percent * 100).toFixed(0)}%
-                    </text>
-                  ) : null;
-                }}
+                label={PieInsideLabel}
                 outerRadius={isMobile ? 60 : 130}
                 innerRadius={0}
                 dataKey={pieMetricKey}
+                isAnimationActive
+                animationDuration={500}
               >
-                {pieChartData.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={colors[index % colors.length]}
-                  />
-                ))}
+                {visiblePieData.map((entry) => {
+                  const origIdx = pieChartData.indexOf(entry);
+                  return <Cell key={`cell-${entry.name}`} fill={colors[origIdx % colors.length]} />;
+                })}
               </Pie>
-
-              <Tooltip
-                formatter={(value) => [formatIndianNumber(value), "Value"]}
-                contentStyle={{
-                  backgroundColor: isDarkMode ? "#2d2d2d" : "#ffffff",
-                  borderColor: isDarkMode ? "#444" : "#e0e0e0",
-                  color: isDarkMode ? "#f1f5f9" : "#0f172a",
-                }}
-                itemStyle={{
-                  color: isDarkMode ? "#f1f5f9" : "#0f172a",
-                }}
-                labelStyle={{
-                  color: isDarkMode ? "#f1f5f9" : "#0f172a",
-                }}
-              />
-
-              <Legend
-                wrapperStyle={{
-                  paddingTop: "10px",
-                }}
-                formatter={(value, entry) => {
-                  const item = pieChartData.find(
-                    (d) => d.name === entry.payload?.name
-                  );
-
-                  if (!item) return value;
-
-                  const val = Number(item[pieMetricKey] || 0);
-                  const percent =
-                    totalValue > 0 ? (val / totalValue) * 100 : 0;
-
-                  return percent < 1 ? `${value} (<1%)` : value;
-                }}
-              />
+              <Tooltip content={renderPieTooltip} />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        {/* ✅ EXCLUDED ITEMS (VISIBLE NOW) */}
-        {negativeItems.length > 0 && (
-          <div
-            style={{
-              paddingTop: "8px",
-              textAlign: "center",
-              fontSize: "12px",
-              color: isDarkMode ? "#9ca3af" : "#555",
-              flexShrink: 0,
-            }}
-          >
-            <strong>Excluded Items:</strong>
+        {/* Clickable custom legend */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginTop: 8, justifyContent: 'center', paddingBottom: 4 }}>
+          {pieChartData.map((d, origIdx) => {
+            const isHidden = hiddenPieNames.has(d.name);
+            const color    = colors[origIdx % colors.length];
+            const val      = Number(d[pieMetricKey] || 0);
+            const pct      = totalValue > 0 ? ((val / totalValue) * 100).toFixed(1) : '0';
+            return (
+              <div
+                key={d.name}
+                onClick={() => toggleHiddenPie(d.name)}
+                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.68rem', userSelect: 'none' }}
+              >
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: isHidden ? '#9ca3af' : color, flexShrink: 0, transition: 'background 0.2s' }} />
+                <span style={{ textDecoration: isHidden ? 'line-through' : 'none', opacity: isHidden ? 0.45 : 1, color: legendClr, transition: 'all 0.2s' }}>
+                  {d.name} ({pct}%)
+                </span>
+              </div>
+            );
+          })}
+        </div>
 
-            <div
-              style={{
-                marginTop: "4px",
-                display: "flex",
-                flexWrap: "wrap",
-                justifyContent: "center",
-                maxHeight: "60px",
-                overflowY: "auto",
-              }}
-            >
+        {negativeItems.length > 0 && (
+          <div style={{ paddingTop: '8px', textAlign: 'center', fontSize: '12px', color: isDarkMode ? '#9ca3af' : '#555', flexShrink: 0 }}>
+            <strong>Excluded Items:</strong>
+            <div style={{ marginTop: '4px', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', maxHeight: '60px', overflowY: 'auto' }}>
               {negativeItems.map((item, index) => (
-                <span
-                  key={index}
-                  style={{
-                    margin: "4px 10px",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  • {item.name} (
-                  {formatIndianNumber(item[pieMetricKey])})
+                <span key={index} style={{ margin: '4px 10px', whiteSpace: 'nowrap' }}>
+                  • {item.name} ({formatIndianNumber(item[pieMetricKey])})
                 </span>
               ))}
             </div>
@@ -1142,6 +1067,7 @@ case "pie":
       </div>
     </>
   );
+}
 
       case "area":
         return (
@@ -1166,7 +1092,7 @@ case "pie":
                 tick={{ fontSize: isMobile ? 10 : 12, fill: isDarkMode ? '#b0b0b0' : '#666' }}
                 tickFormatter={(value) => formatIndianNumber(value)}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip />} cursor={false} />
               <Legend />
               {isSingleMetric ? (
                 <Area type="monotone" dataKey={metricLabel} stroke={colors[0]} fill={colors[0]} fillOpacity={0.6} name={metricLabel} />
@@ -1324,7 +1250,9 @@ case "pie":
                     onClick={() => setCollapsedCats((p) => ({ ...p, [cat]: !p[cat] }))}
                   >
                     <td className={styles.tableCellArrow}>
-                      <i className={`bi ${collapsedCats[cat] ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                      <ThemedTooltip content={collapsedCats[cat] ? 'Expand' : 'Collapse'}>
+                        <i className={`bi ${collapsedCats[cat] ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                      </ThemedTooltip>
                     </td>
                     <td className={`${styles.tableCellDescription} ${styles.tableCellBold}`}>
                       Sub Total - {cat}
@@ -1502,7 +1430,9 @@ case "pie":
                     onClick={() => setCollapsedCats((p) => ({ ...p, [collapseKey]: !p[collapseKey] }))}
                   >
                     <td className={styles.tableCellArrow}>
-                      <i className={`bi ${collapsedCats[collapseKey] ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                      <ThemedTooltip content={collapsedCats[collapseKey] ? 'Expand' : 'Collapse'}>
+                        <i className={`bi ${collapsedCats[collapseKey] ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                      </ThemedTooltip>
                     </td>
                     <td className={`${styles.tableCellDescription} ${styles.tableCellBold}`}>
                       Sub Total - {cat}
@@ -1939,16 +1869,18 @@ case "pie":
       {!isReportFullscreen && (
         <div className={styles.productionTabBar}>
           {PRODUCTION_TABS.map((tab) => (
-            <button
+            <motion.button
               key={tab.id}
               type="button"
               className={`${styles.productionTabButton} ${
                 activeProductionTab === tab.id ? styles.productionTabButtonActive : ""
               }`}
               onClick={() => setActiveProductionTab(tab.id)}
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.97 }}
             >
               {tab.label}
-            </button>
+            </motion.button>
           ))}
         </div>
       )}
@@ -1967,26 +1899,28 @@ case "pie":
         </button>
 
         {data && !isReportFullscreen && (
-          <button
-            type="button"
-            onClick={toggleReportFullscreen}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '0.38rem 0.85rem',
-              borderRadius: 8,
-              border: `1px solid ${selectedAccent.primary}`,
-              background: isDarkMode ? '#1e293b' : '#fff',
-              color: selectedAccent.primary,
-              fontSize: '0.78rem', fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <i className="bi bi-arrows-fullscreen" style={{ fontSize: '0.82rem' }} />
-            Full Screen
-          </button>
+          <ThemedTooltip content="Enter full screen">
+            <button
+              type="button"
+              onClick={toggleReportFullscreen}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '0.38rem 0.85rem',
+                borderRadius: 8,
+                border: `1px solid ${selectedAccent.primary}`,
+                background: isDarkMode ? '#1e293b' : '#fff',
+                color: selectedAccent.primary,
+                fontSize: '0.78rem', fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <i className="bi bi-arrows-fullscreen" style={{ fontSize: '0.82rem' }} />
+              Full Screen
+            </button>
+          </ThemedTooltip>
         )}
 
         {isReportFullscreen && (
@@ -2362,8 +2296,8 @@ case "pie":
             ].map(({ key, label, icon }, idx) => {
               const isActive = unitType === key;
               return (
+                <ThemedTooltip key={key} content={`Switch to ${label}`}>
                 <motion.button
-                  key={key}
                   onClick={() => {
                     setUnitType(key);
                     setData(allUnitsData[key]);
@@ -2392,6 +2326,7 @@ case "pie":
                   <i className={`bi ${icon}`} style={{ fontSize: '0.82rem' }} />
                   {label}
                 </motion.button>
+                </ThemedTooltip>
               );
             })}
           </motion.div>
@@ -2402,18 +2337,26 @@ case "pie":
       {data && (
         <>
           {activeProductionTab === "reports" && (
-            <>
+            <motion.div
+              key="prod-reports"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.32 }}
+            >
               {/* 1. Finished Goods Report */}
               <div className={styles.reportCard}>
                 <div
                   className={`${styles.reportCardHeader} ${styles.finishedHeader}`}
+                  role="button" aria-expanded={!finishedCollapsed} aria-label="Toggle Finished Goods section"
                   onClick={() => setFinishedCollapsed(!finishedCollapsed)}
                 >
                   <div className={styles.reportCardTitle}>
                     <i className="bi bi-box-seam"></i>
                     <span>Finished Goods</span>
                   </div>
-                  <i className={`bi ${finishedCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                  <ThemedTooltip content={finishedCollapsed ? 'Expand' : 'Collapse'}>
+                    <i className={`bi ${finishedCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                  </ThemedTooltip>
                 </div>
                 {!finishedCollapsed && (
                   <div className={styles.reportCardBody}>
@@ -2425,13 +2368,16 @@ case "pie":
               <div className={styles.reportCard}>
                 <div
                   className={`${styles.reportCardHeader} ${styles.othersHeader}`}
+                  role="button" aria-expanded={!othersCollapsed} aria-label="Toggle Others section"
                   onClick={() => setOthersCollapsed(!othersCollapsed)}
                 >
                   <div className={styles.reportCardTitle}>
                     <i className="bi bi-boxes"></i>
                     <span>By Products and Packing Section Material</span>
                   </div>
-                  <i className={`bi ${othersCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                  <ThemedTooltip content={othersCollapsed ? 'Expand' : 'Collapse'}>
+                    <i className={`bi ${othersCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                  </ThemedTooltip>
                 </div>
                 {!othersCollapsed && (
                   <div className={styles.reportCardBody}>
@@ -2490,13 +2436,16 @@ case "pie":
           <div className={styles.reportCard}>
             <div
               className={`${styles.reportCardHeader} ${styles.rawHeader}`}
+              role="button" aria-expanded={!rawCollapsed} aria-label="Toggle Raw Materials section"
               onClick={() => setRawCollapsed(!rawCollapsed)}
             >
               <div className={styles.reportCardTitle}>
                 <i className="bi bi-cpu"></i>
                 <span>Raw Materials Usage</span>
               </div>
-              <i className={`bi ${rawCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+              <ThemedTooltip content={rawCollapsed ? 'Expand' : 'Collapse'}>
+                <i className={`bi ${rawCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+              </ThemedTooltip>
             </div>
             {!rawCollapsed && (
               <div className={styles.reportCardBody}>
@@ -2509,13 +2458,16 @@ case "pie":
           <div className={styles.reportCard}>
             <div
               className={`${styles.reportCardHeader} ${styles.productionRatioHeader}`}
+              role="button" aria-expanded={!productionRatioCollapsed} aria-label="Toggle Production Ratio section"
               onClick={() => setProductionRatioCollapsed(!productionRatioCollapsed)}
             >
               <div className={styles.reportCardTitle}>
                 <i className="bi bi-bar-chart-steps"></i>
                 <span>Production Ratio</span>
               </div>
-              <i className={`bi ${productionRatioCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+              <ThemedTooltip content={productionRatioCollapsed ? 'Expand' : 'Collapse'}>
+                <i className={`bi ${productionRatioCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+              </ThemedTooltip>
             </div>
             {!productionRatioCollapsed && (
               <div className={styles.reportCardBody}>
@@ -2528,13 +2480,16 @@ case "pie":
           <div className={styles.reportCard}>
             <div
               className={`${styles.reportCardHeader} ${styles.packingHeader}`}
+              role="button" aria-expanded={!packingCollapsed} aria-label="Toggle Packing section"
               onClick={() => setPackingCollapsed(!packingCollapsed)}
             >
               <div className={styles.reportCardTitle}>
                 <i className="bi bi-box"></i>
                 <span>Packing Bengal Gram & Packing Fried Gram</span>
               </div>
-              <i className={`bi ${packingCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+              <ThemedTooltip content={packingCollapsed ? 'Expand' : 'Collapse'}>
+                <i className={`bi ${packingCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+              </ThemedTooltip>
             </div>
             {!packingCollapsed && (
               <div className={styles.reportCardBody}>
@@ -2542,22 +2497,31 @@ case "pie":
               </div>
             )}
           </div>
-            </>
+            </motion.div>
           )}
 
 
           {/* Chart Section */}
           {activeProductionTab === "charts" && data && (brands.length > 0 || othersBrands.length > 0) && (
+            <motion.div
+              key="prod-charts"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.32 }}
+            >
             <div className={styles.reportCard}>
               <div
                 className={`${styles.reportCardHeader} ${styles.chartHeader}`}
+                role="button" aria-expanded={!chartCollapsed} aria-label="Toggle Charts section"
                 onClick={() => setChartCollapsed(!chartCollapsed)}
               >
                 <div className={styles.reportCardTitle}>
                   <i className="bi bi-graph-up"></i>
                   <span>Visualization</span>
                 </div>
-                <i className={`bi ${chartCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                <ThemedTooltip content={chartCollapsed ? 'Expand' : 'Collapse'}>
+                  <i className={`bi ${chartCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                </ThemedTooltip>
               </div>
               {!chartCollapsed && (
                 <div className={styles.reportCardBody}>
@@ -2674,6 +2638,7 @@ case "pie":
                 </div>
               )}
             </div>
+            </motion.div>
           )}
         </>
       )}

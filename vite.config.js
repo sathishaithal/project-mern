@@ -2,12 +2,17 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // Run `npm run build` then open dist/stats.html to see the bundle breakdown
+    visualizer({ open: false, filename: 'dist/stats.html', gzipSize: true }),
+  ],
 
   // Path aliases — use @utils, @services, @components etc. instead of ../../../
   resolve: {

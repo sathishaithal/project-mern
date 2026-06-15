@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Tooltip from "../components/ui/Tooltip";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useColorMode } from "../theme/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -21,17 +21,17 @@ const MainLayout = ({ children }) => {
     accentThemes,
     fontThemes,
     sidebarModes,
-    densityOptions,
+    animationOptions,
     selectedAccent,
     selectedFont,
+    selectedAnimation,
     fontScale,
     sidebarMode,
-    density,
     setAccentTheme,
     setFontTheme,
     setFontScale,
     setSidebarMode,
-    setDensity,
+    setAnimation,
   } = useColorMode();
   const { user } = useAuth();
 
@@ -69,9 +69,6 @@ const MainLayout = ({ children }) => {
       "/reports": "Reports",
       "/reports/production": "Production Report",
       "/reports/sales": "Sales Report",
-      "/reports/inventory": "Inventory Report",
-      "/management/employees": "Employee Management",
-      "/management/vendors": "Vendor Management",
       "/settings/profile": "User Profile",
       "/settings/system": "System Settings",
     };
@@ -106,19 +103,24 @@ const MainLayout = ({ children }) => {
           <div className={styles.headerContainer}>
             <div className={styles.headerLeft}>
               {isMobile && (
-                <button 
-                  className={styles.menuBtn}
-                  onClick={() => setSidebarMobileOpen(true)}
-                >
-                  <i className="bi bi-list"></i>
-                </button>
+                <Tooltip content="Open menu">
+                  <button
+                    className={styles.menuBtn}
+                    onClick={() => setSidebarMobileOpen(true)}
+                  >
+                    <i className="bi bi-list"></i>
+                  </button>
+                </Tooltip>
               )}
               
-              <img
+              <motion.img
                 src={bhagyaLogo}
                 alt="Sri Bhagyalakshmi Group"
                 className={styles.logo}
                 onClick={() => navigate("/dashboard")}
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
               />
 
               <div className={styles.companyInfo}>
@@ -168,12 +170,14 @@ const MainLayout = ({ children }) => {
                         <span className={styles.themeStudioEyebrow}>Appearance</span>
                         <h4>Theme Studio</h4>
                       </div>
-                      <button
-                        className={styles.themeStudioClose}
-                        onClick={() => setThemeStudioOpen(false)}
-                      >
-                        <i className="bi bi-x-lg"></i>
-                      </button>
+                      <Tooltip content="Close">
+                        <button
+                          className={styles.themeStudioClose}
+                          onClick={() => setThemeStudioOpen(false)}
+                        >
+                          <i className="bi bi-x-lg"></i>
+                        </button>
+                      </Tooltip>
                     </div>
 
                     <div className={styles.themeControlGroup}>
@@ -255,14 +259,14 @@ const MainLayout = ({ children }) => {
                     </div>
 
                     <div className={styles.themeControlGroup}>
-                      <span className={styles.themeControlLabel}>Density</span>
+                      <span className={styles.themeControlLabel}>Animation</span>
                       <div className={styles.optionGrid}>
-                        {densityOptions.map((option) => (
+                        {animationOptions.map((option) => (
                           <motion.button
                             key={option.id}
                             type="button"
-                            className={`${styles.optionButton} ${density.id === option.id ? styles.optionButtonActive : ""}`}
-                            onClick={() => setDensity(option.id)}
+                            className={`${styles.optionButton} ${selectedAnimation.id === option.id ? styles.optionButtonActive : ""}`}
+                            onClick={() => setAnimation(option.id)}
                             whileHover={{ y: -1 }}
                             whileTap={{ scale: 0.98 }}
                           >
@@ -298,9 +302,14 @@ const MainLayout = ({ children }) => {
 
               
 
-              <span className={styles.username}>
+              <motion.span
+                className={styles.username}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3, duration: 0.35 }}
+              >
                 {user?.username || "User"}
-              </span>
+              </motion.span>
 
               {/* <div className={styles.dropdown}>
                 <button 
@@ -343,18 +352,31 @@ const MainLayout = ({ children }) => {
 
         {/* Page Title */}
         <div className={styles.pageTitle}>
-          <h2 style={{ fontFamily: "var(--dashboard-font-display)" }}>{title}</h2>
+          <AnimatePresence mode="wait">
+            <motion.h2
+              key={location.pathname}
+              style={{ fontFamily: "var(--dashboard-font-display)", margin: 0 }}
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 8 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+            >
+              {title}
+            </motion.h2>
+          </AnimatePresence>
           <p className={styles.pageSubtitle}>
             {/* Theme: {selectedAccent.name} | Font: {selectedFont.name} | Size: {Math.round(fontScale * 100)}% */}
           </p>
         </div>
 
         {/* Page Content */}
-        <PageTransition>
-          <div className={styles.pageContent}>
-            {children}
-          </div>
-        </PageTransition>
+        <AnimatePresence mode="wait">
+          <PageTransition key={location.pathname}>
+            <div className={styles.pageContent}>
+              {children}
+            </div>
+          </PageTransition>
+        </AnimatePresence>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useColorMode } from "../theme/ThemeContext";
+import Tooltip from "./ui/Tooltip";
 import styles from "./Sidebar.module.css";
 
 const expandedWidth = 220;
@@ -88,14 +89,17 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
             </div>
           </motion.div>
         )}
-        <motion.button
-          className={styles.collapseBtn}
-          onClick={() => setCollapsed(!collapsed)}
-          whileHover={{ rotate: collapsed ? 0 : -10, scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <i className={`bi ${collapsed ? "bi-list" : "bi-layout-sidebar"}`} style={{ fontSize: "1.2rem" }}></i>
-        </motion.button>
+        <Tooltip content={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+          <motion.button
+            className={styles.collapseBtn}
+            onClick={() => setCollapsed(!collapsed)}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            whileHover={{ rotate: collapsed ? 0 : -10, scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <i className={`bi ${collapsed ? "bi-list" : "bi-layout-sidebar"}`} style={{ fontSize: "1.2rem" }}></i>
+          </motion.button>
+        </Tooltip>
       </div>
 
       <hr className={styles.divider} />
@@ -103,17 +107,26 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
       {/* Navigation */}
       <div className={styles.navList}>
         {/* Dashboard */}
-        <div className={`${styles.navItem} ${location.pathname === '/dashboard' ? styles.navItemActive : ''}`} onClick={() => handleNavigate("/dashboard")}>
+        <motion.div
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.25, delay: 0.05 }}
+          className={`${styles.navItem} ${location.pathname === '/dashboard' ? styles.navItemActive : ''}`}
+          onClick={() => handleNavigate("/dashboard")}
+        >
           <div className={styles.navIcon}>
             <i className="bi bi-speedometer2"></i>
           </div>
           {!collapsed && <span className={styles.navText}>Dashboard</span>}
-        </div>
+        </motion.div>
 
         {/* Menu Items */}
         {["reports"].map((menu) => (
-          <div
+          <motion.div
             key={menu}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.25, delay: 0.1 }}
             className={styles.menuWrapper}
             onMouseEnter={() => handleMouseEnter(menu)}
             onMouseLeave={handleMouseLeave}
@@ -146,21 +159,32 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
               )}
             </div>
 
-            {!collapsed && openMenu[menu] && (
-              <div className={styles.subMenu}>
-                {menuMap[menu].map((item, idx) => (
-                  <div
-                    key={idx}
-                    className={`${styles.subMenuItem} ${location.pathname === item.link ? styles.subMenuItemActive : ''}`}
-                    onClick={() => handleNavigate(item.link)}
-                  >
-                    <div className={styles.subMenuIcon}>{item.icon}</div>
-                    <span className={styles.subMenuText}>{item.text}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+            <AnimatePresence initial={false}>
+              {!collapsed && openMenu[menu] && (
+                <motion.div
+                  className={styles.subMenu}
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                >
+                  {menuMap[menu].map((item, idx) => (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.05, duration: 0.18 }}
+                      className={`${styles.subMenuItem} ${location.pathname === item.link ? styles.subMenuItemActive : ''}`}
+                      onClick={() => handleNavigate(item.link)}
+                    >
+                      <div className={styles.subMenuIcon}>{item.icon}</div>
+                      <span className={styles.subMenuText}>{item.text}</span>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
         ))}
 
       </div>
@@ -168,10 +192,12 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
       {/* Footer - Logout Button */}
       <div className={styles.sidebarFooter}>
         <hr className={styles.divider} />
-        <button className={styles.logoutBtn} onClick={logout}>
-          <i className="bi bi-box-arrow-right"></i>
-          {!collapsed && <span>Logout</span>}
-        </button>
+        <Tooltip content="Logout">
+          <button className={styles.logoutBtn} onClick={logout} aria-label="Logout">
+            <i className="bi bi-box-arrow-right"></i>
+            {!collapsed && <span>Logout</span>}
+          </button>
+        </Tooltip>
       </div>
     </div>
   );

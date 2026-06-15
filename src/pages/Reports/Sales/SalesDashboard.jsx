@@ -200,18 +200,30 @@ export default function SalesDashboard() {
             </motion.div>
           )}
 
-          {reportTab === 'monthwise'   && <SalesReportPage loggedInRole={loggedInRole} loggedInRolex={loggedInRolex} />}
-          {reportTab === 'daywise'     && <DayWisePage />}
-          {reportTab === 'shortsupply' && <ShortSupplyPage />}
+          {reportTab === 'monthwise' && (
+            <motion.div key="tab-monthwise" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+              <SalesReportPage loggedInRole={loggedInRole} loggedInRolex={loggedInRolex} />
+            </motion.div>
+          )}
+          {reportTab === 'daywise' && (
+            <motion.div key="tab-daywise" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+              <DayWisePage />
+            </motion.div>
+          )}
+          {reportTab === 'shortsupply' && (
+            <motion.div key="tab-shortsupply" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+              <ShortSupplyPage />
+            </motion.div>
+          )}
         </>
       )}
 
       {/* ── CHARTS tab ──────────────────────────────────────────────────── */}
       {topTab === 'charts' && (
-        <>
+        <motion.div key="top-charts" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
           {!isFullscreen && <SummaryCardsSystem context="sales" accent={accent} accent2={accent2} />}
           <ChartsPage loggedInRolex={loggedInRolex} />
-        </>
+        </motion.div>
       )}
     </div>
   );

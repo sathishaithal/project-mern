@@ -96,7 +96,7 @@ export const CellTooltip = React.memo(function CellTooltip({
     timerRef.current = setTimeout(() => tooltipRegistry.setter?.(null), 80);
   };
   return (
-    <td className={className} style={style} onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
+    <td data-ctt="1" className={className} style={style} onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
       {children}
     </td>
   );

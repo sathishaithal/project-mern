@@ -1,7 +1,12 @@
 html, body, #root {
   height: 100%;
   margin: 0;
-  font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+  font-family: var(--dashboard-font-body, 'Manrope', 'Roboto', sans-serif);
+}
+
+/* Browsers don't inherit font-family into form controls or table cells by default */
+button, input, select, textarea, th, td {
+  font-family: inherit;
 }
 
 a { color: inherit; }
@@ -15,6 +20,30 @@ body {
 /* Dark Mode */
 body.dark-mode {
   background-color: #121212 !important;
+}
+
+/* ── Recharts focus ring fix ──────────────────────────────────────────────────
+   Recharts v3 adds tabIndex=0 to every <svg>, so clicking any chart gives it
+   keyboard focus and the browser draws a black focus-ring rectangle around it.
+   Charts aren't keyboard-navigable here, so suppress the outline globally. */
+.recharts-wrapper:focus,
+.recharts-wrapper:focus-within,
+.recharts-surface:focus,
+.recharts-wrapper svg:focus,
+.recharts-wrapper *:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* ── Animation off (data-motion="off" set by ThemeContext) ───────────────────
+   Kills all CSS transitions/animations; Framer Motion handled via
+   MotionConfig reducedMotion="always" in ThemeContext.                     */
+[data-motion="off"] *,
+[data-motion="off"] *::before,
+[data-motion="off"] *::after {
+  transition-duration: 0.001ms !important;
+  animation-duration:  0.001ms !important;
+  animation-iteration-count: 1 !important;
 }
 
 /* Global themed tooltip (used by Tooltip.jsx and useTooltip.js) */

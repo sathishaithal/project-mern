@@ -174,7 +174,7 @@
 
 /* ── Table header cells ───────────────────────────────────── */
 .sr-th {
-  padding: 0.55rem 0.6rem;
+  padding: 12px 0.6rem;
   text-align: right;
   font-size: 0.72rem;
   font-weight: 700;
@@ -187,7 +187,7 @@
 
 /* ── Table data cells ─────────────────────────────────────── */
 .sr-td {
-  padding: 0.45rem 0.6rem;
+  padding: 12px 0.6rem;
   text-align: right;
   white-space: nowrap;
   font-size: 0.77rem;
@@ -692,7 +692,7 @@
 ══════════════════════════════════════════════════════════ */
 
 .ss-th {
-  padding: 0.5rem 0.6rem;
+  padding: 12px 0.6rem;
   font-weight: 700;
   font-size: 0.71rem;
   color: white;
@@ -701,7 +701,7 @@
 }
 
 .ss-td {
-  padding: 0.4rem 0.6rem;
+  padding: 12px 0.6rem;
   text-align: right;
   font-size: 0.75rem;
   color: var(--ss-muted, #64748b);
@@ -748,7 +748,7 @@
 ══════════════════════════════════════════════════════════ */
 
 .dw-th {
-  padding: 0.55rem 0.5rem;
+  padding: 12px 0.5rem;
   font-weight: 700;
   font-size: 0.72rem;
   color: white;
@@ -758,7 +758,7 @@
 }
 
 .dw-td {
-  padding: 0.35rem 0.5rem;
+  padding: 12px 0.5rem;
   text-align: right;
   white-space: nowrap;
   font-size: 0.75rem;
@@ -792,6 +792,7 @@
   font-size: 0.8rem;
   font-weight: 600;
 }
+
 
 /* ── Color legend pulse (non-summary tabs) ────────────────── */
 @keyframes colorLegendPulse {

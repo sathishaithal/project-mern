@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { motion } from 'framer-motion';
+import Tooltip from '../../../components/ui/Tooltip';
 import FilterBar from './filters/FilterBar';
 import { useSalesFilterStore } from '../../../store/salesFilterStore';
 import {
@@ -258,7 +259,10 @@ export default function DayWisePage() {
                   <i className="bi bi-arrow-clockwise" style={{ marginRight: 6 }}></i>Loading…
                 </td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={days + 3} className="dw-td" style={{ textAlign: 'center', padding: '3rem', background: cardBg }}>No data</td></tr>
+                <tr><td colSpan={days + 3} className="dw-td" style={{ textAlign: 'center', padding: '3rem', background: cardBg, color: mutedClr }}>
+                  <i className="bi bi-inbox" style={{ fontSize: '1.6rem', display: 'block', marginBottom: '0.4rem', opacity: 0.45 }} />
+                  No data for the selected filters
+                </td></tr>
               ) : rows.map((row, i) => {
                 const id = row.id;
                 const isGrand = row.disttype === 'Grand Total';
@@ -280,15 +284,18 @@ export default function DayWisePage() {
                     >
                       <td className="dw-td" style={{ position: 'sticky', left: 0, background: 'inherit', textAlign: 'center' }}>
                         {!isGrand && (
-                          <button
-                            onClick={() => handleExpandL1(row)}
-                            className="dw-expand-btn"
-                            style={{ border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`, color: mutedClr }}
-                          >
-                            {secondLoading[id]
-                              ? <i className="bi bi-arrow-clockwise sr-spin"></i>
-                              : <i className={`bi ${isOpenL1 ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>}
-                          </button>
+                          <Tooltip content={isOpenL1 ? 'Collapse' : 'Expand'}>
+                            <button
+                              onClick={() => handleExpandL1(row)}
+                              className="dw-expand-btn"
+                              aria-label={isOpenL1 ? 'Collapse row' : 'Expand row'}
+                              style={{ border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`, color: mutedClr }}
+                            >
+                              {secondLoading[id]
+                                ? <i className="bi bi-arrow-clockwise sr-spin"></i>
+                                : <i className={`bi ${isOpenL1 ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>}
+                            </button>
+                          </Tooltip>
                         )}
                       </td>
                       <td className="dw-td" style={{ position: 'sticky', left: 28, background: 'inherit', fontWeight: isGrand ? 800 : 600, color: isGrand ? 'white' : textClr, textAlign: 'left' }}>
@@ -325,15 +332,18 @@ export default function DayWisePage() {
                           <tr style={{ background: subRowBg, borderBottom: `1px solid ${isDarkMode ? '#1e3a5f' : '#e0e8ff'}` }}>
                             <td className="dw-td" style={{ position: 'sticky', left: 0, background: subRowBg, textAlign: 'center' }}>
                               {canExpand && (
-                                <button
-                                  onClick={() => handleExpandL2(id, sub, subKey)}
-                                  className="dw-expand-btn"
-                                  style={{ border: `1px solid ${isDarkMode ? '#334155' : '#c7d2fe'}`, color: accent }}
-                                >
-                                  {thirdLoading[subKey]
-                                    ? <i className="bi bi-arrow-clockwise sr-spin"></i>
-                                    : <i className={`bi ${isOpenL2 ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>}
-                                </button>
+                                <Tooltip content={isOpenL2 ? 'Collapse' : 'Expand'}>
+                                  <button
+                                    onClick={() => handleExpandL2(id, sub, subKey)}
+                                    className="dw-expand-btn"
+                                    aria-label={isOpenL2 ? 'Collapse sub-row' : 'Expand sub-row'}
+                                    style={{ border: `1px solid ${isDarkMode ? '#334155' : '#c7d2fe'}`, color: accent }}
+                                  >
+                                    {thirdLoading[subKey]
+                                      ? <i className="bi bi-arrow-clockwise sr-spin"></i>
+                                      : <i className={`bi ${isOpenL2 ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>}
+                                  </button>
+                                </Tooltip>
                               )}
                             </td>
                             <td className="dw-td" style={{ position: 'sticky', left: 28, background: subRowBg, color: textClr, fontWeight: 600, textAlign: 'left', paddingLeft: '1.5rem' }}>

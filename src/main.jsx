@@ -14,9 +14,8 @@ import Reports from "./pages/Reports/Reports";
 import Production from "./pages/Reports/Production/Production";
 import Sales from "./pages/Reports/Sales/Sales";
 
-// ---------------- MANAGEMENT ----------------
-import Employees from "./pages/Management/Employees";
-import Vendors from "./pages/Management/Vendors";
+import NotFound from "./pages/NotFound";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // ---------------- TOOLS ----------------
 // import ExportTool from "./pages/Tools/ExportTool";
@@ -54,98 +53,64 @@ root.render(
     <AuthProvider>
       <ColorModeProvider>
         <SummaryCardsProvider>
-        <BrowserRouter>
-          <ScrollToTop />
-          <Routes>
-            {/* ---------- LOGIN PAGE ---------- */}
-            <Route path="/" element={<SignIn />} />
+          <BrowserRouter>
+            <ScrollToTop />
+            <Routes>
+              {/* ---------- LOGIN PAGE ---------- */}
+              <Route path="/" element={<SignIn />} />
 
-            {/* ---------- DASHBOARD ---------- */}
-            <Route
-              path="/dashboard"
-              element={
-                  <ProtectedRoute>
-                  <MainLayout title="Dashboard">
-                    <Dashboard />
-                  </MainLayout>
-                   </ProtectedRoute>
-              }
-            />
+              {/* ---------- DASHBOARD ---------- */}
+              <Route
+                path="/dashboard"
+                element={
+                    <ProtectedRoute>
+                    <MainLayout title="Dashboard">
+                      <ErrorBoundary label="Dashboard"><Dashboard /></ErrorBoundary>
+                    </MainLayout>
+                     </ProtectedRoute>
+                }
+              />
 
-            {/* ---------- REPORTS MAIN PAGE ---------- */}
-            <Route
-              path="/reports"
-              element={
-                  <ProtectedRoute>
-                  <MainLayout title="Reports">
-                    <Reports />
-                  </MainLayout>
-                   </ProtectedRoute>
-              }
-            />
+              {/* ---------- REPORTS MAIN PAGE ---------- */}
+              <Route
+                path="/reports"
+                element={
+                    <ProtectedRoute>
+                    <MainLayout title="Reports">
+                      <ErrorBoundary label="Reports"><Reports /></ErrorBoundary>
+                    </MainLayout>
+                     </ProtectedRoute>
+                }
+              />
 
-            {/* ---------- REPORTS → PRODUCTION ---------- */}
-            <Route
-              path="/reports/production"
-              element={
-                  <ProtectedRoute>
-                  <MainLayout >
-                    <Production />
-                  </MainLayout>
-                   </ProtectedRoute>
-              }
-            />
+              {/* ---------- REPORTS → PRODUCTION ---------- */}
+              <Route
+                path="/reports/production"
+                element={
+                    <ProtectedRoute>
+                    <MainLayout>
+                      <ErrorBoundary label="Production Report"><Production /></ErrorBoundary>
+                    </MainLayout>
+                     </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/reports/Reorts"
-              element={
-                  <ProtectedRoute>
-                  <MainLayout title="Report">
-                    <Production />
-                  </MainLayout>
-                   </ProtectedRoute>
-              }
-            />
+              {/* ---------- REPORTS → SALES ---------- */}
+              <Route
+                path="/reports/sales"
+                element={
+                    <ProtectedRoute>
+                    <MainLayout title="Sales Report">
+                      <ErrorBoundary label="Sales Report"><Sales /></ErrorBoundary>
+                    </MainLayout>
+                     </ProtectedRoute>
+                }
+              />
 
-            {/* ---------- REPORTS → SALES ---------- */}
-            <Route
-              path="/reports/sales"
-              element={
-                  <ProtectedRoute>
-                  <MainLayout title="Sales Report">
-                    <Sales />
-                  </MainLayout>
-                   </ProtectedRoute>
-              }
-            />
-
-
-            {/* ---------- MANAGEMENT → EMPLOYEES ---------- */}
-            <Route
-              path="/management/employees"
-              element={
-                  <ProtectedRoute>
-                  <MainLayout title="Employee Management">
-                    <Employees />
-                  </MainLayout>
-                   </ProtectedRoute>
-              }
-            />
-
-            {/* ---------- MANAGEMENT → VENDORS ---------- */}
-            <Route
-              path="/management/vendors"
-              element={
-                  <ProtectedRoute>
-                  <MainLayout title="Vendor Management">
-                    <Vendors />
-                  </MainLayout>
-                   </ProtectedRoute>
-              }
-            />
-
-          </Routes>
-        </BrowserRouter>
+              {/* ---------- 404 CATCH-ALL ---------- */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
         </SummaryCardsProvider>
       </ColorModeProvider>
     </AuthProvider>

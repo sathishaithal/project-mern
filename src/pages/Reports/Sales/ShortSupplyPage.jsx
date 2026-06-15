@@ -350,7 +350,10 @@ function ShortSupplyTable({
               <tbody>
                 {data.length === 0 && !loading ? (
                   <tr>
-                    <td colSpan={6} className="ss-td" style={{ textAlign: 'center', padding: '3rem' }}>No data</td>
+                    <td colSpan={6} className="ss-td" style={{ textAlign: 'center', padding: '3rem', color: mutedClr }}>
+                      <i className="bi bi-inbox" style={{ fontSize: '1.6rem', display: 'block', marginBottom: '0.4rem', opacity: 0.45 }} />
+                      No data for the selected period
+                    </td>
                   </tr>
                 ) : pagedRows.map((row, idx) => {
                   const globalNum  = (page - 1) * rowsPerPage + idx + 1;
@@ -593,10 +596,12 @@ export default function ShortSupplyPage() {
                   <div style={{ fontWeight: 700, fontSize: '0.83rem', color: textClr }}>{toast.title}</div>
                   <div style={{ fontSize: '0.73rem', color: mutedClr, marginTop: 1 }}>{toast.message}</div>
                 </div>
-                <button
-                  onClick={e => { e.stopPropagation(); closeToast(); }}
-                  style={{ background: 'none', border: 'none', fontSize: '1.1rem', cursor: 'pointer', color: mutedClr, padding: '0 2px' }}
-                >×</button>
+                <Tooltip content="Close">
+                  <button
+                    onClick={e => { e.stopPropagation(); closeToast(); }}
+                    style={{ background: 'none', border: 'none', fontSize: '1.1rem', cursor: 'pointer', color: mutedClr, padding: '0 2px' }}
+                  >×</button>
+                </Tooltip>
               </div>
               <div style={{ height: 3, background: toastAccent, animation: 'ssprogress 5s linear forwards' }} />
             </div>

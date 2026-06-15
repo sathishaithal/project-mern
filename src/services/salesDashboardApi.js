@@ -1,22 +1,14 @@
-/**
+﻿/**
  * salesDashboardApi.js
  * All 19 Sales Dashboard API functions wired to backend pg (/Report/sales-dashboard/...)
  * Auth: Bearer token read from sessionStorage/localStorage via Mern dashboard's auth setup.
  */
 
-import axios from 'axios';
-import { appLog, appWarn, appError } from '../config/appConfig';
+import apiClient from './apiClient';
+const axios = apiClient;
+import { appLog, appError } from '../config/appConfig';
 
 const BASE = `${import.meta.env.VITE_API_URL || ''}/Report/sales-dashboard`;
-
-function authHeaders() {
-  const token =
-    sessionStorage.getItem('token') ||
-    sessionStorage.getItem('authToken') ||
-    localStorage.getItem('authToken');
-  if (!token) appWarn('[API] authHeaders → No auth token found in storage!');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 // ─── REPORT APIs ──────────────────────────────────────────────────────────────
 
@@ -26,7 +18,6 @@ export async function getAccessType(employeename) {
   try {
     const res = await axios.get(url, {
       params: { employeename },
-      headers: authHeaders(),
     });
     appLog('[API] getAccessType → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -42,7 +33,6 @@ export async function getHrDesignation(employeename) {
   try {
     const res = await axios.get(url, {
       params: { employeename },
-      headers: authHeaders(),
     });
     appLog('[API] getHrDesignation → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -83,7 +73,6 @@ export async function getLastUpdatedDates(employeename) {
   try {
     const res = await axios.get(url, {
       params: { employeename },
-      headers: authHeaders(),
     });
     appLog('[API] getLastUpdatedDates → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -99,7 +88,6 @@ export async function getDispatchHeaderTop(employeename) {
   try {
     const res = await axios.get(url, {
       params: { employeename },
-      headers: authHeaders(),
     });
     appLog('[API] getDispatchHeaderTop → RESPONSE', res.data);
     return res.data;
@@ -118,7 +106,6 @@ export async function getShortSupplyByCategory(params) {
   try {
     const res = await axios.get(url, {
       params: p,
-      headers: authHeaders(),
     });
     appLog('[API] getShortSupplyByCategory → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -135,7 +122,6 @@ export async function getCatgroupForCategory(params) {
   try {
     const res = await axios.get(url, {
       params,
-      headers: authHeaders(),
     });
     appLog('[API] getCatgroupForCategory → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -151,7 +137,6 @@ export async function getFourthLevelDispatch(params) {
   try {
     const res = await axios.get(url, {
       params,
-      headers: authHeaders(),
     });
     appLog('[API] getFourthLevelDispatch → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -167,7 +152,6 @@ export async function getThirdLevelDispatch(params) {
   try {
     const res = await axios.get(url, {
       params,
-      headers: authHeaders(),
     });
     appLog('[API] getThirdLevelDispatch → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -183,7 +167,6 @@ export async function getDaywiseSalesReport(params) {
   try {
     const res = await axios.get(url, {
       params,
-      headers: authHeaders(),
     });
     appLog('[API] getDaywiseSalesReport → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -203,7 +186,6 @@ export async function getMultiYearSales(params) {
   try {
     const res = await axios.get(url, {
       params: p,
-      headers: authHeaders(),
     });
     appLog('[API] getMultiYearSales → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -219,7 +201,6 @@ export async function getMonthwiseFiltersDist(params) {
   try {
     const res = await axios.get(url, {
       params,
-      headers: authHeaders(),
     });
     appLog('[API] getMonthwiseFiltersDist → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -241,7 +222,7 @@ export async function getMonthwiseFiltersNew(params) {
   };
   appLog('[API] getMonthwiseFiltersNew → REQUEST (POST)', url, '\nBODY', body);
   try {
-    const res = await axios.post(url, body, { headers: authHeaders() });
+    const res = await axios.post(url, body);
     appLog('[API] getMonthwiseFiltersNew → RESPONSE', res.data);
     return res.data.list ?? res.data;
   } catch (err) {
@@ -259,7 +240,6 @@ export async function getGraphCategoryWithCode(params) {
   try {
     const res = await axios.get(url, {
       params,
-      headers: authHeaders(),
     });
     appLog('[API] getGraphCategoryWithCode → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -278,7 +258,6 @@ export async function getGraphCategoryForCatgroup(params) {
   try {
     const res = await axios.get(url, {
       params,
-      headers: authHeaders(),
     });
     appLog('[API] getGraphCategoryForCatgroup → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -295,7 +274,6 @@ export async function getGraphCatgroup(params) {
   try {
     const res = await axios.get(url, {
       params,
-      headers: authHeaders(),
     });
     appLog('[API] getGraphCatgroup → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -312,7 +290,6 @@ export async function getGraphSellingDataByCategory(params) {
   try {
     const res = await axios.get(url, {
       params,
-      headers: authHeaders(),
     });
     appLog('[API] getGraphSellingDataByCategory → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -330,7 +307,6 @@ export async function getGraphSellingDataByItem(params) {
   try {
     const res = await axios.get(url, {
       params,
-      headers: authHeaders(),
     });
     appLog('[API] getGraphSellingDataByItem → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -349,7 +325,6 @@ export async function getGraphSellingData(params) {
   try {
     const res = await axios.get(url, {
       params,
-      headers: authHeaders(),
     });
     appLog('[API] getGraphSellingData → RESPONSE', res.data);
     return res.data;
@@ -369,7 +344,6 @@ export async function getGraphMonthwise(params) {
   try {
     const res = await axios.get(url, {
       params: p,
-      headers: authHeaders(),
     });
     appLog('[API] getGraphMonthwise → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -390,7 +364,6 @@ export async function getCatgroupForCatAR1(params) {
   try {
     const res = await axios.get(url, {
       params,
-      headers: authHeaders(),
     });
     appLog('[API] getCatgroupForCatAR1 → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -409,7 +382,6 @@ export async function getDaywiseSalesSecondLevel(params) {
   try {
     const res = await axios.get(url, {
       params,
-      headers: authHeaders(),
     });
     appLog('[API] getDaywiseSalesSecondLevel → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -428,7 +400,6 @@ export async function getDaywiseSalesThirdLevel(params) {
   try {
     const res = await axios.get(url, {
       params,
-      headers: authHeaders(),
     });
     appLog('[API] getDaywiseSalesThirdLevel → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -447,7 +418,6 @@ export async function getFifthLevelDispatch(params) {
   try {
     const res = await axios.get(url, {
       params,
-      headers: authHeaders(),
     });
     appLog('[API] getFifthLevelDispatch → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -469,7 +439,6 @@ export async function getSecondLevelDispatch(params) {
   try {
     const res = await axios.get(url, {
       params,
-      headers: authHeaders(),
     });
     appLog('[API] getSecondLevelDispatch → RESPONSE', res.data);
     return res.data.list ?? res.data;
@@ -489,7 +458,6 @@ export async function getSixthLevelDispatch(params) {
   try {
     const res = await axios.get(url, {
       params,
-      headers: authHeaders(),
     });
     appLog('[API] getSixthLevelDispatch → RESPONSE', res.data);
     return res.data.list ?? res.data;

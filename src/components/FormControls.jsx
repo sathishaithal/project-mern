@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const formatInputDate = (date) => {
   const day = String(date.getDate()).padStart(2, "0");
@@ -62,33 +63,43 @@ export const AppSelect = ({ value, onChange, options }) => {
 
   return (
     <div ref={controlRef} className="appControl appSelect">
-      <button
+      <motion.button
         type="button"
         className={`appControlButton ${open ? "appControlButtonActive" : ""}`}
         onClick={() => setOpen((current) => !current)}
+        whileHover={{ y: -1 }}
+        whileTap={{ scale: 0.97 }}
       >
         <span>{selected?.label}</span>
         <i className={`bi ${open ? "bi-chevron-up" : "bi-chevron-down"}`}></i>
-      </button>
+      </motion.button>
 
-      {open && (
-        <div className="appSelectMenu">
-          {options.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className={`appSelectOption ${option.value === value ? "appSelectOptionActive" : ""}`}
-              onClick={() => {
-                onChange(option.value);
-                setOpen(false);
-              }}
-            >
-              <span>{option.label}</span>
-              {option.value === value && <i className="bi bi-check2"></i>}
-            </button>
-          ))}
-        </div>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="appSelectMenu"
+            initial={{ opacity: 0, scale: 0.97, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.97, y: -4 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+          >
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`appSelectOption ${option.value === value ? "appSelectOptionActive" : ""}`}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+              >
+                <span>{option.label}</span>
+                {option.value === value && <i className="bi bi-check2"></i>}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -139,20 +150,29 @@ export const AppDatePicker = ({ value, onChange, min, max }) => {
 
   return (
     <div ref={controlRef} className="appControl appDatePicker">
-      <button
+      <motion.button
         type="button"
         className={`appControlButton ${open ? "appControlButtonActive" : ""}`}
         onClick={() => {
           setMonth(new Date(value.getFullYear(), value.getMonth(), 1));
           setOpen((current) => !current);
         }}
+        whileHover={{ y: -1 }}
+        whileTap={{ scale: 0.97 }}
       >
         <span>{formatInputDate(value)}</span>
         <i className="bi bi-calendar3"></i>
-      </button>
+      </motion.button>
 
-      {open && (
-        <div className="appDateMenu">
+      <AnimatePresence>
+        {open && (
+        <motion.div
+          className="appDateMenu"
+          initial={{ opacity: 0, scale: 0.97, y: -4 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.97, y: -4 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+        >
           <div className="appDateHeader">
             <button
               type="button"
@@ -204,8 +224,9 @@ export const AppDatePicker = ({ value, onChange, min, max }) => {
               );
             })}
           </div>
-        </div>
-      )}
+        </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

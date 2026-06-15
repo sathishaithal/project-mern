@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { createTheme, CssBaseline, ThemeProvider } from "@mui/material";
+import { MotionConfig } from "framer-motion";
 
 const ColorModeContext = createContext();
 
@@ -84,64 +85,45 @@ const fontThemes = {
     name: "Manrope",
     body: "'Manrope', 'Segoe UI', sans-serif",
     display: "'Manrope', 'Segoe UI', sans-serif",
-    import:
-      "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap",
+    import: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap",
   },
   poppins: {
     id: "poppins",
     name: "Poppins",
     body: "'Poppins', 'Segoe UI', sans-serif",
     display: "'Poppins', 'Segoe UI', sans-serif",
-    import:
-      "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap",
+    import: "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap",
   },
   nunito: {
     id: "nunito",
     name: "DM Sans",
     body: "'DM Sans', 'Segoe UI', sans-serif",
     display: "'DM Sans', 'Segoe UI', sans-serif",
-    import:
-      "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap",
+    import: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap",
   },
   playfair: {
     id: "playfair",
     name: "Playfair",
     body: "'Inter', 'Segoe UI', sans-serif",
     display: "'Playfair Display', Georgia, serif",
-    import:
-      "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap",
+    import: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap",
   },
 };
 
 const sidebarModes = {
-  fixed: {
-    id: "fixed",
-    name: "Fixed Open",
-    description: "Keep the sidebar expanded on desktop.",
-  },
-  closed: {
-    id: "closed",
-    name: "Closed",
-    description: "Start with the sidebar collapsed on desktop.",
-  },
+  fixed:  { id: "fixed",  name: "Fixed Open", description: "Keep the sidebar expanded on desktop." },
+  closed: { id: "closed", name: "Closed",     description: "Start with the sidebar collapsed on desktop." },
 };
 
 const densityOptions = {
-  compact: {
-    id: "compact",
-    name: "Compact",
-    spacing: "0.88",
-  },
-  comfortable: {
-    id: "comfortable",
-    name: "Default",
-    spacing: "1",
-  },
-  spacious: {
-    id: "spacious",
-    name: "Spacious",
-    spacing: "1.12",
-  },
+  compact:     { id: "compact",     name: "Compact", spacing: "0.88" },
+  comfortable: { id: "comfortable", name: "Default", spacing: "1"    },
+  spacious:    { id: "spacious",    name: "Spacious", spacing: "1.12" },
+};
+
+const animationOptions = {
+  on:  { id: "on",  name: "On",  motionReduce: "never"  },
+  off: { id: "off", name: "Off", motionReduce: "always" },
 };
 
 const getStoredValue = (key, fallback) => localStorage.getItem(key) || fallback;
@@ -149,88 +131,73 @@ const getStoredValue = (key, fallback) => localStorage.getItem(key) || fallback;
 export const useColorMode = () => useContext(ColorModeContext);
 
 export const ColorModeProvider = ({ children }) => {
-  const [mode, setMode] = useState(getStoredValue("themeMode", "light"));
-  const [accentId, setAccentId] = useState(getStoredValue("dashboardAccent", "ocean"));
-  const [fontId, setFontId] = useState(getStoredValue("dashboardFont", "inter"));
-  const [fontScale, setFontScale] = useState(Number(getStoredValue("dashboardFontScale", "1")));
+  const [mode,        setMode]        = useState(getStoredValue("themeMode",            "light"));
+  const [accentId,    setAccentId]    = useState(getStoredValue("dashboardAccent",      "ocean"));
+  const [fontId,      setFontId]      = useState(getStoredValue("dashboardFont",        "inter"));
+  const [fontScale,   setFontScale]   = useState(Number(getStoredValue("dashboardFontScale", "1")));
   const [sidebarMode, setSidebarMode] = useState(getStoredValue("dashboardSidebarMode", "fixed"));
-  const [densityId, setDensityId] = useState(getStoredValue("dashboardDensity", "comfortable"));
+  const [densityId,   setDensityId]   = useState(getStoredValue("dashboardDensity",     "comfortable"));
+  const [animId,      setAnimId]      = useState(getStoredValue("dashboardAnimation",   "on"));
 
-  const accent = accentThemes[accentId] || accentThemes.ocean;
-  const font = fontThemes[fontId] || fontThemes.inter;
-  const density = densityOptions[densityId] || densityOptions.comfortable;
+  const accent  = accentThemes[accentId]     || accentThemes.ocean;
+  const font    = fontThemes[fontId]         || fontThemes.inter;
+  const density = densityOptions[densityId]  || densityOptions.comfortable;
+  const anim    = animationOptions[animId]   || animationOptions.on;
 
-  const toggleMode = () => {
-    setMode((prev) => (prev === "light" ? "dark" : "light"));
-  };
+  const toggleMode = () => setMode((prev) => (prev === "light" ? "dark" : "light"));
 
-  useEffect(() => {
-    localStorage.setItem("themeMode", mode);
-    document.documentElement.setAttribute("data-theme", mode);
-  }, [mode]);
+  useEffect(() => { localStorage.setItem("themeMode",           mode);          document.documentElement.setAttribute("data-theme", mode); }, [mode]);
+  useEffect(() => { localStorage.setItem("dashboardAccent",     accentId);    }, [accentId]);
+  useEffect(() => { localStorage.setItem("dashboardFont",       fontId);      }, [fontId]);
+  useEffect(() => { localStorage.setItem("dashboardFontScale",  String(fontScale)); }, [fontScale]);
+  useEffect(() => { localStorage.setItem("dashboardSidebarMode",sidebarMode); }, [sidebarMode]);
+  useEffect(() => { localStorage.setItem("dashboardDensity",    densityId);   }, [densityId]);
+  useEffect(() => { localStorage.setItem("dashboardAnimation",  animId);      }, [animId]);
 
-  useEffect(() => {
-    localStorage.setItem("dashboardAccent", accentId);
-  }, [accentId]);
-
-  useEffect(() => {
-    localStorage.setItem("dashboardFont", fontId);
-  }, [fontId]);
-
-  useEffect(() => {
-    localStorage.setItem("dashboardFontScale", String(fontScale));
-  }, [fontScale]);
-
-  useEffect(() => {
-    localStorage.setItem("dashboardSidebarMode", sidebarMode);
-  }, [sidebarMode]);
-
-  useEffect(() => {
-    localStorage.setItem("dashboardDensity", densityId);
-  }, [densityId]);
-
+  /* Lazy-load Google Font */
   useEffect(() => {
     const fontLinkId = `dashboard-font-${font.id}`;
     if (!document.getElementById(fontLinkId)) {
       const link = document.createElement("link");
-      link.id = fontLinkId;
-      link.rel = "stylesheet";
+      link.id   = fontLinkId;
+      link.rel  = "stylesheet";
       link.href = font.import;
       document.head.appendChild(link);
     }
   }, [font]);
 
+  /* data-motion drives CSS transition override in index.css */
   useEffect(() => {
-    const root = document.documentElement;
+    document.documentElement.setAttribute("data-motion", anim.id);
+  }, [anim]);
+
+  /* All CSS custom properties */
+  useEffect(() => {
+    const root   = document.documentElement;
     const isDark = mode === "dark";
 
-    root.style.setProperty("--dashboard-accent", accent.primary);
+    root.style.setProperty("--dashboard-accent",        accent.primary);
     root.style.setProperty("--dashboard-accent-strong", accent.secondary);
-    root.style.setProperty("--dashboard-accent-soft", accent.soft);
-    root.style.setProperty("--dashboard-accent-glow", accent.glow);
-    root.style.setProperty(
-      "--dashboard-sidebar-start",
-      isDark ? accent.sidebarDarkStart : accent.sidebarLightStart
-    );
-    root.style.setProperty(
-      "--dashboard-sidebar-end",
-      isDark ? accent.sidebarDarkEnd : accent.sidebarLightEnd
-    );
-    root.style.setProperty("--dashboard-font-body", font.body);
-    root.style.setProperty("--dashboard-font-display", font.display);
-    root.style.setProperty("--dashboard-font-scale", String(fontScale));
-    root.style.setProperty("--dashboard-font-size-base", `${fontScale}rem`);
+    root.style.setProperty("--dashboard-accent-soft",   accent.soft);
+    root.style.setProperty("--dashboard-accent-glow",   accent.glow);
+    root.style.setProperty("--dashboard-sidebar-start", isDark ? accent.sidebarDarkStart : accent.sidebarLightStart);
+    root.style.setProperty("--dashboard-sidebar-end",   isDark ? accent.sidebarDarkEnd   : accent.sidebarLightEnd);
+    root.style.setProperty("--dashboard-font-body",     font.body);
+    root.style.setProperty("--dashboard-font-display",  font.display);
+    root.style.setProperty("--dashboard-font-scale",    String(fontScale));
+    root.style.setProperty("--dashboard-font-size-base",`${fontScale}rem`);
     root.style.setProperty("--dashboard-density-scale", density.spacing);
     root.style.fontSize = `${fontScale * 16}px`;
-    root.style.setProperty(
-      "--dashboard-shell-bg",
-      isDark ? "linear-gradient(180deg, #020617 0%, #0f172a 40%, #111827 100%)" : "linear-gradient(180deg, #f8fbff 0%, #eef4ff 45%, #f9fbff 100%)"
+    root.style.setProperty("--dashboard-shell-bg",
+      isDark
+        ? "linear-gradient(180deg, #020617 0%, #0f172a 40%, #111827 100%)"
+        : "linear-gradient(180deg, #f8fbff 0%, #eef4ff 45%, #f9fbff 100%)"
     );
-    root.style.setProperty("--dashboard-panel", isDark ? "rgba(15, 23, 42, 0.88)" : "rgba(255, 255, 255, 0.86)");
-    root.style.setProperty("--dashboard-panel-solid", isDark ? "#0f172a" : "#ffffff");
-    root.style.setProperty("--dashboard-border", isDark ? "rgba(148, 163, 184, 0.2)" : "rgba(148, 163, 184, 0.16)");
-    root.style.setProperty("--dashboard-text", isDark ? "#e5eefb" : "#10213d");
-    root.style.setProperty("--dashboard-text-muted", isDark ? "#94a3b8" : "#5f6f89");
+    root.style.setProperty("--dashboard-panel",       isDark ? "rgba(15, 23, 42, 0.88)" : "rgba(255, 255, 255, 0.86)");
+    root.style.setProperty("--dashboard-panel-solid", isDark ? "#0f172a"                : "#ffffff");
+    root.style.setProperty("--dashboard-border",      isDark ? "rgba(148, 163, 184, 0.2)" : "rgba(148, 163, 184, 0.16)");
+    root.style.setProperty("--dashboard-text",        isDark ? "#e5eefb" : "#10213d");
+    root.style.setProperty("--dashboard-text-muted",  isDark ? "#94a3b8" : "#5f6f89");
   }, [accent, density.spacing, font, fontScale, mode]);
 
   const theme = useMemo(
@@ -238,11 +205,11 @@ export const ColorModeProvider = ({ children }) => {
       createTheme({
         palette: {
           mode,
-          primary: { main: accent.primary },
+          primary:   { main: accent.primary   },
           secondary: { main: accent.secondary },
           background: {
             default: mode === "dark" ? "#020617" : "#f8fbff",
-            paper: mode === "dark" ? "#0f172a" : "#ffffff",
+            paper:   mode === "dark" ? "#0f172a" : "#ffffff",
           },
         },
         typography: {
@@ -262,29 +229,34 @@ export const ColorModeProvider = ({ children }) => {
   const value = {
     mode,
     isDarkMode: mode === "dark",
-    accentThemes: Object.values(accentThemes),
-    fontThemes: Object.values(fontThemes),
-    sidebarModes: Object.values(sidebarModes),
-    densityOptions: Object.values(densityOptions),
-    selectedAccent: accent,
-    selectedFont: font,
+    accentThemes:     Object.values(accentThemes),
+    fontThemes:       Object.values(fontThemes),
+    sidebarModes:     Object.values(sidebarModes),
+    densityOptions:   Object.values(densityOptions),
+    animationOptions: Object.values(animationOptions),
+    selectedAccent:   accent,
+    selectedFont:     font,
+    selectedAnimation: anim,
     fontScale,
     sidebarMode,
     density,
     toggleMode,
     setMode,
     setAccentTheme: setAccentId,
-    setFontTheme: setFontId,
+    setFontTheme:   setFontId,
     setFontScale,
     setSidebarMode,
-    setDensity: setDensityId,
+    setDensity:     setDensityId,
+    setAnimation:   setAnimId,
   };
 
   return (
     <ColorModeContext.Provider value={value}>
       <ThemeProvider theme={theme}>
-        <CssBaseline />
-        {children}
+        <MotionConfig reducedMotion={anim.motionReduce}>
+          <CssBaseline />
+          {children}
+        </MotionConfig>
       </ThemeProvider>
     </ColorModeContext.Provider>
   );

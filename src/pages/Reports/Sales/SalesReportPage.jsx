@@ -157,6 +157,7 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
                       else { if (yearOpen) onYearCollapse(stateKey); onExpand(row, stateKey, level); }
                     }}
                     className={`sr-expand-btn${isOpen ? ' expanded' : ''}`}
+                    aria-label={isOpen ? 'Collapse row' : 'Expand row'}
                     style={{ color: accent }}
                   >
                     <i className="bi bi-chevron-down" />
@@ -171,6 +172,7 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
                       else { if (isOpen) onCollapse(stateKey); onYearExpand(row, stateKey); }
                     }}
                     className="sr-expand-btn"
+                    aria-label={yearOpen ? 'Collapse year breakdown' : 'Year breakdown'}
                     style={{ color: accent, opacity: 0.75 }}
                   >
                     <i className={yearOpen ? 'bi bi-chevron-double-up' : 'bi bi-chevron-double-down'} />
@@ -198,7 +200,11 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
               lineHeight: 1.4, verticalAlign: 'middle',
             }}
           >
-            {level > 0 && <span style={{ color: isDarkMode ? '#475569' : '#94a3b8', marginRight: 4 }}>{'↳'.repeat(level)}</span>}
+            {level > 0 && (
+              <span style={{ marginRight: 4, color: 'var(--sr-muted, #94a3b8)', fontSize: '0.78rem' }}>
+                {'↳'.repeat(level)}
+              </span>
+            )}
             {getLabel(row, level)}
           </td>
 
@@ -1033,7 +1039,12 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
       }
       return true;
     });
-    const yearRows = groupByField(filtered, 'year', parentFilters);
+    const selectedYears = new Set(
+      (Array.isArray(multiyearRef.current) ? multiyearRef.current : String(multiyearRef.current).split(','))
+        .map(y => String(y).trim())
+    );
+    const yearRows = groupByField(filtered, 'year', parentFilters)
+      .filter(r => selectedYears.has(String(r.year).trim()));
     drillDataRef.current = { ...drillDataRef.current, [yearKey]: yearRows };
     setDrillData(p => ({ ...p, [yearKey]: yearRows }));
     setExpandedYear(p => ({ ...p, [stateKey]: true }));
@@ -1334,20 +1345,11 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
           </div>
         )}
 
-        {isDrillLoading && (
-          <div className="sr-drill-overlay" style={{ background: isDarkMode ? 'rgba(15,23,42,0.72)' : 'rgba(255,255,255,0.72)' }}>
-            <div className={`sr-loader-card${isDarkMode ? ' sr-loader-card-dark' : ''}`}>
-              <div className="sr-loader-spinner" style={{ borderTopColor: accent }} />
-              <div className="sr-loader-text">Generating Report</div>
-              <div className="sr-loader-dots">
-                <span style={{ background: accent }} />
-                <span style={{ background: accent }} />
-                <span style={{ background: accent }} />
-              </div>
-            </div>
-          </div>
-        )}
-        <div ref={tableWrapRef} className="sr-table-wrap" style={{ maxHeight: '65vh', borderRadius: 14 }} onScroll={handleScroll}>
+        {isDrillLoading && <SrLoader accent={accent} isDarkMode={isDarkMode} text="Loading..." />}
+        <div ref={tableWrapRef} className="sr-table-wrap" style={{ maxHeight: '65vh', borderRadius: 14 }} onScroll={handleScroll}
+          onMouseMove={(e) => { if (tooltip && !e.target.closest('[data-ctt]')) setTooltip(null); }}
+          onMouseLeave={() => setTooltip(null)}
+        >
           <table className="sr-table">
             <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
               <tr style={{ background: headerMain, color: 'white' }}>
@@ -1390,7 +1392,10 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
                 </tr>
               ) : displayRows.length === 0 ? (
                 <tr>
-                  <td colSpan={TOTAL_COLS} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8', background: cardBg }}>No data</td>
+                  <td colSpan={TOTAL_COLS} style={{ textAlign: 'center', padding: '3rem', color: mutedClr, background: cardBg }}>
+                    <i className="bi bi-inbox" style={{ fontSize: '1.6rem', display: 'block', marginBottom: '0.4rem', opacity: 0.45 }} />
+                    No data for the selected filters
+                  </td>
                 </tr>
               ) : (() => {
                 // Disable virtualization when rows are drilled open (expanded rows add height the spacer doesn't account for)

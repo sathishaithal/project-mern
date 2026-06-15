@@ -92,17 +92,21 @@ const ReportCard = ({ item, accent, isDarkMode, border, delay }) => {
         <h3 style={{ margin: '0 0 6px', fontWeight: 800, fontSize: '1.05rem', color: isDarkMode ? '#f1f5f9' : '#0f172a' }}>
           {item.title}
         </h3>
-        <p style={{ margin: 0, fontSize: '0.77rem', color: isDarkMode ? '#64748b' : '#94a3b8', lineHeight: 1.6 }}>
+        <p style={{
+          margin: 0, fontSize: '0.77rem', color: isDarkMode ? '#64748b' : '#94a3b8', lineHeight: 1.6,
+          display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical',
+          overflow: 'hidden', minHeight: 'calc(3 * 0.77rem * 1.6)',
+        }}>
           {item.description}
         </p>
       </div>
 
       {/* Feature pills */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, minHeight: 52 }}>
         {item.features.map(f => (
           <span key={f} style={{
             fontSize: '0.65rem', fontWeight: 600, padding: '3px 9px',
-            borderRadius: 999,
+            borderRadius: 999, alignSelf: 'flex-start',
             background: isDarkMode ? 'rgba(148,163,184,0.1)' : 'rgba(15,23,42,0.05)',
             color: isDarkMode ? '#94a3b8' : '#475569',
             border: `1px solid ${isDarkMode ? 'rgba(148,163,184,0.15)' : 'rgba(15,23,42,0.08)'}`,
@@ -112,10 +116,10 @@ const ReportCard = ({ item, accent, isDarkMode, border, delay }) => {
         ))}
       </div>
 
-      {/* CTA */}
+      {/* CTA — marginTop auto pushes it to card bottom so both cards align */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
-        padding: '10px 14px', borderRadius: 10, marginTop: 4,
+        padding: '10px 14px', borderRadius: 10, marginTop: 'auto',
         background: `linear-gradient(90deg, ${accent}, ${accent}cc)`,
         color: 'white', fontWeight: 700, fontSize: '0.8rem',
         justifyContent: 'space-between',
@@ -162,9 +166,6 @@ const Reports = () => {
     >
       {/* Page header */}
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ margin: 0, fontWeight: 800, fontSize: '1.4rem', color: isDarkMode ? '#f1f5f9' : '#0f172a' }}>
-          Reports
-        </h2>
         <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: textMut }}>
           Comprehensive analytics across sales and production
         </p>
@@ -173,30 +174,45 @@ const Reports = () => {
       {/* Summary Cards */}
       <SummaryCardsSystem context="reports" accent={accent} accent2={accent2} />
 
-      {/* Quick stats bar — only when real data exists */}
+      {/* Quick stats — same dark-gradient card style as SummaryCards */}
       {quickStats.length > 0 && <div style={{
-        display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 22, marginBottom: 24,
-        padding: '14px 16px', borderRadius: 14,
-        background: isDarkMode ? 'rgba(30,41,59,0.6)' : 'rgba(248,250,252,0.9)',
-        border: `1px solid ${border}`,
+        display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 6, marginBottom: 24,
       }}>
         {quickStats.map((s, i) => (
           <motion.div
             key={s.label}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.05 + i * 0.06 }}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 + i * 0.07 }}
             style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              flex: '1 1 140px', padding: '8px 10px', borderRadius: 10,
-              background: isDarkMode ? `${s.color}15` : `${s.color}0c`,
-              border: `1px solid ${s.color}28`,
+              flex: '1 1 160px',
+              padding: '16px 18px',
+              borderRadius: 16,
+              background: `linear-gradient(135deg, ${s.color} 0%, ${s.color}bb 100%)`,
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              boxShadow: `0 4px 18px ${s.color}44`,
+              position: 'relative',
+              overflow: 'hidden',
             }}
           >
-            <i className={`bi ${s.icon}`} style={{ color: s.color, fontSize: '1rem', flexShrink: 0 }} />
+            <div style={{
+              position: 'absolute', top: 0, right: 0, width: 90, height: 90,
+              background: 'radial-gradient(circle at 100% 0%, rgba(255,255,255,0.15) 0%, transparent 70%)',
+              pointerEvents: 'none',
+            }} />
+            <div style={{
+              width: 40, height: 40, borderRadius: 11, flexShrink: 0,
+              background: 'rgba(255,255,255,0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <i className={`bi ${s.icon}`} style={{ fontSize: '1.05rem', color: 'white' }} />
+            </div>
             <div>
-              <div style={{ fontSize: '0.62rem', color: textMut, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
-              <div style={{ fontSize: '1rem', fontWeight: 800, color: isDarkMode ? '#f1f5f9' : '#0f172a', lineHeight: 1.2 }}>{s.value}</div>
+              <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.85, marginBottom: 3 }}>{s.label}</div>
+              <div style={{ fontSize: '1.15rem', fontWeight: 800, lineHeight: 1 }}>{s.value}</div>
             </div>
           </motion.div>
         ))}

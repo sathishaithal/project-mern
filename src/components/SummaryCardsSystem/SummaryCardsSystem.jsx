@@ -677,20 +677,24 @@ function SummaryCard({ card, apiData, gradient, index }) {
   const listItems = card.isList && !loading ? card.getList(apiData).slice(0, 5) : [];
 
   return (
-    <div style={{
-      background: gradient,
-      borderRadius: 12,
-      padding: '0.85rem 1rem',
-      color: 'white',
-      flex: '1 1 180px',
-      minWidth: 170,
-      maxWidth: 280,
-      display: 'flex',
-      gap: 10,
-      position: 'relative',
-      overflow: 'hidden',
-      boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
-    }}>
+    <motion.div
+      initial={{ opacity: 0, scale: 0.96, y: 8 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ delay: (index ?? 0) * 0.07, duration: 0.3, ease: 'easeOut' }}
+      style={{
+        background: gradient,
+        borderRadius: 12,
+        padding: '0.85rem 1rem',
+        color: 'white',
+        flex: '1 1 180px',
+        minWidth: 170,
+        maxWidth: 280,
+        display: 'flex',
+        gap: 10,
+        position: 'relative',
+        overflow: 'hidden',
+        boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
+      }}>
       {/* Shimmer overlay */}
       <div style={{
         position: 'absolute',
@@ -732,7 +736,7 @@ function SummaryCard({ card, apiData, gradient, index }) {
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
