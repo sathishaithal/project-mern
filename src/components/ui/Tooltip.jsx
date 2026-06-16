@@ -32,6 +32,15 @@ function getPortal() {
 }
 
 // ── Tooltip component ─────────────────────────────────────────────────────────
+function hidePortal() {
+  clearTimeout(_showTimer);
+  clearTimeout(_hideTimer);
+  const div = getPortal();
+  div.style.opacity = '0';
+  setTimeout(() => { div.style.display = 'none'; div.style.opacity = '1'; }, 120);
+  _targetEl = null;
+}
+
 export default function Tooltip({ content, children, delay = 120 }) {
   const { isDarkMode, selectedAccent } = useColorMode();
 
@@ -43,9 +52,12 @@ export default function Tooltip({ content, children, delay = 120 }) {
   const contentRef = useRef(content);
   contentRef.current = content;
 
+  const elemRef = useRef(null);
+
   useEffect(() => () => {
-    clearTimeout(_showTimer);
-    clearTimeout(_hideTimer);
+    // If this element was the active tooltip trigger, hide it on unmount
+    if (_targetEl && _targetEl === elemRef.current) hidePortal();
+    else { clearTimeout(_showTimer); clearTimeout(_hideTimer); }
   }, []);
 
   if (!content) return children;
@@ -56,6 +68,7 @@ export default function Tooltip({ content, children, delay = 120 }) {
       clearTimeout(_hideTimer);
 
       _targetEl = e.currentTarget;
+      elemRef.current = e.currentTarget;
 
       _showTimer = setTimeout(() => {
         const text = contentRef.current;
@@ -101,6 +114,11 @@ export default function Tooltip({ content, children, delay = 120 }) {
       }, delay);
 
       children.props.onMouseEnter?.(e);
+    },
+
+    onClick: (e) => {
+      hidePortal();
+      children.props.onClick?.(e);
     },
 
     onMouseLeave: (e) => {
