@@ -51,6 +51,7 @@ function ShortSupplyTicker({ items, isDarkMode }) {
   const all = [...chunks, ...chunks];
   const dur = Math.max(18, items.length * 3.5);
   return (
+    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
     <div style={{
       overflow: 'hidden',
       background: isDarkMode ? 'rgba(239,68,68,0.10)' : 'rgba(239,68,68,0.06)',
@@ -85,6 +86,7 @@ function ShortSupplyTicker({ items, isDarkMode }) {
         </div>
       </div>
     </div>
+    </motion.div>
   );
 }
 
@@ -264,7 +266,7 @@ const ReportCard = ({ title, desc, icon, path, accent, badge, isDarkMode, border
 const Dashboard = () => {
   const { user }    = useAuth();
   const { isDarkMode, selectedAccent } = useColorMode();
-  const { dates, multiYearData, shortSupply } = useSummaryCards();
+  const { dates, multiYearData, shortSupply, sellingData, prodData, prodLoading } = useSummaryCards();
 
   const accent  = selectedAccent?.primary   || '#1a237e';
   const accent2 = selectedAccent?.secondary || '#283593';
@@ -349,7 +351,7 @@ const Dashboard = () => {
       </div>
 
       {/* Animated stat counters */}
-      {statItems.length > 0 && (
+      {(statItems.length > 0 || multiYearData === null) && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -365,38 +367,135 @@ const Dashboard = () => {
             </span>
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {statItems.map((s, i) => (
-              <motion.div key={s.label}
-                initial={{ opacity: 0, scale: 0.88 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.08 + i * 0.07, duration: 0.35 }}
-                style={{
-                  flex: '1 1 150px', minWidth: 0,
-                  background: isDarkMode ? `${s.color}18` : `${s.color}0d`,
-                  border: `1px solid ${s.color}30`,
-                  borderRadius: 14, padding: '13px 15px',
-                  display: 'flex', alignItems: 'center', gap: 12,
-                }}
+            {multiYearData === null
+              ? [0, 1, 2].map(i => (
+                  <motion.div key={i}
+                    animate={{ opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 1.2, repeat: Infinity }}
+                    style={{
+                      flex: '1 1 150px', minWidth: 0,
+                      background: isDarkMode ? '#1e293b' : '#f1f5f9',
+                      border: `1px solid ${border}`,
+                      borderRadius: 14, padding: '13px 15px',
+                      height: 68,
+                    }}
+                  />
+                ))
+              : statItems.map((s, i) => (
+                  <motion.div key={s.label}
+                    initial={{ opacity: 0, scale: 0.88 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.08 + i * 0.07, duration: 0.35 }}
+                    style={{
+                      flex: '1 1 150px', minWidth: 0,
+                      background: isDarkMode ? `${s.color}18` : `${s.color}0d`,
+                      border: `1px solid ${s.color}30`,
+                      borderRadius: 14, padding: '13px 15px',
+                      display: 'flex', alignItems: 'center', gap: 12,
+                    }}
+                  >
+                    <div style={{ width: 42, height: 42, borderRadius: 11, flexShrink: 0,
+                      background: `linear-gradient(135deg, ${s.color}, ${s.color}bb)`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: `0 4px 12px ${s.color}44` }}>
+                      <i className={`bi ${s.icon}`} style={{ fontSize: '1.1rem', color: 'white' }} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: '0.62rem', fontWeight: 600, color: textMut, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
+                        {s.label}
+                      </div>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 800, color: isDarkMode ? '#f1f5f9' : '#0f172a', lineHeight: 1.15 }}>
+                        {s.suffix === 'T'
+                          ? <><CountUp target={Math.round(s.value)} duration={1.2} /> <span style={{ fontSize: '0.75rem', fontWeight: 600, color: s.color }}>T</span></>
+                          : <CountUp target={s.value} duration={0.9} />
+                        }
+                      </div>
+                    </div>
+                  </motion.div>
+                ))
+            }
+          </div>
+        </motion.div>
+      )}
+
+      {/* Category Breakdown */}
+      {sellingData !== null && sellingData !== undefined && sellingData.length > 0 && (() => {
+        const sorted = [...sellingData]
+          .map(item => ({ ...item, _ton: parseFloat(item.tonnage || item.totaltonnage || item.value || 0) }))
+          .filter(item => item._ton > 0)
+          .sort((a, b) => b._ton - a._ton)
+          .slice(0, 5);
+        if (!sorted.length) return null;
+        const catMax = sorted[0]._ton;
+        const opacitySuffix = ['ff', 'dd', 'bb', '99', '77'];
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.14 }}
+            style={{ marginTop: 20 }}
+          >
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.16 }}
+                style={{ flex: '1.5 1 240px', background: cardBg, border: `1px solid ${border}`, borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
               >
-                <div style={{ width: 42, height: 42, borderRadius: 11, flexShrink: 0,
-                  background: `linear-gradient(135deg, ${s.color}, ${s.color}bb)`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: `0 4px 12px ${s.color}44` }}>
-                  <i className={`bi ${s.icon}`} style={{ fontSize: '1.1rem', color: 'white' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
+                  <i className="bi bi-pie-chart-fill" style={{ color: accent, fontSize: '0.82rem' }} />
+                  <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isDarkMode ? '#e2e8f0' : '#1e293b' }}>
+                    Category Sales — {monthName}
+                  </span>
                 </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: '0.62rem', fontWeight: 600, color: textMut, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
-                    {s.label}
-                  </div>
-                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: isDarkMode ? '#f1f5f9' : '#0f172a', lineHeight: 1.15 }}>
-                    {s.suffix === 'T'
-                      ? <><CountUp target={Math.round(s.value)} duration={1.2} /> <span style={{ fontSize: '0.75rem', fontWeight: 600, color: s.color }}>T</span></>
-                      : <CountUp target={s.value} duration={0.9} />
-                    }
-                  </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                  {sorted.map((item, i) => {
+                    const pct = catMax > 0 ? (item._ton / catMax) * 100 : 0;
+                    const label = item.catdescription || item.description || item.category || item.group || `Item ${i + 1}`;
+                    const barColor = `${accent}${opacitySuffix[i] || '77'}`;
+                    return (
+                      <motion.div key={i} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.18 + i * 0.06 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                          <span style={{ fontSize: '0.69rem', fontWeight: 600, color: isDarkMode ? '#e2e8f0' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '72%' }}>
+                            {label}
+                          </span>
+                          <span style={{ fontSize: '0.66rem', color: textMut, flexShrink: 0 }}>
+                            {fmtT(item._ton) || item._ton.toFixed(1) + ' T'}
+                          </span>
+                        </div>
+                        <div style={{ height: 6, background: isDarkMode ? '#0f172a' : '#f8fafc', borderRadius: 4, border: `1px solid ${border}`, overflow: 'hidden' }}>
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            transition={{ delay: 0.22 + i * 0.06, duration: 0.6, ease: 'easeOut' }}
+                            style={{ height: '100%', background: barColor, borderRadius: 4 }}
+                          />
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </motion.div>
-            ))}
+            </div>
+          </motion.div>
+        );
+      })()}
+      {sellingData === null && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.14 }}
+          style={{ marginTop: 20 }}
+        >
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.16 }}
+              style={{ flex: '1.5 1 240px', background: cardBg, border: `1px solid ${border}`, borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 80 }}
+            >
+              <div style={{ width: 22, height: 22, border: `3px solid ${border}`, borderTop: `3px solid ${accent}`, borderRadius: '50%', animation: 'spin 0.9s linear infinite' }} />
+            </motion.div>
           </div>
         </motion.div>
       )}
@@ -435,6 +534,52 @@ const Dashboard = () => {
               <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isDarkMode ? '#e2e8f0' : '#1e293b' }}>Year Comparison</span>
             </div>
             <YearBars multiYearData={multiYearData} accent={accent} accent2={accent2} isDarkMode={isDarkMode} border={border} />
+          </motion.div>
+        )}
+
+        {/* Production Today */}
+        {(prodLoading || prodData) && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.30 }}
+            style={{ flex: '1 1 180px', background: cardBg, border: `1px solid ${border}`, borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
+              <i className="bi bi-gear-wide-connected" style={{ color: accent2, fontSize: '0.82rem' }} />
+              <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isDarkMode ? '#e2e8f0' : '#1e293b' }}>Production Today</span>
+            </div>
+            {prodLoading && !prodData
+              ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {[0, 1, 2].map(i => (
+                      <motion.div key={i}
+                        animate={{ opacity: [0.5, 1, 0.5] }}
+                        transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+                        style={{ height: 28, borderRadius: 6, background: isDarkMode ? '#1e293b' : '#f1f5f9' }}
+                      />
+                    ))}
+                  </div>
+                )
+              : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                    {[
+                      { label: 'FG Net Production', val: prodData?.fgnetproduction ?? prodData?.fg_net ?? prodData?.netproduction, unit: 'Kg' },
+                      { label: 'Raw Material',      val: prodData?.rawmaterialused ?? prodData?.raw_material,                      unit: 'Kg' },
+                      { label: 'Efficiency',        val: prodData?.efficiency ?? prodData?.efficiencypct,                          unit: '%' },
+                    ].map(({ label, val, unit }) => (
+                      <div key={label}>
+                        <div style={{ fontSize: '0.60rem', fontWeight: 600, color: textMut, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
+                          {label}
+                        </div>
+                        <div style={{ fontSize: '0.92rem', fontWeight: 800, color: isDarkMode ? '#f1f5f9' : '#0f172a', lineHeight: 1.2 }}>
+                          {val !== null && val !== undefined && val !== '' ? `${val} ${unit}` : '—'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+            }
           </motion.div>
         )}
       </div>

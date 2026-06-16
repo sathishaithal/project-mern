@@ -83,19 +83,25 @@ export const AppSelect = ({ value, onChange, options }) => {
             exit={{ opacity: 0, scale: 0.97, y: -4 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
           >
-            {options.map((option) => (
-              <button
+            {options.map((option, index) => (
+              <motion.div
                 key={option.value}
-                type="button"
-                className={`appSelectOption ${option.value === value ? "appSelectOptionActive" : ""}`}
-                onClick={() => {
-                  onChange(option.value);
-                  setOpen(false);
-                }}
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.03, duration: 0.15 }}
               >
-                <span>{option.label}</span>
-                {option.value === value && <i className="bi bi-check2"></i>}
-              </button>
+                <button
+                  type="button"
+                  className={`appSelectOption ${option.value === value ? "appSelectOptionActive" : ""}`}
+                  onClick={() => {
+                    onChange(option.value);
+                    setOpen(false);
+                  }}
+                >
+                  <span>{option.label}</span>
+                  {option.value === value && <i className="bi bi-check2"></i>}
+                </button>
+              </motion.div>
             ))}
           </motion.div>
         )}
@@ -203,24 +209,30 @@ export const AppDatePicker = ({ value, onChange, min, max }) => {
             {weekDays.map((day) => (
               <div key={day} className="appDateWeekday">{day}</div>
             ))}
-            {days.map((day) => {
+            {days.map((day, index) => {
               const outsideMonth = day.getMonth() !== month.getMonth();
               const blocked = isDateBlocked(day, min, max);
               const selected = isSameDay(day, value);
 
               return (
-                <button
+                <motion.div
                   key={day.toISOString()}
-                  type="button"
-                  className={`appDateDay ${outsideMonth ? "appDateDayMuted" : ""} ${selected ? "appDateDayActive" : ""}`}
-                  disabled={blocked}
-                  onClick={() => {
-                    onChange(new Date(day));
-                    setOpen(false);
-                  }}
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: Math.min(index, 35) * 0.008, duration: 0.12 }}
                 >
-                  {day.getDate()}
-                </button>
+                  <button
+                    type="button"
+                    className={`appDateDay ${outsideMonth ? "appDateDayMuted" : ""} ${selected ? "appDateDayActive" : ""}`}
+                    disabled={blocked}
+                    onClick={() => {
+                      onChange(new Date(day));
+                      setOpen(false);
+                    }}
+                  >
+                    {day.getDate()}
+                  </button>
+                </motion.div>
               );
             })}
           </div>

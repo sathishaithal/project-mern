@@ -199,13 +199,13 @@ function ShortSupplyTable({
   const totalRowBg = `color-mix(in srgb, ${accent} 18%, ${isDarkMode ? '#1e293b' : '#e8eaf6'})`;
 
   const pgBtn = (disabled, onClick, label) => (
-    <button onClick={onClick} disabled={disabled} style={{
+    <motion.button onClick={onClick} disabled={disabled} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.94 }} style={{
       background: disabled ? 'transparent' : accent,
       color: disabled ? mutedClr : 'white',
       border: `1px solid ${disabled ? borderClr : accent}`,
       borderRadius: 5, padding: '2px 8px', fontSize: '0.72rem',
       cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 600,
-    }}>{label}</button>
+    }}>{label}</motion.button>
   );
   const pageNums = [];
   for (let p = 1; p <= totalPages; p++) {
@@ -367,8 +367,11 @@ function ShortSupplyTable({
                   const isDown     = diffVal < -0.0005;
                   const lyTooltip = `Current : ${curVal.toFixed(3)}\nLast Year : ${lyVal.toFixed(3)}\nDifference : ${isUp ? '+' : ''}${diffVal.toFixed(3)} ${isUp ? '↑' : isDown ? '↓' : ''}`.trim();
                   return (
-                    <tr
+                    <motion.tr
                       key={row.id ?? globalNum}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.22, delay: Math.min(idx, 12) * 0.03 }}
                       style={{ background: rowBg, borderBottom: `1px solid ${isDarkMode ? '#334155' : '#f1f5f9'}` }}
                       onMouseEnter={e => e.currentTarget.style.background = isDarkMode ? '#1e2d45' : '#eff6ff'}
                       onMouseLeave={e => e.currentTarget.style.background = rowBg}
@@ -389,7 +392,7 @@ function ShortSupplyTable({
                           </span>
                         </Tooltip>
                       </td>
-                    </tr>
+                    </motion.tr>
                   );
                 })}
 
@@ -433,13 +436,13 @@ function ShortSupplyTable({
             {deduped.map((p, i) =>
               p === '…'
                 ? <span key={`e${i}`} style={{ color: mutedClr, fontSize: '0.72rem', padding: '0 2px' }}>…</span>
-                : <button key={p} onClick={() => setPage(p)} style={{
+                : <motion.button key={p} onClick={() => setPage(p)} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.94 }} style={{
                     background: p === page ? accent : 'transparent',
                     color: p === page ? 'white' : textClr,
                     border: `1px solid ${p === page ? accent : borderClr}`,
                     borderRadius: 5, padding: '2px 7px', fontSize: '0.72rem',
                     cursor: 'pointer', fontWeight: p === page ? 700 : 400,
-                  }}>{p}</button>
+                  }}>{p}</motion.button>
             )}
             {pgBtn(page >= totalPages, () => setPage(p => p + 1), '›')}
             {pgBtn(page >= totalPages, () => setPage(totalPages), '»')}

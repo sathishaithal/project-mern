@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useColorMode } from "../../theme/ThemeContext";
 import axios from "axios";
 import bhagyaLogo from "../../assets/bhagya.png";
+import ZoomFromBlack from "../../components/ui/ZoomFromBlack";
 import styles from "./SignIn.module.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -38,7 +39,6 @@ const SignIn = () => {
   const [alertVisible, setAlertVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [particles, setParticles] = useState([]);
-  const [bubbles, setBubbles] = useState([]);
   const [clickBursts, setClickBursts] = useState([]);
   const [activeFeature, setActiveFeature] = useState(0);
   const [formFocus, setFormFocus] = useState(null);
@@ -54,8 +54,22 @@ const SignIn = () => {
   ];
 
   const backgroundRef = useRef(null);
+  const canvasRef = useRef(null);
+  const animRef = useRef(null);
   const navigate = useNavigate();
   const { login, isAuthenticated, authReady } = useAuth();
+
+  // Show zoom-from-black when landing on signin after logout
+  const [showZoom, setShowZoom] = useState(() => {
+    const hasLogout = !!sessionStorage.getItem('logoutMessage');
+    if (hasLogout) sessionStorage.removeItem('logoutMessage');
+    return hasLogout;
+  });
+  useEffect(() => {
+    if (!showZoom) return;
+    const t = setTimeout(() => setShowZoom(false), 2000);
+    return () => clearTimeout(t);
+  }, []);
 
   // If a valid session already exists (e.g. new tab, page refresh), skip the login page
   useEffect(() => {
@@ -76,25 +90,79 @@ const SignIn = () => {
     setParticles(newParticles);
   }, []);
 
+
   useEffect(() => {
-    const bubbleCount = 10;
-    const newBubbles = Array.from({ length: bubbleCount }, (_, i) => ({
-      id: i,
-      size: Math.random() * 50 + 30,
-      x: Math.random() * 40 + 5,
-      y: Math.random() * 70 + 10,
-      opacity: Math.random() * 0.4 + 0.2,
-      color: [theme.primary, theme.secondary, theme.accent, theme.accent2, "#8b5cf6", "#0ea5e9"][i % 6],
-      duration: Math.random() * 40 + 40,
-      delay: Math.random() * 15,
-      directionX: Math.random() > 0.5 ? 1 : -1,
-      directionY: Math.random() > 0.5 ? 1 : -1,
-      maxX: 45,
-      minX: 5,
-      maxY: 80,
-      minY: 10,
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const parent = canvas.parentElement;
+
+    const setSize = () => {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width  = Math.round(rect.width  || window.innerWidth);
+      canvas.height = Math.round(rect.height || window.innerHeight);
+    };
+    setSize();
+    window.addEventListener('resize', setSize);
+
+    const COUNT     = 70;
+    const LINK_DIST = 160;
+    const SPEED     = 5.9;
+    const PALETTE   = ['#2563eb', '#06b6d4', '#8b5cf6', '#10b981', '#3b82f6', '#0ea5e9'];
+
+    const nodes = Array.from({ length: COUNT }, () => ({
+      x:   Math.random() * (canvas.width  || window.innerWidth),
+      y:   Math.random() * (canvas.height || window.innerHeight),
+      vx:  (Math.random() - 0.5) * SPEED,
+      vy:  (Math.random() - 0.5) * SPEED,
+      r:   Math.random() * 2 + 1.5,
+      clr: PALETTE[Math.floor(Math.random() * PALETTE.length)],
     }));
-    setBubbles(newBubbles);
+
+    const tick = () => {
+      const W = canvas.width;
+      const H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      for (const n of nodes) {
+        n.x += n.vx;
+        n.y += n.vy;
+        if (n.x < 0 || n.x > W) n.vx = -n.vx;
+        if (n.y < 0 || n.y > H) n.vy = -n.vy;
+      }
+
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const dx = nodes[i].x - nodes[j].x;
+          const dy = nodes[i].y - nodes[j].y;
+          const d  = Math.sqrt(dx * dx + dy * dy);
+          if (d < LINK_DIST) {
+            const a = Math.round((1 - d / LINK_DIST) * 52).toString(16).padStart(2, '0');
+            ctx.beginPath();
+            ctx.moveTo(nodes[i].x, nodes[i].y);
+            ctx.lineTo(nodes[j].x, nodes[j].y);
+            ctx.strokeStyle = nodes[i].clr + a;
+            ctx.lineWidth   = 0.8;
+            ctx.stroke();
+          }
+        }
+      }
+
+      for (const n of nodes) {
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+        ctx.fillStyle = n.clr + '50';
+        ctx.fill();
+      }
+
+      animRef.current = requestAnimationFrame(tick);
+    };
+
+    tick();
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      window.removeEventListener('resize', setSize);
+    };
   }, []);
 
   useEffect(() => {
@@ -238,7 +306,7 @@ const SignIn = () => {
       sessionStorage.setItem("authToken", token);
       login(uname, token);
       showAlert(`Welcome back, ${uname}!`, "success");
-      createSuccessEffect();
+      sessionStorage.setItem('loginAnimation', '1');
       setTimeout(() => navigate("/dashboard"), 1800);
     } catch (err) {
       const loginCard = document.querySelector(`.${styles.loginCard}`);
@@ -353,11 +421,14 @@ const SignIn = () => {
     { icon: "bi bi-stars", label: "Smooth Motion", tone: "#8b5cf6" },
   ];
 
-  // Don't render the login form while auth is still being resolved, or if already authenticated
-  if (!authReady || isAuthenticated) return null;
+  // Hide only when auth is confirmed + user is already logged in (redirect handled by useEffect)
+  if (authReady && isAuthenticated) return null;
 
   return (
     <>
+      <AnimatePresence>
+        {showZoom && <ZoomFromBlack holdMs={1200} />}
+      </AnimatePresence>
       <div
         ref={backgroundRef}
         className={styles.container}
@@ -416,59 +487,8 @@ const SignIn = () => {
           />
         ))}
 
-        {/* Floating Bubbles */}
-        <div className={styles.bubbleContainer}>
-          {bubbles.map((bubble) => (
-            <motion.div
-              key={`bubble-${bubble.id}`}
-              initial={{
-                x: `${bubble.x}vw`,
-                y: `${bubble.y}vh`,
-                opacity: bubble.opacity,
-                scale: 0.8,
-              }}
-              animate={{
-                x: [
-                  `${bubble.x}vw`,
-                  `${bubble.x + (bubble.directionX * (10 + Math.random() * 15))}vw`,
-                  `${bubble.x + (bubble.directionX * (20 + Math.random() * 15))}vw`,
-                  `${bubble.x}vw`,
-                ].map(val => {
-                  const num = parseFloat(val);
-                  if (num > bubble.maxX) return `${bubble.maxX}vw`;
-                  if (num < bubble.minX) return `${bubble.minX}vw`;
-                  return val;
-                }),
-                y: [
-                  `${bubble.y}vh`,
-                  `${bubble.y + (bubble.directionY * (5 + Math.random() * 10))}vh`,
-                  `${bubble.y + (bubble.directionY * (10 + Math.random() * 10))}vh`,
-                  `${bubble.y}vh`,
-                ].map(val => {
-                  const num = parseFloat(val);
-                  if (num > bubble.maxY) return `${bubble.maxY}vh`;
-                  if (num < bubble.minY) return `${bubble.minY}vh`;
-                  return val;
-                }),
-                rotate: [0, 180, 360],
-                scale: [0.8, 1.2, 0.9, 1],
-              }}
-              transition={{
-                duration: bubble.duration,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: bubble.delay,
-              }}
-              className={styles.bubble}
-              style={{
-                width: `${bubble.size}px`,
-                height: `${bubble.size}px`,
-                background: `radial-gradient(circle at 30% 30%, ${bubble.color}60, ${bubble.color}30)`,
-                boxShadow: `0 0 40px ${bubble.color}40`,
-              }}
-            />
-          ))}
-        </div>
+        {/* Network Dots Canvas */}
+        <canvas ref={canvasRef} className={styles.networkCanvas} />
 
         <div className={styles.clickEffectsLayer}>
           <AnimatePresence>
@@ -550,17 +570,22 @@ const SignIn = () => {
                 />
 
                 <div style={{ position: "relative", zIndex: 2, marginBottom: "2rem" }}>
-                  {/* Line 1: Sri - static blue gradient */}
+                  {/* Line 1: Sri */}
                   <motion.div
-                    initial={{ opacity: 0, y: 60 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.9, ease: "easeOut" }}
+                    initial={{ opacity: 0, x: -40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.6, delay: 0.05, ease: "easeOut" }}
                   >
                     <h1 className={styles.title}>Sri</h1>
                   </motion.div>
 
-                  {/* Line 2: Bhagyalakshmi cycling in black */}
-                  <div className={styles.bhagyaText}>
+                  {/* Line 2: Bhagyalakshmi cycling */}
+                  <motion.div
+                    className={styles.bhagyaText}
+                    initial={{ opacity: 0, x: -40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.6, delay: 0.12, ease: "easeOut" }}
+                  >
                     <AnimatePresence mode="wait">
                       <motion.span
                         key={langIndex}
@@ -573,23 +598,30 @@ const SignIn = () => {
                         {bhagyaNames[langIndex]}
                       </motion.span>
                     </AnimatePresence>
-                  </div>
+                  </motion.div>
 
-                  {/* Line 3: Groups - static, same blue gradient as Sri */}
-                  <div className={styles.title}>Groups</div>
+                  {/* Line 3: Groups */}
+                  <motion.div
+                    className={styles.title}
+                    initial={{ opacity: 0, x: -40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
+                  >
+                    Groups
+                  </motion.div>
 
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: "300px" }}
-                    transition={{ duration: 1.2, delay: 2.2 }}
+                    transition={{ duration: 0.9, delay: 0.35, ease: "easeOut" }}
                     className={styles.underline}
                   />
                 </div>
 
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 2.4 }}
+                  transition={{ duration: 0.55, delay: 0.42 }}
                   whileHover={{ scale: 1.02 }}
                   style={{ position: "relative", zIndex: 2 }}
                 >
@@ -603,10 +635,10 @@ const SignIn = () => {
                     <motion.div
                       key={badge.label}
                       className={styles.infoBadge}
-                      initial={{ opacity: 0, y: 24 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: 2.5 + index * 0.12 }}
-                      whileHover={{ y: -4, scale: 1.02 }}
+                      initial={{ opacity: 0, y: 20, scale: 0.92 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ duration: 0.45, delay: 0.5 + index * 0.1 }}
+                      whileHover={{ y: -4, scale: 1.04 }}
                       style={{
                         borderColor: `${badge.tone}35`,
                         boxShadow: `0 14px 40px ${badge.tone}18`,
@@ -624,14 +656,19 @@ const SignIn = () => {
                 </div>
 
                 {/* Feature Carousel */}
-                <div className={styles.featureSection}>
+                <motion.div
+                  className={styles.featureSection}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.62 }}
+                >
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={activeFeature}
-                      initial={{ opacity: 0, x: -100, rotateY: -90 }}
-                      animate={{ opacity: 1, x: 0, rotateY: 0 }}
-                      exit={{ opacity: 0, x: 100, rotateY: 90 }}
-                      transition={{ duration: 0.6, ease: "easeInOut" }}
+                      initial={{ opacity: 0, x: -80 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 80 }}
+                      transition={{ duration: 0.45, ease: "easeInOut" }}
                     >
                       <motion.div
                         whileHover={{ scale: 1.02, y: -5 }}
@@ -690,17 +727,16 @@ const SignIn = () => {
                       />
                     ))}
                   </div>
-                </div>
+                </motion.div>
               </div>
             </div>
 
             {/* Right Side - Login Form */}
             <div className="col-lg-6 d-flex flex-column justify-content-center">
               <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 50 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.6, type: "spring", stiffness: 100 }}
-                whileHover={{ scale: 1.02 }}
+                initial={{ opacity: 0, x: 50, scale: 0.96 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                transition={{ duration: 0.65, delay: 0.1, type: "spring", stiffness: 120, damping: 18 }}
                 className={styles.loginWrapper}
               >
                 <motion.div
@@ -711,34 +747,41 @@ const SignIn = () => {
                   className={styles.loginCard}
                 >
                   <div className={styles.gradientBorder} />
+                  <div className={styles.cardScanLine} />
 
                   <form onSubmit={(e) => { e.preventDefault(); if (!isLoading) handleLogin(); }} style={{ position: "relative", zIndex: 2 }}>
                     <div className="text-center mb-5">
-                      <motion.div 
-                        animate={{ y: [0, -12, 0] }} 
-                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                        whileHover={{ scale: 1.05 }}
+                      <motion.div
+                        initial={{ scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ duration: 0.5, delay: 0.3, type: "spring", stiffness: 200, damping: 14 }}
+                        whileHover={{ scale: 1.08, rotate: [0, -4, 4, 0] }}
                       >
-                        <div className={styles.logoWrapper}>
-                          <img
-                            src={bhagyaLogo}
-                            alt="Bhagya Logo"
-                            className={styles.logo}
-                          />
-                        </div>
+                        <motion.div
+                          animate={{ y: [0, -10, 0] }}
+                          transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                        >
+                          <div className={styles.logoWrapper}>
+                            <img
+                              src={bhagyaLogo}
+                              alt="Bhagya Logo"
+                              className={styles.logo}
+                            />
+                          </div>
+                        </motion.div>
                       </motion.div>
-                      <motion.h2 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.8 }}
+                      <motion.h2
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.45, duration: 0.45 }}
                         className={styles.welcomeTitle}
                       >
                         Welcome Back
                       </motion.h2>
-                      <motion.p 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.9 }}
+                      <motion.p
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.52, duration: 0.4 }}
                         className={styles.welcomeSubtitle}
                       >
                         Sign in to your secure dashboard
@@ -747,9 +790,9 @@ const SignIn = () => {
 
                     <motion.div
                       className={styles.formHint}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 1 }}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.58, duration: 0.38 }}
                     >
                       <span className={styles.formHintPulse}></span>
                       Secure session starts after successful login
@@ -757,19 +800,20 @@ const SignIn = () => {
 
                     {/* Username Field */}
                     <div className="mb-4">
-                      <motion.div 
+                      <motion.div
                         className={styles.inputLabel}
-                        initial={{ x: -20, opacity: 0 }}
+                        initial={{ x: -16, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 1 }}
+                        transition={{ delay: 0.64, duration: 0.38 }}
                       >
                         <i className="bi bi-person" style={{ color: theme.primary, fontSize: "1.2rem" }}></i>
                         <label>Username</label>
                       </motion.div>
                       <motion.div
-                        initial={{ x: -20, opacity: 0 }}
+                        initial={{ x: -16, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 1.1 }}
+                        transition={{ delay: 0.7, duration: 0.38 }}
+                        whileFocus={{ scale: 1.01 }}
                       >
                         <input
                           type="text"
@@ -782,7 +826,9 @@ const SignIn = () => {
                           autoComplete="username"
                           style={{
                             transition: "all 0.3s ease",
-                            boxShadow: formFocus === "username" ? `0 0 0 4px ${theme.primary}20` : "none",
+                            boxShadow: formFocus === "username" ? `0 0 0 4px ${theme.primary}20, 0 4px 16px ${theme.primary}18` : "none",
+                            borderColor: formFocus === "username" ? theme.primary : undefined,
+                            transform: formFocus === "username" ? "translateY(-1px)" : "none",
                           }}
                         />
                       </motion.div>
@@ -790,19 +836,19 @@ const SignIn = () => {
 
                     {/* Password Field */}
                     <div className="mb-5">
-                      <motion.div 
+                      <motion.div
                         className={styles.inputLabel}
-                        initial={{ x: -20, opacity: 0 }}
+                        initial={{ x: -16, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 1.2 }}
+                        transition={{ delay: 0.76, duration: 0.38 }}
                       >
                         <i className="bi bi-lock" style={{ color: theme.primary, fontSize: "1.2rem" }}></i>
                         <label>Password</label>
                       </motion.div>
                       <motion.div
-                        initial={{ x: -20, opacity: 0 }}
+                        initial={{ x: -16, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 1.3 }}
+                        transition={{ delay: 0.82, duration: 0.38 }}
                         className={styles.passwordWrapper}
                       >
                         <input
@@ -816,7 +862,9 @@ const SignIn = () => {
                           autoComplete="current-password"
                           style={{
                             transition: "all 0.3s ease",
-                            boxShadow: formFocus === "password" ? `0 0 0 4px ${theme.primary}20` : "none",
+                            boxShadow: formFocus === "password" ? `0 0 0 4px ${theme.primary}20, 0 4px 16px ${theme.primary}18` : "none",
+                            borderColor: formFocus === "password" ? theme.primary : undefined,
+                            transform: formFocus === "password" ? "translateY(-1px)" : "none",
                           }}
                         />
                         <motion.button
@@ -833,7 +881,13 @@ const SignIn = () => {
                     </div>
 
                     {/* Sign In Button */}
-                    <motion.div className={styles.buttonWrap} whileHover={{ y: -2 }}>
+                    <motion.div
+                      className={styles.buttonWrap}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.9, duration: 0.4 }}
+                      whileHover={{ y: -2 }}
+                    >
                       <motion.span
                         className={styles.buttonGlow}
                         animate={{

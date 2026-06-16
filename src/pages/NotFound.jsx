@@ -30,35 +30,45 @@ export default function NotFound() {
           boxShadow: isDarkMode ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.08)',
         }}
       >
-        <div style={{
-          fontSize: '4.5rem', fontWeight: 900, lineHeight: 1,
-          background: `linear-gradient(135deg, ${accent}, ${accent2})`,
-          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          marginBottom: '0.5rem',
-        }}>
-          404
-        </div>
-
-        <div style={{ fontSize: '1.15rem', fontWeight: 700, color: textClr, marginBottom: '0.5rem' }}>
-          Page not found
-        </div>
-
-        <div style={{ fontSize: '0.85rem', color: mutedClr, marginBottom: '2rem', lineHeight: 1.6 }}>
-          The page you're looking for doesn't exist or has been moved.
-        </div>
-
-        <button
-          onClick={() => navigate('/dashboard')}
-          style={{
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.4 }}>
+          <div style={{
+            fontSize: '4.5rem', fontWeight: 900, lineHeight: 1,
             background: `linear-gradient(135deg, ${accent}, ${accent2})`,
-            color: 'white', border: 'none', borderRadius: 8,
-            padding: '0.55rem 1.5rem', fontSize: '0.88rem', fontWeight: 600,
-            cursor: 'pointer', fontFamily,
-          }}
-        >
-          <i className="bi bi-house" style={{ marginRight: 6 }} />
-          Go to Dashboard
-        </button>
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            marginBottom: '0.5rem',
+          }}>
+            404
+          </div>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, duration: 0.35 }}>
+          <div style={{ fontSize: '1.15rem', fontWeight: 700, color: textClr, marginBottom: '0.5rem' }}>
+            Page not found
+          </div>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.32, duration: 0.3 }}>
+          <div style={{ fontSize: '0.85rem', color: mutedClr, marginBottom: '2rem', lineHeight: 1.6 }}>
+            The page you're looking for doesn't exist or has been moved.
+          </div>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.35 }}>
+          <motion.button
+            onClick={() => navigate('/dashboard')}
+            style={{
+              background: `linear-gradient(135deg, ${accent}, ${accent2})`,
+              color: 'white', border: 'none', borderRadius: 8,
+              padding: '0.55rem 1.5rem', fontSize: '0.88rem', fontWeight: 600,
+              cursor: 'pointer', fontFamily,
+            }}
+            whileHover={{ scale: 1.04, y: -2 }}
+            whileTap={{ scale: 0.97 }}
+          >
+            <i className="bi bi-house" style={{ marginRight: 6 }} />
+            Go to Dashboard
+          </motion.button>
+        </motion.div>
       </motion.div>
     </div>
   );

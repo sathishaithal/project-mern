@@ -293,7 +293,12 @@ export default function DayWisePage() {
                             >
                               {secondLoading[id]
                                 ? <i className="bi bi-arrow-clockwise sr-spin"></i>
-                                : <i className={`bi ${isOpenL1 ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>}
+                                : <motion.i
+                                    className={`bi ${isOpenL1 ? 'bi-chevron-up' : 'bi-chevron-down'}`}
+                                    animate={{ rotate: isOpenL1 ? 180 : 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    style={{ display: 'inline-block' }}
+                                  />}
                             </button>
                           </Tooltip>
                         )}
@@ -329,7 +334,12 @@ export default function DayWisePage() {
 
                       return (
                         <React.Fragment key={subKey}>
-                          <tr style={{ background: subRowBg, borderBottom: `1px solid ${isDarkMode ? '#1e3a5f' : '#e0e8ff'}` }}>
+                          <motion.tr
+                            style={{ background: subRowBg, borderBottom: `1px solid ${isDarkMode ? '#1e3a5f' : '#e0e8ff'}` }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.2, delay: Math.min(si, 12) * 0.035 }}
+                          >
                             <td className="dw-td" style={{ position: 'sticky', left: 0, background: subRowBg, textAlign: 'center' }}>
                               {canExpand && (
                                 <Tooltip content={isOpenL2 ? 'Collapse' : 'Expand'}>
@@ -341,7 +351,12 @@ export default function DayWisePage() {
                                   >
                                     {thirdLoading[subKey]
                                       ? <i className="bi bi-arrow-clockwise sr-spin"></i>
-                                      : <i className={`bi ${isOpenL2 ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>}
+                                      : <motion.i
+                                          className={`bi ${isOpenL2 ? 'bi-chevron-up' : 'bi-chevron-down'}`}
+                                          animate={{ rotate: isOpenL2 ? 180 : 0 }}
+                                          transition={{ duration: 0.2 }}
+                                          style={{ display: 'inline-block' }}
+                                        />}
                                   </button>
                                 </Tooltip>
                               )}
@@ -360,13 +375,13 @@ export default function DayWisePage() {
                             <td className="dw-td" style={{ fontWeight: 600, color: textClr }}>
                               {subTotal > 0 ? subTotal.toFixed(2) : <span style={{ color: 'var(--sr-zero-dim, #cbd5e1)' }}>0.00</span>}
                             </td>
-                          </tr>
+                          </motion.tr>
 
                           {/* ── L2: Third-level rows (no further expand — leaf nodes) ── */}
                           {isOpenL2 && (thirdLevel[subKey] || []).map((deep, di) => {
                             const deepTotal = sumTonnage(deep, days);
                             return (
-                              <tr key={`${subKey}__${di}`} style={{ background: sub2RowBg, borderBottom: `1px solid ${isDarkMode ? '#1a3050' : '#c7d2fe'}` }}>
+                              <motion.tr key={`${subKey}__${di}`} style={{ background: sub2RowBg, borderBottom: `1px solid ${isDarkMode ? '#1a3050' : '#c7d2fe'}` }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.18, delay: Math.min(di, 10) * 0.03 }}>
                                 <td className="dw-td" style={{ position: 'sticky', left: 0, background: sub2RowBg }}></td>
                                 <td className="dw-td" style={{ position: 'sticky', left: 28, background: sub2RowBg, color: textClr, fontWeight: 500, textAlign: 'left', paddingLeft: '2.5rem' }}>
                                   ↳↳ {deep.disttype || deep.type}
@@ -382,7 +397,7 @@ export default function DayWisePage() {
                                 <td className="dw-td" style={{ fontWeight: 600, color: textClr, fontSize: '0.72rem' }}>
                                   {deepTotal > 0 ? deepTotal.toFixed(2) : <span style={{ color: 'var(--sr-zero-dim, #cbd5e1)' }}>0.00</span>}
                                 </td>
-                              </tr>
+                              </motion.tr>
                             );
                           })}
                         </React.Fragment>

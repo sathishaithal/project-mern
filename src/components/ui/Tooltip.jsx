@@ -23,6 +23,7 @@ function getPortal() {
       'white-space:pre-line',
       'font-family:inherit',
       'display:none',
+      'transition:opacity 0.12s ease',
     ].join(';');
     document.body.appendChild(div);
     _portal = div;
@@ -71,6 +72,7 @@ export default function Tooltip({ content, children, delay = 120 }) {
         div.style.boxShadow  = `0 4px 24px rgba(0,0,0,0.22),0 0 0 1px ${accent}22`;
 
         // Measure tooltip size before positioning
+        div.style.opacity    = '1';
         div.style.display    = 'block';
         div.style.visibility = 'hidden';
 
@@ -106,7 +108,8 @@ export default function Tooltip({ content, children, delay = 120 }) {
       clearTimeout(_hideTimer);
       _hideTimer = setTimeout(() => {
         const div = getPortal();
-        div.style.display = 'none';
+        div.style.opacity = '0';
+        setTimeout(() => { div.style.display = 'none'; div.style.opacity = '1'; }, 120);
       }, 80);
       children.props.onMouseLeave?.(e);
     },

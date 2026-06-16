@@ -34,21 +34,12 @@
   z-index: 1;
 }
 
-.bubbleContainer {
+.networkCanvas {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 50%;
+  inset: 0;
+  width: 100%;
   height: 100%;
   z-index: 1;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.bubble {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(6px);
   pointer-events: none;
 }
 
@@ -272,14 +263,27 @@
   position: absolute;
   inset: 0;
   border-radius: var(--radius-2xl);
-  padding: 3px;
-  background: linear-gradient(45deg, var(--primary), var(--secondary), var(--accent), var(--primary));
+  padding: 2px;
+  background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent), #8b5cf6, var(--primary));
   background-size: 300% 300%;
+  animation: gradientShift 4s ease infinite;
   mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
   -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
+}
+
+.cardScanLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--primary)60, var(--accent)80, transparent);
+  animation: scanLine 3.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+  border-radius: 999px;
 }
 
 .logoWrapper {
@@ -291,7 +295,8 @@
   align-items: center;
   justify-content: center;
   margin: 0 auto var(--spacing-4) auto;
-  box-shadow: 0 20px 50px var(--primary)50;
+  box-shadow: 0 20px 50px rgba(37, 99, 235, 0.3);
+  animation: logoGlow 3s ease-in-out infinite;
   padding: var(--spacing-1);
   overflow: hidden;
 }
@@ -578,13 +583,25 @@
 }
 
 @keyframes hintPulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.45);
-  }
-  70% {
-    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-  }
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.45); }
+  70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes scanLine {
+  0% { top: 10%; opacity: 0; }
+  10% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { top: 92%; opacity: 0; }
+}
+
+@keyframes logoGlow {
+  0%, 100% { box-shadow: 0 20px 50px rgba(37, 99, 235, 0.3); }
+  50% { box-shadow: 0 20px 60px rgba(37, 99, 235, 0.6), 0 0 30px rgba(6, 182, 212, 0.3); }
 }

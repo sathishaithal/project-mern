@@ -50,11 +50,11 @@ const CheckboxOption = (props) => (
 );
 
 const TABS = [
-  { id: 'summary',      label: 'YoY Summary' },
-  { id: 'distributors', label: 'Distributors' },
-  { id: 'catgroup',     label: 'Catgroup' },
-  { id: 'asm',          label: 'ASM' },
-  { id: 'soff',         label: 'Sales Officer' },
+  { id: 'summary',      label: 'YoY Summary',   icon: 'bi-bar-chart-line-fill' },
+  { id: 'distributors', label: 'Distributors',  icon: 'bi-diagram-3-fill' },
+  { id: 'catgroup',     label: 'Catgroup',       icon: 'bi-grid-fill' },
+  { id: 'asm',          label: 'ASM',            icon: 'bi-person-badge-fill' },
+  { id: 'soff',         label: 'Sales Officer',  icon: 'bi-person-lines-fill' },
 ];
 
 const FIRST_COL_LABEL = {
@@ -141,11 +141,14 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
 
     return (
       <React.Fragment key={stateKey}>
-        <tr
+        <motion.tr
           className={level > 0 ? 'sr-drill-row' : undefined}
           style={{ borderBottom: '1px solid rgba(148,163,184,0.1)', borderLeft: `${borderWidth} solid ${borderColor}`, background: rowBg, height: 38 }}
           onMouseEnter={e => { e.currentTarget.style.background = isDarkMode ? '#1e2d45' : '#eff6ff'; }}
           onMouseLeave={e => { e.currentTarget.style.background = rowBg; }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2, delay: Math.min(i, 12) * 0.035 }}
         >
           <td className="sr-td" style={{ position: 'sticky', left: 0, background: 'inherit', textAlign: 'center', verticalAlign: 'middle', width: 50, minWidth: 50, padding: '0 2px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
@@ -160,7 +163,12 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
                     aria-label={isOpen ? 'Collapse row' : 'Expand row'}
                     style={{ color: accent }}
                   >
-                    <i className="bi bi-chevron-down" />
+                    <motion.i
+                      className="bi bi-chevron-down"
+                      animate={{ rotate: isOpen ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                      style={{ display: 'inline-block' }}
+                    />
                   </button>
                 </Tooltip>
               )}
@@ -175,7 +183,12 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
                     aria-label={yearOpen ? 'Collapse year breakdown' : 'Year breakdown'}
                     style={{ color: accent, opacity: 0.75 }}
                   >
-                    <i className={yearOpen ? 'bi bi-chevron-double-up' : 'bi bi-chevron-double-down'} />
+                    <motion.i
+                      className="bi bi-chevron-double-down"
+                      animate={{ rotate: yearOpen ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                      style={{ display: 'inline-block' }}
+                    />
                   </button>
                 </Tooltip>
               )}
@@ -217,7 +230,7 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
           ])}
 
           <SummaryCells row={row} rows={effectiveParent} rowIdx={i} level={level} showTillLast={showTillLast} accent={accent} isDarkMode={isDarkMode} isSummary={isSummary} allSummaryRows={allSummaryRows} isMultiYear={isMultiYear} />
-        </tr>
+        </motion.tr>
 
         {yearOpen && yearChildren.length > 0 && (
           <DrillRows
@@ -1272,6 +1285,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
                 marginBottom: -2, fontFamily: 'inherit', transition: 'color 0.15s',
               }}
             >
+              <i className={`bi ${t.icon}`} style={{ marginRight: 5, fontSize: '0.78rem' }} />
               {t.label}
             </button>
           ))}

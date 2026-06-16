@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Tooltip from "../components/ui/Tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -8,6 +8,16 @@ import Sidebar from "../components/Sidebar";
 import PageTransition from "../components/PageTransition";
 import bhagyaLogo from "../assets/bhagya.png";
 import styles from "./MainLayout.module.css";
+import ZoomFromBlack from "../components/ui/ZoomFromBlack";
+
+const isPageRefresh = () => {
+  try {
+    return performance.getEntriesByType('navigation')[0]?.type === 'reload';
+  } catch {
+    return performance?.navigation?.type === 1;
+  }
+};
+
 
 const MainLayout = ({ children }) => {
   const navigate = useNavigate();
@@ -36,6 +46,20 @@ const MainLayout = ({ children }) => {
   const { user } = useAuth();
 
   const isMobile = window.innerWidth < 768;
+
+  const [introState] = useState(() => {
+    const isLoginRedirect = !!sessionStorage.getItem('loginAnimation');
+    const isRefresh = isPageRefresh();
+    if (isLoginRedirect) { sessionStorage.removeItem('loginAnimation'); return { show: true, holdMs: 2100 }; }
+    if (isRefresh) { return { show: true, holdMs: 1100 }; }
+    return { show: false, holdMs: 0 };
+  });
+  const [showIntro, setShowIntro] = useState(introState.show);
+  useEffect(() => {
+    if (!introState.show) return;
+    const t = setTimeout(() => setShowIntro(false), introState.holdMs + 800);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     setSidebarCollapsed(sidebarMode === "closed");
@@ -85,6 +109,11 @@ const MainLayout = ({ children }) => {
         color: "var(--dashboard-text)",
       }}
     >
+      {/* Zoom-from-black: first signin (2.1s hold) or page refresh (1.1s hold) */}
+      <AnimatePresence>
+        {showIntro && <ZoomFromBlack holdMs={introState.holdMs} />}
+      </AnimatePresence>
+
       {/* Sidebar */}
       <Sidebar
         mobileOpen={sidebarMobileOpen}
@@ -201,12 +230,15 @@ const MainLayout = ({ children }) => {
                     <div className={styles.themeControlGroup}>
                       <span className={styles.themeControlLabel}>Colors</span>
                       <div className={styles.colorGrid}>
-                        {accentThemes.map((theme) => (
+                        {accentThemes.map((theme, index) => (
                           <Tooltip key={theme.id} content={theme.name}>
                             <motion.button
                               type="button"
                               className={`${styles.colorChip} ${selectedAccent.id === theme.id ? styles.colorChipActive : ""}`}
                               onClick={() => setAccentTheme(theme.id)}
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: index * 0.04, duration: 0.18 }}
                               whileHover={{ y: -2 }}
                               whileTap={{ scale: 0.96 }}
                               style={{
@@ -223,12 +255,15 @@ const MainLayout = ({ children }) => {
                     <div className={styles.themeControlGroup}>
                       <span className={styles.themeControlLabel}>Font Family</span>
                       <div className={styles.fontList}>
-                        {fontThemes.map((font) => (
+                        {fontThemes.map((font, index) => (
                           <motion.button
                             key={font.id}
                             type="button"
                             className={`${styles.fontOption} ${selectedFont.id === font.id ? styles.fontOptionActive : ""}`}
                             onClick={() => setFontTheme(font.id)}
+                            initial={{ opacity: 0, x: -8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.05, duration: 0.18 }}
                             whileHover={{ x: 2 }}
                             whileTap={{ scale: 0.98 }}
                           >

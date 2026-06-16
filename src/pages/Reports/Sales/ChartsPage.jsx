@@ -535,9 +535,10 @@ export default function ChartsPage({ loggedInRolex }) {
 
       {chartTab === 'monthwise' && <FilterBar mode="monthwise" isLoading={loading} />}
 
-      {/* ── MONTH WISE ── */}
+      {/* ── MONTH WISE / DAY WISE — tab-switch animation ── */}
+      <AnimatePresence mode="wait">
       {chartTab === 'monthwise' && (
-        <>
+        <motion.div key="ct-monthwise" initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-8 }} transition={{ duration:0.25 }}>
           {error && (
             <div style={{ padding: '0.75rem 1rem', marginBottom: '1rem', background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 8, color: '#c62828', fontSize: '0.82rem' }}>
               <i className="bi bi-exclamation-triangle" style={{ marginRight: 6 }} />{error}
@@ -622,12 +623,12 @@ export default function ChartsPage({ loggedInRolex }) {
               )}
             </motion.div>
           )}
-        </>
+        </motion.div>
       )}
 
       {/* ── DAY WISE ── */}
       {chartTab === 'daywise' && (
-        <>
+        <motion.div key="ct-daywise" initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-8 }} transition={{ duration:0.25 }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '1rem', padding: '0.65rem 0.85rem', background: filterBarBg, border: `1px solid ${filterBarBdr}`, borderRadius: 10 }}>
             <div className="sr-sel-wrap">
               <label className="sr-filter-label" style={{ color: isDarkMode ? '#94a3b8' : accent }}>Dates :</label>
@@ -766,8 +767,9 @@ export default function ChartsPage({ loggedInRolex }) {
               Select filters and click <strong>Apply</strong> to load day-wise chart data.
             </div>
           )}
-        </>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {zoomChart && <ZoomModal chart={zoomChart} onClose={() => setZoomChart(null)} />}
 

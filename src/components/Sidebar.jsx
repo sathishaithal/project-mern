@@ -193,10 +193,16 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
       <div className={styles.sidebarFooter}>
         <hr className={styles.divider} />
         <Tooltip content="Logout">
-          <button className={styles.logoutBtn} onClick={logout} aria-label="Logout">
+          <motion.button
+            className={styles.logoutBtn}
+            onClick={logout}
+            aria-label="Logout"
+            whileHover={{ scale: 1.03, x: 3 }}
+            whileTap={{ scale: 0.97 }}
+          >
             <i className="bi bi-box-arrow-right"></i>
             {!collapsed && <span>Logout</span>}
-          </button>
+          </motion.button>
         </Tooltip>
       </div>
     </div>
@@ -239,8 +245,11 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
           >
             <div className={styles.hoverMenuPaper}>
               {menuMap[hoverMenu].map((item, idx) => (
-                <div
+                <motion.div
                   key={idx}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.04, duration: 0.18 }}
                   className={`${styles.hoverMenuItem} ${location.pathname === item.link ? styles.hoverMenuItemActive : ''}`}
                   onClick={() => {
                     handleNavigate(item.link);
@@ -249,7 +258,7 @@ const Sidebar = ({ mobileOpen, onClose, isMobile, collapsed, setCollapsed }) => 
                 >
                   <div className={styles.hoverMenuIcon}>{item.icon}</div>
                   <span>{item.text}</span>
-                </div>
+                </motion.div>
               ))}
             </div>
           </motion.div>

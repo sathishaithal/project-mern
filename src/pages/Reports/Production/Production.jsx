@@ -401,11 +401,13 @@ const Production = () => {
   };
 
   const fmt = (n) => {
-    if (!n && n !== 0) return "0";
-    const x = Math.round(n).toString();
-    const last3 = x.slice(-3);
-    const rest = x.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ",");
-    return rest ? `${rest},${last3}` : last3;
+    if (!n && n !== 0) return "0.00";
+    const abs = Math.abs(n);
+    const [intPart, decPart] = abs.toFixed(2).split('.');
+    const last3 = intPart.slice(-3);
+    const rest = intPart.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ",");
+    const formatted = rest ? `${rest},${last3}` : last3;
+    return (n < 0 ? '-' : '') + formatted + '.' + decPart;
   };
 
 
@@ -425,20 +427,19 @@ const Production = () => {
 
   const formatIndianNumber = (num) => {
   if (num == null || isNaN(num)) return '';
-  const rounded = Math.round(num);
-  if (rounded === 0) return '0';
-  const abs = Math.abs(rounded);
-  const numStr = abs.toString();
-  const lastThree = numStr.slice(-3);
-  const otherNumbers = numStr.slice(0, -3);
+  const abs = Math.abs(num);
+  const [intPart, decPart] = abs.toFixed(2).split('.');
+  if (intPart === '0' && decPart === '00') return '0.00';
+  const lastThree = intPart.slice(-3);
+  const otherNumbers = intPart.slice(0, -3);
   let formatted = otherNumbers !== ''
     ? otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree
     : lastThree;
-  if (rounded < 0) formatted = '-' + formatted;
-  return formatted;
+  if (num < 0) formatted = '-' + formatted;
+  return formatted + '.' + decPart;
 };
   const dimProd = (v) => {
-    const n = Math.round(typeof v === 'number' ? v : parseFloat(v) || 0);
+    const n = typeof v === 'number' ? v : parseFloat(v) || 0;
     return n === 0
       ? <span style={{ color: isDarkMode ? '#475569' : '#cbd5e1' }}>{formatIndianNumber(v)}</span>
       : formatIndianNumber(v);
@@ -2336,12 +2337,14 @@ case "pie": {
       {/* Report Content */}
       {data && (
         <>
+          <AnimatePresence mode="wait">
           {activeProductionTab === "reports" && (
             <motion.div
-              key="prod-reports"
-              initial={{ opacity: 0, y: 12 }}
+              key="prod-tab-reports"
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.32 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.28 }}
             >
               {/* 1. Finished Goods Report */}
               <div className={styles.reportCard}>
@@ -2355,14 +2358,18 @@ case "pie": {
                     <span>Finished Goods</span>
                   </div>
                   <ThemedTooltip content={finishedCollapsed ? 'Expand' : 'Collapse'}>
-                    <i className={`bi ${finishedCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                    <motion.i className="bi bi-chevron-down" animate={{ rotate: finishedCollapsed ? 0 : 180 }} transition={{ duration: 0.2 }} style={{ display: 'inline-block' }} />
                   </ThemedTooltip>
                 </div>
-                {!finishedCollapsed && (
-                  <div className={styles.reportCardBody}>
-                    {renderFinishedGoodsTable()}
-                  </div>
-                )}
+                <AnimatePresence>
+                  {!finishedCollapsed && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.28 }} style={{ overflow: 'hidden' }}>
+                      <div className={styles.reportCardBody}>
+                        {renderFinishedGoodsTable()}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <div className={styles.reportCard}>
@@ -2376,14 +2383,18 @@ case "pie": {
                     <span>By Products and Packing Section Material</span>
                   </div>
                   <ThemedTooltip content={othersCollapsed ? 'Expand' : 'Collapse'}>
-                    <i className={`bi ${othersCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                    <motion.i className="bi bi-chevron-down" animate={{ rotate: othersCollapsed ? 0 : 180 }} transition={{ duration: 0.2 }} style={{ display: 'inline-block' }} />
                   </ThemedTooltip>
                 </div>
-                {!othersCollapsed && (
-                  <div className={styles.reportCardBody}>
-                    {renderOthersTable()}
-                  </div>
-                )}
+                <AnimatePresence>
+                  {!othersCollapsed && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.28 }} style={{ overflow: 'hidden' }}>
+                      <div className={styles.reportCardBody}>
+                        {renderOthersTable()}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
           <div className={styles.totalCardWrapper}>
@@ -2444,14 +2455,18 @@ case "pie": {
                 <span>Raw Materials Usage</span>
               </div>
               <ThemedTooltip content={rawCollapsed ? 'Expand' : 'Collapse'}>
-                <i className={`bi ${rawCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                <motion.i className="bi bi-chevron-down" animate={{ rotate: rawCollapsed ? 0 : 180 }} transition={{ duration: 0.2 }} style={{ display: 'inline-block' }} />
               </ThemedTooltip>
             </div>
-            {!rawCollapsed && (
-              <div className={styles.reportCardBody}>
-                {renderRawMaterialsTable()}
-              </div>
-            )}
+            <AnimatePresence>
+              {!rawCollapsed && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.28 }} style={{ overflow: 'hidden' }}>
+                  <div className={styles.reportCardBody}>
+                    {renderRawMaterialsTable()}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* 3. Production Ratio */}
@@ -2466,14 +2481,18 @@ case "pie": {
                 <span>Production Ratio</span>
               </div>
               <ThemedTooltip content={productionRatioCollapsed ? 'Expand' : 'Collapse'}>
-                <i className={`bi ${productionRatioCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                <motion.i className="bi bi-chevron-down" animate={{ rotate: productionRatioCollapsed ? 0 : 180 }} transition={{ duration: 0.2 }} style={{ display: 'inline-block' }} />
               </ThemedTooltip>
             </div>
-            {!productionRatioCollapsed && (
-              <div className={styles.reportCardBody}>
-                {renderProductionRatioTable()}
-              </div>
-            )}
+            <AnimatePresence>
+              {!productionRatioCollapsed && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.28 }} style={{ overflow: 'hidden' }}>
+                  <div className={styles.reportCardBody}>
+                    {renderProductionRatioTable()}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* 4. Packing Report */}
@@ -2488,14 +2507,18 @@ case "pie": {
                 <span>Packing Bengal Gram & Packing Fried Gram</span>
               </div>
               <ThemedTooltip content={packingCollapsed ? 'Expand' : 'Collapse'}>
-                <i className={`bi ${packingCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                <motion.i className="bi bi-chevron-down" animate={{ rotate: packingCollapsed ? 0 : 180 }} transition={{ duration: 0.2 }} style={{ display: 'inline-block' }} />
               </ThemedTooltip>
             </div>
-            {!packingCollapsed && (
-              <div className={styles.reportCardBody}>
-                {renderPackingTable()}
-              </div>
-            )}
+            <AnimatePresence>
+              {!packingCollapsed && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.28 }} style={{ overflow: 'hidden' }}>
+                  <div className={styles.reportCardBody}>
+                    {renderPackingTable()}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
             </motion.div>
           )}
@@ -2504,10 +2527,11 @@ case "pie": {
           {/* Chart Section */}
           {activeProductionTab === "charts" && data && (brands.length > 0 || othersBrands.length > 0) && (
             <motion.div
-              key="prod-charts"
-              initial={{ opacity: 0, y: 12 }}
+              key="prod-tab-charts"
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.32 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.28 }}
             >
             <div className={styles.reportCard}>
               <div
@@ -2520,10 +2544,12 @@ case "pie": {
                   <span>Visualization</span>
                 </div>
                 <ThemedTooltip content={chartCollapsed ? 'Expand' : 'Collapse'}>
-                  <i className={`bi ${chartCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                  <motion.i className="bi bi-chevron-down" animate={{ rotate: chartCollapsed ? 0 : 180 }} transition={{ duration: 0.2 }} style={{ display: 'inline-block' }} />
                 </ThemedTooltip>
               </div>
+              <AnimatePresence>
               {!chartCollapsed && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.28 }} style={{ overflow: 'hidden' }}>
                 <div className={styles.reportCardBody}>
                   <div className={styles.chartFilters}>
                     {/* Category Select */}
@@ -2636,10 +2662,13 @@ case "pie": {
                     {renderChart()}
                   </div>
                 </div>
+                </motion.div>
               )}
+              </AnimatePresence>
             </div>
             </motion.div>
           )}
+          </AnimatePresence>
         </>
       )}
 
