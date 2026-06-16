@@ -6,6 +6,17 @@
     <title>Sri Bhagyalakshmi Group</title>
   </head>
   <body>
+    <script>
+      try {
+        var hasLogout  = !!sessionStorage.getItem('logoutMessage');
+        var navType    = performance.getEntriesByType('navigation')[0]?.type;
+        var isRefresh  = navType === 'reload' || performance.navigation?.type === 1;
+        if (hasLogout || isRefresh) {
+          document.documentElement.style.background = '#000';
+          document.body.style.background = '#000';
+        }
+      } catch(e) {}
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import Tooltip from "../components/ui/Tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -8,16 +8,6 @@ import Sidebar from "../components/Sidebar";
 import PageTransition from "../components/PageTransition";
 import bhagyaLogo from "../assets/bhagya.png";
 import styles from "./MainLayout.module.css";
-import ZoomFromBlack from "../components/ui/ZoomFromBlack";
-
-const isPageRefresh = () => {
-  try {
-    return performance.getEntriesByType('navigation')[0]?.type === 'reload';
-  } catch {
-    return performance?.navigation?.type === 1;
-  }
-};
-
 
 const MainLayout = ({ children }) => {
   const navigate = useNavigate();
@@ -46,20 +36,6 @@ const MainLayout = ({ children }) => {
   const { user } = useAuth();
 
   const isMobile = window.innerWidth < 768;
-
-  const [introState] = useState(() => {
-    const isLoginRedirect = !!sessionStorage.getItem('loginAnimation');
-    const isRefresh = isPageRefresh();
-    if (isLoginRedirect) { sessionStorage.removeItem('loginAnimation'); return { show: true, holdMs: 2100 }; }
-    if (isRefresh) { return { show: true, holdMs: 1100 }; }
-    return { show: false, holdMs: 0 };
-  });
-  const [showIntro, setShowIntro] = useState(introState.show);
-  useEffect(() => {
-    if (!introState.show) return;
-    const t = setTimeout(() => setShowIntro(false), introState.holdMs + 800);
-    return () => clearTimeout(t);
-  }, []);
 
   useEffect(() => {
     setSidebarCollapsed(sidebarMode === "closed");
@@ -109,11 +85,6 @@ const MainLayout = ({ children }) => {
         color: "var(--dashboard-text)",
       }}
     >
-      {/* Zoom-from-black: first signin (2.1s hold) or page refresh (1.1s hold) */}
-      <AnimatePresence>
-        {showIntro && <ZoomFromBlack holdMs={introState.holdMs} />}
-      </AnimatePresence>
-
       {/* Sidebar */}
       <Sidebar
         mobileOpen={sidebarMobileOpen}

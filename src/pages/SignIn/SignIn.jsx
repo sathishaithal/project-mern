@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useColorMode } from "../../theme/ThemeContext";
+import { usePageIntro } from "../../context/PageIntroContext";
 import axios from "axios";
 import bhagyaLogo from "../../assets/bhagya.png";
-import ZoomFromBlack from "../../components/ui/ZoomFromBlack";
 import styles from "./SignIn.module.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -58,18 +58,8 @@ const SignIn = () => {
   const animRef = useRef(null);
   const navigate = useNavigate();
   const { login, isAuthenticated, authReady } = useAuth();
+  const { triggerIntro } = usePageIntro();
 
-  // Show zoom-from-black when landing on signin after logout
-  const [showZoom, setShowZoom] = useState(() => {
-    const hasLogout = !!sessionStorage.getItem('logoutMessage');
-    if (hasLogout) sessionStorage.removeItem('logoutMessage');
-    return hasLogout;
-  });
-  useEffect(() => {
-    if (!showZoom) return;
-    const t = setTimeout(() => setShowZoom(false), 2000);
-    return () => clearTimeout(t);
-  }, []);
 
   // If a valid session already exists (e.g. new tab, page refresh), skip the login page
   useEffect(() => {
@@ -306,8 +296,8 @@ const SignIn = () => {
       sessionStorage.setItem("authToken", token);
       login(uname, token);
       showAlert(`Welcome back, ${uname}!`, "success");
-      sessionStorage.setItem('loginAnimation', '1');
-      setTimeout(() => navigate("/dashboard"), 1800);
+      triggerIntro(2100);
+      setTimeout(() => navigate("/dashboard"), 300);
     } catch (err) {
       const loginCard = document.querySelector(`.${styles.loginCard}`);
       if (loginCard) {
@@ -426,9 +416,6 @@ const SignIn = () => {
 
   return (
     <>
-      <AnimatePresence>
-        {showZoom && <ZoomFromBlack holdMs={1200} />}
-      </AnimatePresence>
       <div
         ref={backgroundRef}
         className={styles.container}

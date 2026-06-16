@@ -1,13 +1,21 @@
 import React from 'react';
 import { useColorMode } from '../../../../theme/ThemeContext';
+import { usePageIntro } from '../../../../context/PageIntroContext';
 import YearSelector from './YearSelector';
 import CompanySelector from './CompanySelector';
 import DistTypeSelector from './DistTypeSelector';
 import MonthSelector from './MonthSelector';
 import '../Sales.css';
 
-const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateDate, activeReportTab = '', children }) => {
+const FilterBar = ({ mode = 'monthwise', onApply, onSync, isLoading = false, lastUpdateDate, activeReportTab = '', children }) => {
   const { isDarkMode, selectedAccent } = useColorMode();
+  const { triggerIntro } = usePageIntro();
+
+  const handleSync = () => {
+    triggerIntro(1400);
+    // TODO: call batch data-sync API here once backend is ready
+    onSync?.();
+  };
   const accent  = selectedAccent?.primary   || '#2563eb';
   const accent2 = selectedAccent?.secondary || '#1e40af';
 
@@ -65,7 +73,7 @@ const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateD
           )}
           {onApply && (
             <button
-              onClick={onApply}
+              onClick={handleSync}
               disabled={isLoading}
               className="fb-sync-btn"
               style={{

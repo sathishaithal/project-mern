@@ -24,6 +24,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { AuthProvider } from "./context/AuthContext";
 import { ColorModeProvider } from "./theme/ThemeContext";
 import { SummaryCardsProvider } from "./context/SummaryCardsContext";
+import { PageIntroProvider } from "./context/PageIntroContext";
 
 import MainLayout from "./layouts/MainLayout";
 import "./styles/global.css";
@@ -52,6 +53,7 @@ root.render(
   <React.StrictMode>
     <AuthProvider>
       <ColorModeProvider>
+        <PageIntroProvider>
         <SummaryCardsProvider>
           <BrowserRouter>
             <ScrollToTop />
@@ -112,6 +114,7 @@ root.render(
             </Routes>
           </BrowserRouter>
         </SummaryCardsProvider>
+        </PageIntroProvider>
       </ColorModeProvider>
     </AuthProvider>
   </React.StrictMode>
