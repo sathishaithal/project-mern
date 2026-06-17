@@ -2,9 +2,11 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useColorMode } from '../theme/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function NotFound() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const { isDarkMode, selectedAccent, selectedFont } = useColorMode();
 
   const accent    = selectedAccent?.primary   || '#1a237e';
@@ -55,7 +57,7 @@ export default function NotFound() {
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.35 }}>
           <motion.button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate(isAuthenticated ? '/dashboard' : '/')}
             style={{
               background: `linear-gradient(135deg, ${accent}, ${accent2})`,
               color: 'white', border: 'none', borderRadius: 8,

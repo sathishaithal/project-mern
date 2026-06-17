@@ -313,59 +313,6 @@ const SignIn = () => {
     }
   };
 
-  const createSuccessEffect = () => {
-    for (let i = 0; i < 80; i++) {
-      setTimeout(() => {
-        const confetti = document.createElement("div");
-        confetti.style.position = "fixed";
-        confetti.style.width = `${Math.random() * 10 + 6}px`;
-        confetti.style.height = `${Math.random() * 10 + 6}px`;
-        confetti.style.background =
-          [theme.primary, theme.secondary, theme.accent, theme.accent2, "#f59e0b", "#ef4444"][
-            Math.floor(Math.random() * 6)
-          ];
-        confetti.style.borderRadius = Math.random() > 0.5 ? "50%" : "0%";
-        confetti.style.left = "50%";
-        confetti.style.top = "50%";
-        confetti.style.transform = "translate(-50%, -50%)";
-        confetti.style.pointerEvents = "none";
-        confetti.style.zIndex = "9999";
-
-        const angle = Math.random() * Math.PI * 2;
-        const velocity = 5 + Math.random() * 5;
-        let vx = Math.cos(angle) * velocity;
-        let vy = Math.sin(angle) * velocity - 6;
-        const rotation = Math.random() * 360;
-
-        document.body.appendChild(confetti);
-
-        let posX = window.innerWidth / 2;
-        let posY = window.innerHeight / 2;
-        let rot = rotation;
-
-        const animateConfetti = () => {
-          posX += vx * 8;
-          posY += vy * 8;
-          vy += 0.4;
-          rot += 10;
-
-          confetti.style.left = `${posX}px`;
-          confetti.style.top = `${posY}px`;
-          confetti.style.transform = `rotate(${rot}deg)`;
-          confetti.style.opacity = posY < window.innerHeight + 100 ? "1" : "0";
-
-          if (posY < window.innerHeight + 100) {
-            requestAnimationFrame(animateConfetti);
-          } else {
-            confetti.remove();
-          }
-        };
-
-        animateConfetti();
-      }, i * 40);
-    }
-  };
-
   const features = [
     {
       icon: <i className="bi bi-shield-lock-fill" style={{ fontSize: "32px", color: "white" }}></i>,

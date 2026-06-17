@@ -411,20 +411,6 @@ const Production = () => {
   };
 
 
-  // Correct negative number formatting for Indian style
-  // const formatIndianNumber = (num) => {
-  //   if (num == null || isNaN(num)) return '';
-  //   const abs = Math.abs(Math.round(num));
-  //   const numStr = abs.toString();
-  //   const lastThree = numStr.slice(-3);
-  //   const otherNumbers = numStr.slice(0, -3);
-  //   let formatted = otherNumbers !== ''
-  //     ? otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree
-  //     : lastThree;
-  //   if (num < 0) formatted = '-' + formatted;
-  //   return formatted;
-  // };
-
   const formatIndianNumber = (num) => {
   if (num == null || isNaN(num)) return '';
   const abs = Math.abs(num);
@@ -808,8 +794,8 @@ let othersProdPercentage = 0;
 
   const getChartColors = () => {
     const baseColors = [
-      selectedAccent.primary,
-      selectedAccent.secondary,
+      selectedAccent?.primary || '#2563eb',
+      selectedAccent?.secondary || '#1e40af',
       "#10b981",
       "#f59e0b",
       "#ef4444",

@@ -50,10 +50,7 @@
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.2);
 }
 
-.sidebarDark .homeIcon,
-.sidebarDark .themeStudio,
-.sidebarDark .modeToggle,
-.sidebarDark .fontOption {
+.sidebarDark .homeIcon {
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -149,135 +146,6 @@
 .subMenuItem:hover {
   background: rgba(255, 255, 255, 0.08);
   color: white;
-}
-
-.themeStudio {
-  margin: 14px 10px 0;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.09);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  backdrop-filter: blur(14px);
-  overflow: hidden;
-}
-
-.themeStudioHeader {
-  width: 100%;
-  border: none;
-  background: none;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 14px 10px;
-  cursor: pointer;
-  text-align: left;
-}
-
-.themeStudioHeader h4 {
-  margin: 2px 0 0;
-  font-size: 0.98rem;
-  font-family: var(--dashboard-font-display, 'Inter', sans-serif);
-}
-
-.themeStudioEyebrow {
-  font-size: 0.68rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.themeStudioBody {
-  padding: 0 14px 14px;
-}
-
-.controlGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.controlLabel {
-  font-size: 0.74rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.modeToggle {
-  position: relative;
-  height: 42px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  overflow: hidden;
-}
-
-.modeToggleThumb {
-  position: absolute;
-  left: 5px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--dashboard-accent, #2563eb), var(--dashboard-accent-strong, #0f3ea3));
-  box-shadow: 0 8px 20px var(--dashboard-accent-glow, rgba(37, 99, 235, 0.28));
-}
-
-.modeToggleText {
-  position: relative;
-  z-index: 1;
-  margin-left: auto;
-  font-size: 0.88rem;
-  font-weight: 600;
-}
-
-.colorGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
-.colorChip {
-  height: 40px;
-  border-radius: 12px;
-  border: 2px solid transparent;
-  color: white;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.24);
-}
-
-.colorChipActive {
-  border-color: rgba(255, 255, 255, 0.9);
-}
-
-.fontList {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.fontOption {
-  width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.08);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 11px 12px;
-  font-size: 0.9rem;
-}
-
-.fontOptionActive {
-  border-color: rgba(255, 255, 255, 0.45);
-  background: rgba(255, 255, 255, 0.14);
 }
 
 .subMenuIcon {

@@ -140,14 +140,11 @@ const logout = async (message = "You have been logged out") => {
         }
       );
     }
-  } catch (err) {}
+  } catch (err) { /* logout API call failed — proceed with local cleanup */ }
 
-  const safeMessage =
-    typeof message === "string"
-      ? message
-      : message?.message ||
-        message?.error ||
-        "You have been logged out";
+  const safeMessage = typeof message === "string"
+    ? message
+    : String(message?.message || message?.error || "You have been logged out");
 
   sessionStorage.removeItem("username");
   sessionStorage.removeItem("token");

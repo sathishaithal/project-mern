@@ -77,7 +77,7 @@ export default function ZoomFromBlack({ holdMs = 1400 }) {
           textShadow: `0 0 50px ${accent}90`, zIndex: 1, position: 'relative',
         }}
       >
-        Sri Bhagyalakshmi Groups
+        Sri Bhagyalakshmi Group
       </motion.div>
 
       {/* Tagline */}
