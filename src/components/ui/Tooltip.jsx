@@ -41,7 +41,7 @@ function hidePortal() {
   _targetEl = null;
 }
 
-export default function Tooltip({ content, children, delay = 120 }) {
+export default function Tooltip({ content, header, children, delay = 120 }) {
   const { isDarkMode, selectedAccent } = useColorMode();
 
   const isDarkRef  = useRef(isDarkMode);
@@ -51,6 +51,9 @@ export default function Tooltip({ content, children, delay = 120 }) {
 
   const contentRef = useRef(content);
   contentRef.current = content;
+
+  const headerRef = useRef(header);
+  headerRef.current = header;
 
   const elemRef = useRef(null);
 
@@ -72,17 +75,45 @@ export default function Tooltip({ content, children, delay = 120 }) {
 
       _showTimer = setTimeout(() => {
         const text = contentRef.current;
+        const hdr  = headerRef.current;
         if (!text || typeof text !== 'string' || !_targetEl) return;
 
         const dark   = isDarkRef.current;
         const accent = accentRef.current;
         const div    = getPortal();
 
-        div.textContent      = text;
         div.style.background = dark ? '#1e293b' : '#ffffff';
         div.style.color      = dark ? '#e2e8f0' : '#1e293b';
         div.style.border     = `1px solid ${accent}55`;
         div.style.boxShadow  = `0 4px 24px rgba(0,0,0,0.22),0 0 0 1px ${accent}22`;
+
+        if (hdr) {
+          div.style.maxWidth = '320px';
+          div.innerHTML = '';
+          const hdrEl = document.createElement('div');
+          hdrEl.textContent = hdr;
+          hdrEl.style.cssText = [
+            'font-weight:700',
+            'font-size:0.72rem',
+            'letter-spacing:0.06em',
+            'text-transform:uppercase',
+            'padding:6px 12px',
+            'margin:-6px -12px 8px -12px',
+            `background:${accent}`,
+            'color:#ffffff',
+            'border-radius:6px 6px 0 0',
+            'white-space:nowrap',
+            'text-align:center',
+          ].join(';');
+          const bodyEl = document.createElement('div');
+          bodyEl.textContent = text;
+          bodyEl.style.whiteSpace = 'pre-line';
+          div.appendChild(hdrEl);
+          div.appendChild(bodyEl);
+        } else {
+          div.style.maxWidth = '280px';
+          div.textContent = text;
+        }
 
         // Measure tooltip size before positioning
         div.style.opacity    = '1';

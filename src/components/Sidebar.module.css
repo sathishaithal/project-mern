@@ -295,21 +295,21 @@
   font-size: 0.9rem;
 }
 
-/* Dark Mode Support */
-[data-theme="dark"] .hoverMenuPaper {
+/* Dark Mode Support — :global() makes the attribute selector explicit in CSS Modules */
+:global([data-theme="dark"]) .hoverMenuPaper {
   background: #2d2d2d;
   color: #e0e0e0;
 }
 
-[data-theme="dark"] .hoverMenuItem {
+:global([data-theme="dark"]) .hoverMenuItem {
   color: #e0e0e0;
 }
 
-[data-theme="dark"] .hoverMenuItem:hover {
+:global([data-theme="dark"]) .hoverMenuItem:hover {
   background: #3d3d3d;
 }
 
-[data-theme="dark"] .hoverMenuIcon {
+:global([data-theme="dark"]) .hoverMenuIcon {
   color: #60a5fa;
 }
 

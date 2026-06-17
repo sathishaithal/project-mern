@@ -487,11 +487,10 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
     return () => { if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current); };
   }, []);
 
-  // Clear large state on unmount so React teardown is fast (20k rows → 0 before cleanup)
+  // Clear large refs on unmount so GC can reclaim memory (state clears automatically)
   useEffect(() => {
     return () => {
-      setRawRows([]);
-      drillDataRef.current   = {};
+      drillDataRef.current    = {};
       groupedCacheRef.current = {};
       nonSummaryRawRef.current = [];
     };
@@ -999,7 +998,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
       setExpanded(p => ({ ...p, [key]: true }));
       showToast('Success', 'Data loaded successfully!', 'success');
     } catch {
-      setExpanded(p => ({ ...p, [key]: true }));
+      setExpanded(p => ({ ...p, [key]: false }));
       showToast('Error', 'Failed to load data.', 'error');
     } finally {
       setDrillLoading(p => ({ ...p, [key]: false }));

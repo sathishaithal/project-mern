@@ -384,7 +384,7 @@ function ShortSupplyTable({
                       <td className="ss-td">{ssz(row.supplytonnage)}</td>
                       <td className="ss-td">{ssz(curVal)}</td>
                       <td className="ss-td">
-                        <Tooltip content={lyTooltip}>
+                        <Tooltip content={lyTooltip} header="Last Year Comparison">
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, cursor: 'default' }}>
                             {isUp   && <span style={{ color: '#c62828', fontWeight: 700, fontSize: '0.72rem', lineHeight: 1, marginRight: 2 }}>▲</span>}
                             {isDown && <span style={{ color: '#2e7d32', fontWeight: 700, fontSize: '0.72rem', lineHeight: 1, marginRight: 2 }}>▼</span>}

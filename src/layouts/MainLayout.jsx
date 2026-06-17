@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Tooltip from "../components/ui/Tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -35,7 +35,7 @@ const MainLayout = ({ children }) => {
   } = useColorMode();
   const { user } = useAuth();
 
-  const isMobile = window.innerWidth < 768;
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
   useEffect(() => {
     setSidebarCollapsed(sidebarMode === "closed");
@@ -43,7 +43,9 @@ const MainLayout = ({ children }) => {
 
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 768 && sidebarMobileOpen) {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (!mobile && sidebarMobileOpen) {
         setSidebarMobileOpen(false);
       }
     };

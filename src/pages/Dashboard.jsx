@@ -45,11 +45,12 @@ function CountUp({ target, duration = 1.2, isDarkMode, style = {} }) {
 // Short supply ticker
 function ShortSupplyTicker({ items, isDarkMode }) {
   if (!items.length) return null;
-  const chunks = items.map(i =>
-    `⚠  ${i.description}  ${parseFloat(i.shortsupplytonnage).toFixed(1)} T`
-  );
-  const all = [...chunks, ...chunks];
-  const dur = Math.max(18, items.length * 3.5);
+  const { all, dur } = useMemo(() => {
+    const chunks = items.map(i =>
+      `⚠  ${i.description}  ${parseFloat(i.shortsupplytonnage).toFixed(1)} T`
+    );
+    return { all: [...chunks, ...chunks], dur: Math.max(18, items.length * 3.5) };
+  }, [items]);
   return (
     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
     <div style={{

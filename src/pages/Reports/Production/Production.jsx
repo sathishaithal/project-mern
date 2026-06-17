@@ -1146,13 +1146,23 @@ case "pie": {
               <div key={cat} className={`${styles.mobileCard} ${isDarkMode ? styles.mobileCardDark : ''}`}>
                 <div className={styles.mobileCardHeader} onClick={() => setCollapsedCats((p) => ({ ...p, [cat]: !p[cat] }))}>
                   <span className={styles.mobileCardTitle}>Sub Total - {cat}</span>
-                  <i className={`bi ${collapsedCats[cat] ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                  <motion.i
+                    className="bi bi-chevron-down"
+                    animate={{ rotate: collapsedCats[cat] ? 0 : 180 }}
+                    transition={{ duration: 0.2 }}
+                  />
                 </div>
 
                 {!collapsedCats[cat] && (
                   <div className={styles.mobileCardBody}>
                     {items.map((i, idx) => (
-                      <div key={idx} className={`${styles.mobileItem} ${isDarkMode ? styles.mobileItemDark : ''}`}>
+                      <motion.div
+                        key={idx}
+                        className={`${styles.mobileItem} ${isDarkMode ? styles.mobileItemDark : ''}`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2, delay: Math.min(idx, 12) * 0.035 }}
+                      >
                         <div className={styles.mobileItemTitle}>{i.description}</div>
                         <MobileRow label="Opening" value={fmt(getFinishedItemMetrics(i).opening)} />
                         <MobileRow label="Production" value={fmt(getFinishedItemMetrics(i).production)} />
@@ -1161,7 +1171,7 @@ case "pie": {
                         <MobileRow label="Returned" value={fmt(getFinishedItemMetrics(i).returned)} />
                         <MobileRow label="Closing" value={fmt(getFinishedItemMetrics(i).closing)} />
                         <MobileRow label="Prod %" value={formatPercentage(i.prod_percentage)} />
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 )}
@@ -1238,7 +1248,11 @@ case "pie": {
                   >
                     <td className={styles.tableCellArrow}>
                       <ThemedTooltip content={collapsedCats[cat] ? 'Expand' : 'Collapse'}>
-                        <i className={`bi ${collapsedCats[cat] ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                        <motion.i
+                          className="bi bi-chevron-down"
+                          animate={{ rotate: collapsedCats[cat] ? 0 : 180 }}
+                          transition={{ duration: 0.2 }}
+                        />
                       </ThemedTooltip>
                     </td>
                     <td className={`${styles.tableCellDescription} ${styles.tableCellBold}`}>
@@ -1254,9 +1268,12 @@ case "pie": {
                   </tr>
 
                   {!collapsedCats[cat] && items.map((item, i) => (
-                    <tr
+                    <motion.tr
                       key={i}
                       className={`${styles.tableSubRow} ${i % 2 === 0 ? styles.tableSubRowEven : styles.tableSubRowOdd}`}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.2, delay: Math.min(i, 12) * 0.035 }}
                     >
                       <td className={styles.tableCellArrow}></td>
                       <td className={`${styles.tableCellDescription} ${styles.tableCellIndented}`}>
@@ -1269,7 +1286,7 @@ case "pie": {
                       <td className={styles.tableCellNumber}>{dimProd(getFinishedItemMetrics(item).returned)}</td>
                       <td className={styles.tableCellNumber}>{dimProd(getFinishedItemMetrics(item).closing)}</td>
                       <td className={styles.tableCellPercentage}>{formatPercentage(item.prod_percentage)}</td>
-                    </tr>
+                    </motion.tr>
                   ))}
                 </React.Fragment>
               );
@@ -1326,13 +1343,23 @@ case "pie": {
               <div key={cat} className={`${styles.mobileCard} ${isDarkMode ? styles.mobileCardDark : ''}`}>
                 <div className={styles.mobileCardHeader} onClick={() => setCollapsedCats((p) => ({ ...p, [collapseKey]: !p[collapseKey] }))}>
                   <span className={styles.mobileCardTitle}>Sub Total - {cat}</span>
-                  <i className={`bi ${collapsedCats[collapseKey] ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                  <motion.i
+                    className="bi bi-chevron-down"
+                    animate={{ rotate: collapsedCats[collapseKey] ? 0 : 180 }}
+                    transition={{ duration: 0.2 }}
+                  />
                 </div>
 
                 {!collapsedCats[collapseKey] && (
                   <div className={styles.mobileCardBody}>
                     {items.map((i, idx) => (
-                      <div key={idx} className={`${styles.mobileItem} ${isDarkMode ? styles.mobileItemDark : ''}`}>
+                      <motion.div
+                        key={idx}
+                        className={`${styles.mobileItem} ${isDarkMode ? styles.mobileItemDark : ''}`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2, delay: Math.min(idx, 12) * 0.035 }}
+                      >
                         <div className={styles.mobileItemTitle}>{i.description}</div>
                         <MobileRow label="Opening" value={formatIndianNumber(getFinishedItemMetrics(i).opening)} />
                         <MobileRow label="Production" value={formatIndianNumber(getFinishedItemMetrics(i).production)} />
@@ -1341,7 +1368,7 @@ case "pie": {
                         <MobileRow label="Returned" value={formatIndianNumber(getFinishedItemMetrics(i).returned)} />
                         <MobileRow label="Closing" value={formatIndianNumber(getFinishedItemMetrics(i).closing)} />
                         <MobileRow label="Prod %" value={formatPercentage(i.prod_percentage)} />
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 )}
@@ -1418,7 +1445,11 @@ case "pie": {
                   >
                     <td className={styles.tableCellArrow}>
                       <ThemedTooltip content={collapsedCats[collapseKey] ? 'Expand' : 'Collapse'}>
-                        <i className={`bi ${collapsedCats[collapseKey] ? "bi-chevron-down" : "bi-chevron-up"}`}></i>
+                        <motion.i
+                          className="bi bi-chevron-down"
+                          animate={{ rotate: collapsedCats[collapseKey] ? 0 : 180 }}
+                          transition={{ duration: 0.2 }}
+                        />
                       </ThemedTooltip>
                     </td>
                     <td className={`${styles.tableCellDescription} ${styles.tableCellBold}`}>
@@ -1434,9 +1465,12 @@ case "pie": {
                   </tr>
 
                   {!collapsedCats[collapseKey] && items.map((item, i) => (
-                    <tr
+                    <motion.tr
                       key={i}
                       className={`${styles.tableSubRow} ${i % 2 === 0 ? styles.tableSubRowEven : styles.tableSubRowOdd}`}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.2, delay: Math.min(i, 12) * 0.035 }}
                     >
                       <td className={styles.tableCellArrow}></td>
                       <td className={`${styles.tableCellDescription} ${styles.tableCellIndented}`}>
@@ -1449,7 +1483,7 @@ case "pie": {
                       <td className={styles.tableCellNumber}>{dimProd(getFinishedItemMetrics(item).returned)}</td>
                       <td className={styles.tableCellNumber}>{dimProd(getFinishedItemMetrics(item).closing)}</td>
                       <td className={styles.tableCellPercentage}>{formatPercentage(item.prod_percentage)}</td>
-                    </tr>
+                    </motion.tr>
                   ))}
                 </React.Fragment>
               );
@@ -1653,7 +1687,7 @@ case "pie": {
                 </td>
                 <td className={styles.tableCellNumber}>
                   {row.hasData ? (
-                    <ThemedTooltip content={row.pctTooltip}>
+                    <ThemedTooltip content={row.pctTooltip} header="Production %">
                       <span>{calcPct(row.qty)}</span>
                     </ThemedTooltip>
                   ) : "-"}
