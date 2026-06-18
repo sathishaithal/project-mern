@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import ThemedTooltip from "../../../components/ui/Tooltip";
+import { logActivity } from '../../../services/activityLog';
 import { motion, AnimatePresence } from "framer-motion";
 import { getProductionReportTonnage } from '../../../services/productionApi';
 import {
@@ -40,6 +41,10 @@ const Production = () => {
   const [isMobileScreen, setIsMobileScreen] = useState(window.innerWidth < 768);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(window.innerWidth >= 768);
   const [activeProductionTab, setActiveProductionTab] = useState("reports");
+
+  useEffect(() => {
+    if (activeProductionTab === 'charts') logActivity('Production-Charts');
+  }, [activeProductionTab]);
   const [catGroup, setCatGroup] = useState("Fried Gram Mill");
   const [fromDate, setFromDate] = useState(new Date());
   const [toDate, setToDate] = useState(new Date());
@@ -616,6 +621,7 @@ let othersProdPercentage = 0;
 
       const activeData = parsed[unitType] || parsed.tonnage;
       setData(activeData);
+      logActivity('Production-Report');
 
       const obj = {};
       [...Object.keys(activeData.finished || {}), ...Object.keys(activeData.finished2 || {})].forEach((k) => (obj[k] = true));

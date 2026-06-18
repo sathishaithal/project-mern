@@ -11,6 +11,7 @@ import {
   getLastUpdatedDates,
 } from '../../../services/salesDashboardApi';
 import { appLog } from '../../../config/appConfig';
+import { logActivity } from '../../../services/activityLog';
 import { fmtAmt, fmtDate } from '../../../utils/salesFormatters';
 import { useAuth } from '../../../context/AuthContext';
 import { useColorMode } from '../../../theme/ThemeContext';
@@ -111,6 +112,7 @@ export default function DayWisePage() {
       });
       setRows(Array.isArray(data) ? data : []);
       setAppliedFilters({ year: daywiseyear, month: daywisemonth, company: daywisecompany, disttype: daywisedisttype });
+      logActivity('Sales-Report', 'Day Wise', 'First Step');
     } catch (err) {
       setError(err?.response?.data?.error || err?.message || 'Failed to load day-wise data');
     } finally {
@@ -158,6 +160,7 @@ export default function DayWisePage() {
       }
       setSecondLevel(p => ({ ...p, [id]: Array.isArray(data) ? data : [] }));
       setExpandedL1(p => ({ ...p, [id]: true }));
+      logActivity('Sales-Report', 'Day Wise', 'Second Step');
     } catch {
       setExpandedL1(p => ({ ...p, [id]: true }));
     } finally {
@@ -183,6 +186,7 @@ export default function DayWisePage() {
       });
       setThirdLevel(p => ({ ...p, [subKey]: Array.isArray(data) ? data : [] }));
       setExpandedL2(p => ({ ...p, [subKey]: true }));
+      logActivity('Sales-Report', 'Day Wise', 'Third Step');
     } catch {
       setExpandedL2(p => ({ ...p, [subKey]: true }));
     } finally {

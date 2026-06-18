@@ -33,6 +33,7 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import { useSalesSelectStyles } from './filters/useSalesSelectStyles';
 import { appLog } from '../../../config/appConfig';
+import { logActivity } from '../../../services/activityLog';
 
 const CheckboxOption = (props) => (
   <components.Option {...props}>
@@ -618,6 +619,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
         setRawRows(nonSummaryRawRef.current);
         preGroupAll(nonSummaryRawRef.current);
         setAppliedMultiyear(multiyear);
+        logActivity('Sales-Report', 'Month Wise', TABS.find(t => t.id === tab)?.label || tab);
         return;
       }
     }
@@ -637,6 +639,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
         const data = await getMultiYearSales(baseParams);
         setRawRows(Array.isArray(data) ? data.filter(r => !isGrandTotal(r)) : []);
         setAppliedMultiyear(multiyear);
+        logActivity('Sales-Report', 'Month Wise', 'YoY Summary');
       } else {
         // Non-summary tabs: call both APIs in parallel
         // API 12 → lookup table (distname → asm, soff, catgroup, description, method)
@@ -692,6 +695,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
         setRawRows(filtered);
         preGroupAll(filtered);
         setAppliedMultiyear(multiyear);
+        logActivity('Sales-Report', 'Month Wise', TABS.find(t => t.id === tab)?.label || tab);
       }
     } catch (err) {
       const msg = err?.response?.data?.error || err?.message || 'Failed to load data';

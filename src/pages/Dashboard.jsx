@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import React, { useMemo, useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { logActivity } from "../services/activityLog";
 import { useColorMode } from "../theme/ThemeContext";
 import { useSummaryCards } from "../context/SummaryCardsContext";
 import SummaryCardsSystem from "../components/SummaryCardsSystem/SummaryCardsSystem";
@@ -269,6 +270,8 @@ const Dashboard = () => {
   const { isDarkMode, selectedAccent } = useColorMode();
   const { dates, multiYearData, shortSupply, sellingData, prodData, prodLoading } = useSummaryCards();
 
+  useEffect(() => { logActivity('Dashboard'); }, []);
+
   const accent  = selectedAccent?.primary   || '#1a237e';
   const accent2 = selectedAccent?.secondary || '#283593';
   const username = user?.username || 'User';
@@ -452,7 +455,7 @@ const Dashboard = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                   {sorted.map((item, i) => {
                     const pct = catMax > 0 ? (item._ton / catMax) * 100 : 0;
-                    const label = item.catdescription || item.description || item.category || item.group || `Item ${i + 1}`;
+                    const label = item.catgroup || item.catdescription || item.description || item.category || item.group || `Item ${i + 1}`;
                     const barColor = `${accent}${opacitySuffix[i] || '77'}`;
                     return (
                       <motion.div key={i} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.18 + i * 0.06 }}>

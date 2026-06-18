@@ -10,6 +10,7 @@ import FilterBar from './filters/FilterBar';
 import { useSalesFilterStore } from '../../../store/salesFilterStore';
 import { useAuth } from '../../../context/AuthContext';
 import { useColorMode } from '../../../theme/ThemeContext';
+import { logActivity } from '../../../services/activityLog';
 import {
   getGraphMonthwise,
   getGraphCatgroup,
@@ -143,6 +144,7 @@ export default function ChartsPage({ loggedInRolex }) {
       setYrFilterSub('-Select-');
       const firstRow = list[0] && typeof list[0] === 'object' && !list[0].dist ? list[0] : (list[0]?.dist ?? list[0] ?? null);
       setGraphData(firstRow);
+      logActivity('Sales-Charts', 'Month Wise', 'First Step');
     } catch (err) {
       setError(err?.response?.data?.error || err?.message || 'Failed to load chart data');
     } finally {
@@ -247,6 +249,7 @@ export default function ChartsPage({ loggedInRolex }) {
         ly_tonnage: parseFloat(r.ly_tonnage) || 0,
         ly_amount:  parseFloat(r.ly_amount)  || 0,
       })));
+      logActivity('Sales-Charts', 'Day Wise', 'First Step');
     } catch { setDwLevel1([]); }
     setDwL1Loading(false);
   }, [dwDaysel, dwMethod, dwCompany, dwBasedon, dwFilter, employeename]);
@@ -277,6 +280,7 @@ export default function ChartsPage({ loggedInRolex }) {
         ly_tonnage: parseFloat(r.ly_tonnage) || 0,
         ly_amount:  parseFloat(r.ly_amount)  || 0,
       })) : []);
+      logActivity('Sales-Charts', 'Day Wise', 'Second Step');
     } catch { setDwLevel2([]); }
     setDwL2LoadingVisible(false);
     setDwL2Loading(false);
@@ -301,6 +305,7 @@ export default function ChartsPage({ loggedInRolex }) {
         ly_tonnage: parseFloat(r.ly_tonnage) || 0,
         ly_amount:  parseFloat(r.ly_amount)  || 0,
       })) : []);
+      logActivity('Sales-Charts', 'Day Wise', 'Third Step');
     } catch { setDwLevel3([]); }
     setDwL3LoadingVisible(false);
     setDwL3Loading(false);
@@ -329,6 +334,7 @@ export default function ChartsPage({ loggedInRolex }) {
         ly_tonnage: parseFloat(r.ly_tonnage) || 0,
         ly_amount:  parseFloat(r.ly_amount)  || 0,
       })) : []);
+      logActivity('Sales-Charts', 'Day Wise', 'Fourth Step');
     } catch { setDwLevel4([]); }
     setDwL4LoadingVisible(false);
     setDwL4Loading(false);
@@ -395,6 +401,7 @@ export default function ChartsPage({ loggedInRolex }) {
         }
       });
       setPieData1(arr1); setPieData2(arr2); setPieData3(arr3);
+      logActivity('Sales-Charts', 'Month Wise', 'Second Step');
     } catch { setPieData1([]); setPieData2([]); setPieData3([]); }
     setCatgroupLoading(false);
     scrollTo('mw-section2');
@@ -450,6 +457,7 @@ export default function ChartsPage({ loggedInRolex }) {
     try {
       const rows = await getGraphCategoryForCatgroup({ selectedyear: year, month, catgroup: catgroupName, dataget: pieNum, monthwisedisttype, monthwisecompany });
       setCategoryData(Array.isArray(rows) ? rows.map(r => ({ name: r.category ?? r.catgroup ?? r.name, value: parseFloat(r.monthval) || 0 })) : []);
+      logActivity('Sales-Charts', 'Month Wise', 'Third Step');
     } catch { setCategoryData([]); }
     setCategoryLoading(false);
     scrollTo('mw-section3');
@@ -476,6 +484,7 @@ export default function ChartsPage({ loggedInRolex }) {
     try {
       const rows = await getGraphCategoryWithCode({ selectedyear: year, month, catgroup, category: categoryName, dataget: pieNum, monthwisedisttype, monthwisecompany, employeename });
       setCodeData(Array.isArray(rows) ? rows.map(r => ({ name: r.code ?? r.category ?? r.name, value: parseFloat(r.monthval) || 0 })) : []);
+      logActivity('Sales-Charts', 'Month Wise', 'Fourth Step');
     } catch { setCodeData([]); }
     setCodeLoading(false);
     scrollTo('mw-section3');

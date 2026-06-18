@@ -7,6 +7,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useColorMode } from '../../../theme/ThemeContext';
 import SrLoader from '../../../components/ui/SrLoader';
 import { appLog } from '../../../config/appConfig';
+import { logActivity } from '../../../services/activityLog';
 import Tooltip from '../../../components/ui/Tooltip';
 import './Sales.css';
 
@@ -521,6 +522,7 @@ export default function ShortSupplyPage() {
         const arr = (Array.isArray(data) ? data : []).filter(r => r.description !== 'Total');
         setLeftData([...arr].sort((a, b) => (parseFloat(b.shortsupplytonnage) || 0) - (parseFloat(a.shortsupplytonnage) || 0)));
         setLeftLoading(false);
+        logActivity('Sales-Report', 'Short Supply');
         showToast('Success', 'Data loaded successfully!', 'success');
       })
       .catch(err => {

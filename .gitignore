@@ -47,6 +47,7 @@ build/
 logs
 *.log
 SALES_CHANGELOG.md
+SALES_FIELD_COMPARISON.md
 CLAUDE.md
 
 # OS

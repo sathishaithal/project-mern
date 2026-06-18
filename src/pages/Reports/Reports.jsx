@@ -1,8 +1,9 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useColorMode } from "../../theme/ThemeContext";
 import { useSummaryCards } from "../../context/SummaryCardsContext";
+import { logActivity } from "../../services/activityLog";
 import SummaryCardsSystem from "../../components/SummaryCardsSystem/SummaryCardsSystem";
 
 const fmt = (v) => {
@@ -138,6 +139,8 @@ const Reports = () => {
   const { dates, multiYearData, shortSupply, sellingData, prodData, prodLoading } = useSummaryCards();
   const accent  = selectedAccent?.primary   || '#1a237e';
   const accent2 = selectedAccent?.secondary || '#283593';
+
+  useEffect(() => { logActivity('Reports'); }, []);
   const textMut = isDarkMode ? '#94a3b8' : '#64748b';
   const border  = isDarkMode ? '#334155' : '#e2e8f0';
 
@@ -150,7 +153,7 @@ const Reports = () => {
   const top5Categories = useMemo(() => {
     if (!sellingData || !sellingData.length) return sellingData === null ? null : [];
     const mapped = sellingData.map(item => ({
-      name: item.description || item.catdescription || item.category || 'Unknown',
+      name: item.catgroup || item.description || item.catdescription || item.category || 'Unknown',
       tonnage: parseFloat(item.tonnage || item.totaltonnage || item.value || 0),
     }));
     return mapped.sort((a, b) => b.tonnage - a.tonnage).slice(0, 5);
@@ -206,46 +209,52 @@ const Reports = () => {
           </span>
         </div>
         <div style={{
-          display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 24,
+          overflow: 'hidden', marginBottom: 24,
+          maskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%)',
         }}>
-          {quickStats.map((s, i) => (
-            <motion.div
-              key={s.label}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 + i * 0.07 }}
-              style={{
-                flex: '1 1 160px',
-                padding: '16px 18px',
-                borderRadius: 16,
-                background: `linear-gradient(135deg, ${s.color} 0%, ${s.color}bb 100%)`,
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                boxShadow: `0 4px 18px ${s.color}44`,
-                position: 'relative',
-                overflow: 'hidden',
-              }}
-            >
-              <div style={{
-                position: 'absolute', top: 0, right: 0, width: 90, height: 90,
-                background: 'radial-gradient(circle at 100% 0%, rgba(255,255,255,0.15) 0%, transparent 70%)',
-                pointerEvents: 'none',
-              }} />
-              <div style={{
-                width: 40, height: 40, borderRadius: 11, flexShrink: 0,
-                background: 'rgba(255,255,255,0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <i className={`bi ${s.icon}`} style={{ fontSize: '1.05rem', color: 'white' }} />
+          <motion.div
+            animate={{ x: ['0%', '-50%'] }}
+            transition={{ duration: Math.max(14, quickStats.length * 4), ease: 'linear', repeat: Infinity }}
+            style={{ display: 'inline-flex', gap: 14 }}
+          >
+            {[...quickStats, ...quickStats].map((s, i) => (
+              <div
+                key={i}
+                style={{
+                  flexShrink: 0,
+                  width: 210,
+                  padding: '16px 18px',
+                  borderRadius: 16,
+                  background: `linear-gradient(135deg, ${s.color} 0%, ${s.color}bb 100%)`,
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  boxShadow: `0 4px 18px ${s.color}44`,
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+              >
+                <div style={{
+                  position: 'absolute', top: 0, right: 0, width: 90, height: 90,
+                  background: 'radial-gradient(circle at 100% 0%, rgba(255,255,255,0.15) 0%, transparent 70%)',
+                  pointerEvents: 'none',
+                }} />
+                <div style={{
+                  width: 40, height: 40, borderRadius: 11, flexShrink: 0,
+                  background: 'rgba(255,255,255,0.2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <i className={`bi ${s.icon}`} style={{ fontSize: '1.05rem', color: 'white' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.85, marginBottom: 3 }}>{s.label}</div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, lineHeight: 1 }}>{s.value}</div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.85, marginBottom: 3 }}>{s.label}</div>
-                <div style={{ fontSize: '1.15rem', fontWeight: 800, lineHeight: 1 }}>{s.value}</div>
-              </div>
-            </motion.div>
-          ))}
+            ))}
+          </motion.div>
         </div>
       </>}
 
