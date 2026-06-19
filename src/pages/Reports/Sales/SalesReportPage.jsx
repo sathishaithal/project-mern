@@ -416,7 +416,7 @@ function ColorLegend({ accent, isDarkMode }) {
   );
 }
 
-export default function SalesReportPage({ loggedInRole = null, loggedInRolex = null }) {
+export default function SalesReportPage({ loggedInRole = null, loggedInRolex = null, syncKey = 0, onLastUpdateChange }) {
   const { user } = useAuth();
   const employeename = user?.username;
   const { multiyear, monthwisecompany, monthwisedisttype, setMonthwiseDisttype } = useSalesFilterStore();
@@ -619,7 +619,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
         setRawRows(nonSummaryRawRef.current);
         preGroupAll(nonSummaryRawRef.current);
         setAppliedMultiyear(multiyear);
-        logActivity('Sales-Report', 'Month Wise', TABS.find(t => t.id === tab)?.label || tab);
+        logActivity('Sales', 'Month Wise', TABS.find(t => t.id === tab)?.label || tab, 'generate', { year: String(multiyear), company: monthwisecompany, method: monthwisedisttype });
         return;
       }
     }
@@ -639,7 +639,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
         const data = await getMultiYearSales(baseParams);
         setRawRows(Array.isArray(data) ? data.filter(r => !isGrandTotal(r)) : []);
         setAppliedMultiyear(multiyear);
-        logActivity('Sales-Report', 'Month Wise', 'YoY Summary');
+        logActivity('Sales', 'Month Wise', 'YoY Summary', 'generate', { year: String(multiyear), company: monthwisecompany, method: monthwisedisttype });
       } else {
         // Non-summary tabs: call both APIs in parallel
         // API 12 → lookup table (distname → asm, soff, catgroup, description, method)
@@ -695,7 +695,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
         setRawRows(filtered);
         preGroupAll(filtered);
         setAppliedMultiyear(multiyear);
-        logActivity('Sales-Report', 'Month Wise', TABS.find(t => t.id === tab)?.label || tab);
+        logActivity('Sales', 'Month Wise', TABS.find(t => t.id === tab)?.label || tab, 'generate', { year: String(multiyear), company: monthwisecompany, method: monthwisedisttype });
       }
     } catch (err) {
       const msg = err?.response?.data?.error || err?.message || 'Failed to load data';
@@ -708,6 +708,10 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
 
   // Effect 1: fetch when params change (tab is irrelevant to this effect)
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Re-fetch when global Sync completes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (syncKey > 0) fetchData(); }, [syncKey]);
 
   // Effect 2: fetch only when crossing the summary ↔ non-summary boundary
   useEffect(() => {
@@ -1094,6 +1098,10 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
   }, [activeTab]);
 
   const lastUpdateDate = lastUpdate ? fmtDate(lastUpdate.dispatchlastupdate) : null;
+
+  // Propagate last update date to parent (SalesDashboard tab bar)
+  useEffect(() => { onLastUpdateChange?.(lastUpdateDate); }, [lastUpdateDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const isDrillLoading = Object.values(drillLoading).some(Boolean);
 
   // Filter option arrays — cascading: each dropdown only shows values valid given upstream selections
@@ -1279,7 +1287,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
           {visibleTabs.map(t => (
             <button
               key={t.id}
-              onClick={() => { setActiveTab(t.id); setExpanded({}); setDrillData({}); setExpandedYear({}); setFCatgroup([]); setFCategory([]); setFItemType([]); setFItem([]); setFDistName([]); setFAsm([]); setFAreaName([]); setFSoff([]); }}
+              onClick={() => { setActiveTab(t.id); setExpanded({}); setDrillData({}); setExpandedYear({}); setFCatgroup([]); setFCategory([]); setFItemType([]); setFItem([]); setFDistName([]); setFAsm([]); setFAreaName([]); setFSoff([]); if (t.id !== 'summary') logActivity('Sales', 'Month Wise', t.label, 'view', { year: String(multiyear), company: monthwisecompany, method: monthwisedisttype }); }}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
                 fontWeight: activeTab === t.id ? 700 : 500,

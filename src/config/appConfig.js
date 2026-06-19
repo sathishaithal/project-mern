@@ -1,8 +1,6 @@
 // ─── Global App Configuration ────────────────────────────────────────────────
 
-// Set to true during development to see all console logs
-// Set to false for production — all console logs are silenced
-export const IS_CONSOLE = true;
+export const IS_CONSOLE = true; // true = dev, false = prod
 
 // Helper function — use this instead of console.log/warn/error everywhere
 export const appLog   = (...args) => { if (IS_CONSOLE) console.log(...args); };

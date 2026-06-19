@@ -1,4 +1,5 @@
 import React from 'react';
+import { appError } from '../config/appConfig';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -11,10 +12,7 @@ export default class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    // appError is flag-gated in appConfig; safe to import here but keep lightweight
-    if (typeof window !== 'undefined') {
-      console.error('[ErrorBoundary]', error, info.componentStack);
-    }
+    appError('[ErrorBoundary]', error, info.componentStack);
   }
 
   render() {

@@ -69,7 +69,10 @@ const ALL_CARDS = [
   {
     id: 'short_supply_high_top3',
     label: 'HIGH TO LOW TOP 3',
-    sublabel: '(Short Supply — Yesterday)',
+    sublabel: () => {
+      const mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `(Short Supply — ${mn[new Date().getMonth()]})`;
+    },
     icon: 'bi-sort-numeric-down-alt',
     section: 'sales',
     grad: 4,
@@ -87,7 +90,10 @@ const ALL_CARDS = [
   {
     id: 'short_supply_low_top3',
     label: 'LOW TO HIGH TOP 3',
-    sublabel: '(Short Supply — Yesterday)',
+    sublabel: () => {
+      const mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `(Short Supply — ${mn[new Date().getMonth()]})`;
+    },
     icon: 'bi-sort-numeric-up',
     section: 'sales',
     grad: 3,
@@ -138,7 +144,7 @@ const ALL_CARDS = [
   {
     id: 'top_item_1',
     label: 'TOP ITEM #1',
-    sublabel: '(Yesterday Tonnage)',
+    sublabel: (d) => { const y = d.header?.list?.[0]?.ydate; return y ? `(${y})` : '(Yesterday — No Data)'; },
     icon: 'bi-1-circle-fill',
     section: 'sales',
     grad: 5,
@@ -151,7 +157,7 @@ const ALL_CARDS = [
   {
     id: 'top_item_2',
     label: 'TOP ITEM #2',
-    sublabel: '(Yesterday Tonnage)',
+    sublabel: (d) => { const y = d.header?.list?.[0]?.ydate; return y ? `(${y})` : '(Yesterday — No Data)'; },
     icon: 'bi-2-circle-fill',
     section: 'sales',
     grad: 5,
@@ -164,7 +170,7 @@ const ALL_CARDS = [
   {
     id: 'top_item_3',
     label: 'TOP ITEM #3',
-    sublabel: '(Yesterday Tonnage)',
+    sublabel: (d) => { const y = d.header?.list?.[0]?.ydate; return y ? `(${y})` : '(Yesterday — No Data)'; },
     icon: 'bi-3-circle-fill',
     section: 'sales',
     grad: 5,
@@ -177,7 +183,7 @@ const ALL_CARDS = [
   {
     id: 'low_item_1',
     label: 'LOW ITEM #1',
-    sublabel: '(Yesterday Tonnage)',
+    sublabel: (d) => { const y = d.header?.list?.[0]?.ydate; return y ? `(${y})` : '(Yesterday — No Data)'; },
     icon: 'bi-1-circle',
     section: 'sales',
     grad: 3,
@@ -190,7 +196,7 @@ const ALL_CARDS = [
   {
     id: 'low_item_2',
     label: 'LOW ITEM #2',
-    sublabel: '(Yesterday Tonnage)',
+    sublabel: (d) => { const y = d.header?.list?.[0]?.ydate; return y ? `(${y})` : '(Yesterday — No Data)'; },
     icon: 'bi-2-circle',
     section: 'sales',
     grad: 3,
@@ -366,7 +372,7 @@ const ALL_CARDS = [
   {
     id: 'raw_total_used',
     label: 'RAW MATERIAL USED',
-    sublabel: '(Consumed / Transfer Out)',
+    sublabel: '(Used)',
     icon: 'bi-cpu',
     section: 'production',
     grad: 4,
@@ -408,7 +414,7 @@ const ALL_CARDS = [
   {
     id: 'raw_arrival',
     label: 'RAW MATERIAL ARRIVAL',
-    sublabel: '(Purchased / Transfer In)',
+    sublabel: '(Arrival)',
     icon: 'bi-truck-front',
     section: 'production',
     grad: 6,
@@ -464,48 +470,6 @@ const ALL_CARDS = [
       const bg = (d.prodData.finished['BENGAL GRAM'] ?? [])
         .reduce((s, i) => s + (parseFloat(i['purchased/transfer in']) || 0), 0);
       return `${fmt(fg + bg)} KG`;
-    },
-  },
-  {
-    id: 'fried_gram_production',
-    label: 'FRIED GRAM PRODUCTION',
-    sublabel: '(Total)',
-    icon: 'bi-fire',
-    section: 'production',
-    grad: 4,
-    isLoading: (d) => d.prodLoading,
-    getValue: (d) => {
-      const items = d.prodData?.finished?.['FRIED GRAM'] ?? [];
-      const total = items.reduce((s, i) => s + (parseFloat(i['purchased/transfer in']) || 0), 0);
-      return `${fmt(total)} KG`;
-    },
-  },
-  {
-    id: 'bengal_gram_production',
-    label: 'BENGAL GRAM PRODUCTION',
-    sublabel: '(Total)',
-    icon: 'bi-droplet-half',
-    section: 'production',
-    grad: 2,
-    isLoading: (d) => d.prodLoading,
-    getValue: (d) => {
-      const items = d.prodData?.finished?.['BENGAL GRAM'] ?? [];
-      const total = items.reduce((s, i) => s + (parseFloat(i['purchased/transfer in']) || 0), 0);
-      return `${fmt(total)} KG`;
-    },
-  },
-  {
-    id: 'gram100kg_used',
-    label: 'GRAM 100 KG USED',
-    sublabel: '(Raw Material)',
-    icon: 'bi-moisture',
-    section: 'production',
-    grad: 0,
-    isLoading: (d) => d.prodLoading,
-    getValue: (d) => {
-      const items = d.prodData?.raw?.['All Raw Materials'] ?? [];
-      const item = items.find(i => i.description?.toUpperCase().trim() === 'GRAM 100 KG');
-      return item ? `${fmt(parseFloat(item['consumed/transfer out']) || 0)} KG` : '—';
     },
   },
   {
@@ -573,34 +537,6 @@ const ALL_CARDS = [
       const closing = items.reduce((s, i) => s + (parseFloat(i.closing) || 0), 0);
       const delta   = closing - opening;
       return `${delta >= 0 ? '+' : ''}${fmt(delta)} KG`;
-    },
-  },
-  {
-    id: 'fried_gram_closing',
-    label: 'FRIED GRAM CLOSING',
-    sublabel: '(Finished Goods Stock)',
-    icon: 'bi-fire',
-    section: 'production',
-    grad: 4,
-    isLoading: (d) => d.prodLoading,
-    getValue: (d) => {
-      const items = d.prodData?.finished?.['FRIED GRAM'] ?? [];
-      const total = items.reduce((s, i) => s + (parseFloat(i.closing) || 0), 0);
-      return `${fmt(total)} KG`;
-    },
-  },
-  {
-    id: 'bengal_gram_closing',
-    label: 'BENGAL GRAM CLOSING',
-    sublabel: '(Finished Goods Stock)',
-    icon: 'bi-droplet-half',
-    section: 'production',
-    grad: 2,
-    isLoading: (d) => d.prodLoading,
-    getValue: (d) => {
-      const items = d.prodData?.finished?.['BENGAL GRAM'] ?? [];
-      const total = items.reduce((s, i) => s + (parseFloat(i.closing) || 0), 0);
-      return `${fmt(total)} KG`;
     },
   },
   {
@@ -688,7 +624,7 @@ function SummaryCard({ card, apiData, gradient, index }) {
         color: 'white',
         flex: '1 1 180px',
         minWidth: 170,
-        maxWidth: 280,
+        maxWidth: card.isList ? 320 : 280,
         display: 'flex',
         gap: 10,
         position: 'relative',
@@ -721,7 +657,7 @@ function SummaryCard({ card, apiData, gradient, index }) {
             listItems.length > 0 ? (
               <ul style={{ margin: 0, padding: 0, listStyle: 'none', fontSize: '0.68rem', lineHeight: 1.6 }}>
                 {listItems.map((item, i) => (
-                  <li key={i} style={{ opacity: 0.92, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <li key={i} style={{ opacity: 0.92, wordBreak: 'break-word' }}>
                     {card.renderItem(item)}
                   </li>
                 ))}
@@ -921,7 +857,7 @@ function CardPickerModal({ selectedCards, onSave, onClose, accent, accent2, isDa
                             {card.label}
                           </div>
                           <div style={{ fontSize: '0.67rem', color: mutedClr, marginTop: 1 }}>
-                            {typeof card.sublabel === 'string' ? card.sublabel : '—'}
+                            {getSublabel(card, apiData)}
                           </div>
                           <div style={{
                             fontSize: '0.65rem',
@@ -995,15 +931,16 @@ export default function SummaryCardsSystem({
   accent: accentProp,
   accent2: accent2Prop,
 }) {
-  const { isDarkMode, selectedAccent } = useColorMode();
+  const { isDarkMode, selectedAccent, selectedCards, setSelectedCards, isCardsHidden, setIsCardsHidden } = useColorMode();
   // All API data comes from the global context — fetched once on login, shared across all pages
   const ctx = useSummaryCards();
 
   const accent  = accentProp  || selectedAccent?.primary   || '#1a237e';
   const accent2 = accent2Prop || selectedAccent?.secondary || '#283593';
 
-  const [selectedCards, setSelectedCards] = useState(loadStoredSelection);
-  const [isHidden,      setIsHidden]      = useState(() => localStorage.getItem(STORAGE_HIDDEN_KEY) === 'true');
+  // Alias for readability — state lives in ThemeContext (auto-saved to DB)
+  const isHidden    = isCardsHidden;
+  const setIsHidden = setIsCardsHidden;
   const [showPicker,    setShowPicker]    = useState(false);
 
   // Production page can pass its own date-filtered data to override the cached default
@@ -1028,15 +965,11 @@ export default function SummaryCardsSystem({
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const toggleHide = () => {
-    const next = !isHidden;
-    setIsHidden(next);
-    localStorage.setItem(STORAGE_HIDDEN_KEY, String(next));
+    setIsHidden(!isHidden);
   };
 
   const handleSave = (newSelected) => {
-    const trimmed = newSelected.slice(0, MAX_CARDS);
-    setSelectedCards(trimmed);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+    setSelectedCards(newSelected.slice(0, MAX_CARDS));
     setShowPicker(false);
   };
 

@@ -43,7 +43,7 @@ const Production = () => {
   const [activeProductionTab, setActiveProductionTab] = useState("reports");
 
   useEffect(() => {
-    if (activeProductionTab === 'charts') logActivity('Production-Charts');
+    if (activeProductionTab === 'charts') logActivity('Production', 'Charts', '', 'view', { from: formatPayloadDate(fromDate), to: formatPayloadDate(toDate) });
   }, [activeProductionTab]);
   const [catGroup, setCatGroup] = useState("Fried Gram Mill");
   const [fromDate, setFromDate] = useState(new Date());
@@ -621,7 +621,7 @@ let othersProdPercentage = 0;
 
       const activeData = parsed[unitType] || parsed.tonnage;
       setData(activeData);
-      logActivity('Production-Report');
+      logActivity('Production', 'Report', '', 'generate', { from: formatPayloadDate(fromDate), to: formatPayloadDate(toDate) });
 
       const obj = {};
       [...Object.keys(activeData.finished || {}), ...Object.keys(activeData.finished2 || {})].forEach((k) => (obj[k] = true));

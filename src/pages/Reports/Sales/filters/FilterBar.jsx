@@ -1,37 +1,13 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React from 'react';
 import { useColorMode } from '../../../../theme/ThemeContext';
-import { usePageIntro } from '../../../../context/PageIntroContext';
-import apiClient from '../../../../services/apiClient';
 import YearSelector from './YearSelector';
 import CompanySelector from './CompanySelector';
 import DistTypeSelector from './DistTypeSelector';
 import MonthSelector from './MonthSelector';
 import '../Sales.css';
 
-const FilterBar = ({ mode = 'monthwise', onApply, onSync, isLoading = false, lastUpdateDate, activeReportTab = '', children }) => {
+const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateDate, activeReportTab = '', children }) => {
   const { isDarkMode, selectedAccent } = useColorMode();
-  const { triggerIntro } = usePageIntro();
-  const [syncing,    setSyncing]    = useState(false);
-  const [syncStatus, setSyncStatus] = useState(null); // 'ok' | 'err' | null
-
-  const handleSync = async () => {
-    if (syncing) return;
-    setSyncing(true);
-    setSyncStatus(null);
-    try {
-      await apiClient.get('/api/batch/dashboardsync');
-      setSyncStatus('ok');
-      triggerIntro(1400);
-      onSync?.();
-      setTimeout(() => setSyncStatus(null), 3000);
-    } catch {
-      setSyncStatus('err');
-      setTimeout(() => setSyncStatus(null), 3000);
-    } finally {
-      setSyncing(false);
-    }
-  };
   const accent  = selectedAccent?.primary   || '#2563eb';
   const accent2 = selectedAccent?.secondary || '#1e40af';
 
@@ -86,47 +62,6 @@ const FilterBar = ({ mode = 'monthwise', onApply, onSync, isLoading = false, las
             <span className="fb-last-update" style={{ color: isDarkMode ? '#94a3b8' : '#64748b', fontSize: '0.7rem' }}>
               Last update: unavailable
             </span>
-          )}
-
-          {syncStatus === 'ok' && (
-            <span style={{ color: accent, fontSize: '0.72rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
-              <i className="bi bi-check-circle-fill" />Synced
-            </span>
-          )}
-          {syncStatus === 'err' && (
-            <span style={{ color: '#ef4444', fontSize: '0.72rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
-              <i className="bi bi-exclamation-circle-fill" />Sync failed
-            </span>
-          )}
-
-          {onApply && (
-            <button
-              onClick={handleSync}
-              disabled={isLoading || syncing}
-              className="fb-sync-btn"
-              style={{
-                background: syncStatus === 'err'
-                  ? 'linear-gradient(135deg, #ef4444, #dc2626)'
-                  : `linear-gradient(135deg, ${accent}, ${accent2})`,
-                opacity: (isLoading || syncing) ? 0.8 : 1,
-                cursor: (isLoading || syncing) ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {syncing ? (
-                <>
-                  <motion.i
-                    className="bi bi-arrow-repeat"
-                    style={{ marginRight: 4, display: 'inline-block' }}
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 0.7, ease: 'linear' }}
-                  />Syncing…
-                </>
-              ) : isLoading ? (
-                <><i className="bi bi-arrow-clockwise" style={{ marginRight: 4 }} />Loading…</>
-              ) : (
-                <><i className="bi bi-arrow-repeat" style={{ marginRight: 4 }} />Sync</>
-              )}
-            </button>
           )}
         </div>
       </div>

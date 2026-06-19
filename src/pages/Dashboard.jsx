@@ -48,7 +48,7 @@ function ShortSupplyTicker({ items, isDarkMode }) {
   if (!items.length) return null;
   const { all, dur } = useMemo(() => {
     const chunks = items.map(i =>
-      `⚠  ${i.description}  ${parseFloat(i.shortsupplytonnage).toFixed(1)} T`
+      `⚠  ${i.description}  (${parseFloat(i.shortsupplytonnage).toFixed(1)} T)`
     );
     return { all: [...chunks, ...chunks], dur: Math.max(18, items.length * 3.5) };
   }, [items]);
@@ -93,23 +93,40 @@ function ShortSupplyTicker({ items, isDarkMode }) {
 }
 
 // Monthly mini bar chart
-function MonthlyBars({ curRow, accent, accent2, isDarkMode }) {
+function MonthlyBars({ curRow, accent, accent2, isDarkMode, textMut }) {
   const now = new Date();
   const curMon = now.getMonth();
   const vals = MON_KEYS.map(k => parseFloat(curRow?.[k]) || 0);
   const max = Math.max(...vals, 1);
   const hasData = vals.some(v => v > 0);
   if (!hasData) return null;
+  const labelClr = textMut || (isDarkMode ? '#64748b' : '#94a3b8');
   return (
-    <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 56 }}>
+    <div style={{ display: 'flex', gap: 3, alignItems: 'stretch', height: 76 }}>
       {MONTHS.map((m, i) => {
         const v = vals[i];
         const pct = v > 0 ? Math.max((v / max) * 100, 3) : 0;
         const isCurrent = i === curMon && v > 0;
         const isFuture = i > curMon && v === 0;
+        const showVal = v > 0 && !isFuture;
         return (
-          <div key={m} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-            <div style={{ width: '100%', height: 44, display: 'flex', alignItems: 'flex-end' }}>
+          <div key={m} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+            {/* Fixed 13px slot for value label — always reserved so all bars share same baseline */}
+            <div style={{ height: 13, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', width: '100%' }}>
+              {showVal && (
+                <span style={{
+                  fontSize: '0.38rem',
+                  color: isCurrent ? accent : labelClr,
+                  fontWeight: isCurrent ? 700 : 500,
+                  lineHeight: 1, textAlign: 'center',
+                  whiteSpace: 'nowrap', overflow: 'hidden', width: '100%',
+                }}>
+                  {fmtNum(v)}
+                </span>
+              )}
+            </div>
+            {/* Bar area — bar grows from bottom of this flex container */}
+            <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-end' }}>
               <motion.div
                 initial={{ height: 0 }}
                 animate={{ height: pct > 0 ? `${pct}%` : '2px' }}
@@ -126,7 +143,8 @@ function MonthlyBars({ curRow, accent, accent2, isDarkMode }) {
                 }}
               />
             </div>
-            <span style={{ fontSize: '0.46rem', color: isDarkMode ? '#64748b' : '#94a3b8', textTransform: 'uppercase', lineHeight: 1 }}>{m}</span>
+            {/* Month label */}
+            <span style={{ fontSize: '0.46rem', color: labelClr, textTransform: 'uppercase', lineHeight: 1 }}>{m}</span>
           </div>
         );
       })}
@@ -226,7 +244,7 @@ const ReportCard = ({ title, desc, icon, path, accent, badge, isDarkMode, border
       whileTap={{ scale: 0.98 }}
       onClick={() => navigate(path)}
       style={{
-        flex: '1 1 240px', maxWidth: 340, cursor: 'pointer',
+        flex: '1 1 240px', cursor: 'pointer',
         background: isDarkMode ? '#1e293b' : '#ffffff',
         borderRadius: 16, padding: '1.3rem 1.4rem',
         border: `1px solid ${border}`,
@@ -268,9 +286,9 @@ const ReportCard = ({ title, desc, icon, path, accent, badge, isDarkMode, border
 const Dashboard = () => {
   const { user }    = useAuth();
   const { isDarkMode, selectedAccent } = useColorMode();
-  const { dates, multiYearData, shortSupply, sellingData, prodData, prodLoading } = useSummaryCards();
+  const { dates, multiYearData, shortSupply, sellingData, prodSummary, prodLoading } = useSummaryCards();
 
-  useEffect(() => { logActivity('Dashboard'); }, []);
+  useEffect(() => { logActivity('Dashboard', '', '', 'view'); }, []);
 
   const accent  = selectedAccent?.primary   || '#1a237e';
   const accent2 = selectedAccent?.secondary || '#283593';
@@ -310,11 +328,32 @@ const Dashboard = () => {
     transition: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
   };
 
+  const priorRow = (multiYearData?.length > 1) ? multiYearData[multiYearData.length - 2] : null;
+  const priorVal = parseFloat(priorRow?.ttltonnage_crntwy || priorRow?.ttltonnage_crnt) || 0;
+
+  const q1 = parseFloat(curRow?.Q1) || 0;
+  const q2 = parseFloat(curRow?.Q2) || 0;
+  const q3 = parseFloat(curRow?.Q3) || 0;
+  const ssTonnage = parseFloat(dates?.shortsupplytonnage) || 0;
+  const topCat = useMemo(() => {
+    if (!sellingData?.length) return null;
+    const sorted = [...sellingData].sort((a, b) => (parseFloat(b.tonnage) || 0) - (parseFloat(a.tonnage) || 0));
+    return sorted[0] || null;
+  }, [sellingData]);
+  const topCatTon  = parseFloat(topCat?.tonnage) || 0;
+  const topCatName = topCat?.catgroup || topCat?.description || '';
+
   const statItems = [
-    ytd > 0    && { label: 'YTD Tonnage',    value: ytd,    icon: 'bi-bar-chart-line-fill', color: accent,   suffix: 'T' },
-    curMon > 0 && { label: monthName + ' Sales', value: curMon, icon: 'bi-calendar3',       color: accent2,  suffix: 'T' },
-    yoy > 0    && { label: 'Full Year (YOY)', value: yoy,   icon: 'bi-arrow-repeat',        color: accent,   suffix: 'T' },
-    allShortSupply.length > 0 && { label: 'Short Supply Items', value: allShortSupply.length, icon: 'bi-exclamation-triangle', color: '#ef4444', suffix: '' },
+    ytd > 0       && { label: 'YTD Tonnage',                  displayValue: fmtT(ytd),       icon: 'bi-bar-chart-line-fill',  color: accent },
+    curMon > 0    && { label: monthName + ' Sales',            displayValue: fmtT(curMon),    icon: 'bi-calendar3',            color: accent2 },
+    q1 > 0        && { label: 'Q1 (Jan–Mar)',                  displayValue: fmtT(q1),        icon: 'bi-bar-chart',            color: accent },
+    q2 > 0        && { label: 'Q2 (Apr–Jun)',                  displayValue: fmtT(q2),        icon: 'bi-bar-chart',            color: accent2 },
+    q3 > 0        && { label: 'Q3 (Jul–Sep)',                  displayValue: fmtT(q3),        icon: 'bi-bar-chart',            color: accent },
+    yoy > 0       && { label: 'Full Year (YOY)',               displayValue: fmtT(yoy),       icon: 'bi-arrow-repeat',         color: accent },
+    priorVal > 0  && { label: 'Prior Year',                    displayValue: fmtT(priorVal),  icon: 'bi-clock-history',        color: accent2 },
+    topCatTon > 0 && { label: `Top: ${topCatName}`,           displayValue: fmtT(topCatTon), icon: 'bi-award-fill',           color: accent },
+    allShortSupply.length > 0 && { label: `Short Supply — ${monthName}`, displayValue: String(allShortSupply.length), icon: 'bi-exclamation-triangle', color: '#ef4444' },
+    ssTonnage > 0 && { label: 'S.Supply Tonnage',             displayValue: fmtT(ssTonnage), icon: 'bi-exclamation-circle',   color: '#ef4444' },
   ].filter(Boolean);
 
   return (
@@ -370,38 +409,46 @@ const Dashboard = () => {
               Sales Snapshot — {year}
             </span>
           </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {multiYearData === null
-              ? [0, 1, 2].map(i => (
-                  <motion.div key={i}
-                    animate={{ opacity: [0.5, 1, 0.5] }}
-                    transition={{ duration: 1.2, repeat: Infinity }}
-                    style={{
-                      flex: '1 1 150px', minWidth: 0,
-                      background: isDarkMode ? '#1e293b' : '#f1f5f9',
-                      border: `1px solid ${border}`,
-                      borderRadius: 14, padding: '13px 15px',
-                      height: 68,
-                    }}
-                  />
-                ))
-              : statItems.map((s, i) => (
-                  <motion.div key={s.label}
-                    initial={{ opacity: 0, scale: 0.88 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.08 + i * 0.07, duration: 0.35 }}
-                    style={{
-                      flex: '1 1 150px', minWidth: 0,
-                      background: isDarkMode ? `${s.color}18` : `${s.color}0d`,
-                      border: `1px solid ${s.color}30`,
-                      borderRadius: 14, padding: '13px 15px',
-                      display: 'flex', alignItems: 'center', gap: 12,
-                    }}
-                  >
-                    <div style={{ width: 42, height: 42, borderRadius: 11, flexShrink: 0,
+          {multiYearData === null ? (
+            <div style={{ display: 'flex', gap: 12 }}>
+              {[0, 1, 2].map(i => (
+                <motion.div key={i}
+                  animate={{ opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 1.2, repeat: Infinity }}
+                  style={{
+                    flex: '1 1 150px', minWidth: 0,
+                    background: isDarkMode ? '#1e293b' : '#f1f5f9',
+                    border: `1px solid ${border}`,
+                    borderRadius: 14, padding: '13px 15px', height: 68,
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div style={{
+              overflow: 'hidden',
+              maskImage: 'linear-gradient(to right, transparent 0%, black 8%, black 90%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 8%, black 90%, transparent 100%)',
+            }}>
+              <motion.div
+                animate={{ x: ['0%', '-50%'] }}
+                transition={{ duration: Math.max(14, statItems.length * 3), ease: 'linear', repeat: Infinity }}
+                style={{ display: 'inline-flex', gap: 12 }}
+              >
+                {[...statItems, ...statItems].map((s, i) => (
+                  <div key={i} style={{
+                    flexShrink: 0, width: 205,
+                    background: isDarkMode ? `${s.color}18` : `${s.color}0d`,
+                    border: `1px solid ${s.color}30`,
+                    borderRadius: 14, padding: '13px 15px',
+                    display: 'flex', alignItems: 'center', gap: 12,
+                  }}>
+                    <div style={{
+                      width: 42, height: 42, borderRadius: 11, flexShrink: 0,
                       background: `linear-gradient(135deg, ${s.color}, ${s.color}bb)`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      boxShadow: `0 4px 12px ${s.color}44` }}>
+                      boxShadow: `0 4px 12px ${s.color}44`,
+                    }}>
                       <i className={`bi ${s.icon}`} style={{ fontSize: '1.1rem', color: 'white' }} />
                     </div>
                     <div style={{ minWidth: 0 }}>
@@ -409,16 +456,14 @@ const Dashboard = () => {
                         {s.label}
                       </div>
                       <div style={{ fontSize: '1.15rem', fontWeight: 800, color: isDarkMode ? '#f1f5f9' : '#0f172a', lineHeight: 1.15 }}>
-                        {s.suffix === 'T'
-                          ? <><CountUp target={Math.round(s.value)} duration={1.2} /> <span style={{ fontSize: '0.75rem', fontWeight: 600, color: s.color }}>T</span></>
-                          : <CountUp target={s.value} duration={0.9} />
-                        }
+                        {s.displayValue}
                       </div>
                     </div>
-                  </motion.div>
-                ))
-            }
-          </div>
+                  </div>
+                ))}
+              </motion.div>
+            </div>
+          )}
         </motion.div>
       )}
 
@@ -521,7 +566,7 @@ const Dashboard = () => {
               </div>
               <span style={{ fontSize: '0.62rem', color: textMut }}>Tonnage</span>
             </div>
-            <MonthlyBars curRow={curRow} accent={accent} accent2={accent2} isDarkMode={isDarkMode} />
+            <MonthlyBars curRow={curRow} accent={accent} accent2={accent2} isDarkMode={isDarkMode} textMut={textMut} />
           </motion.div>
         )}
 
@@ -542,7 +587,7 @@ const Dashboard = () => {
         )}
 
         {/* Production Today */}
-        {(prodLoading || prodData) && (
+        {(prodLoading || prodSummary) && (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -553,7 +598,7 @@ const Dashboard = () => {
               <i className="bi bi-gear-wide-connected" style={{ color: accent2, fontSize: '0.82rem' }} />
               <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isDarkMode ? '#e2e8f0' : '#1e293b' }}>Production Today</span>
             </div>
-            {prodLoading && !prodData
+            {prodLoading && !prodSummary
               ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {[0, 1, 2].map(i => (
@@ -568,9 +613,9 @@ const Dashboard = () => {
               : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                     {[
-                      { label: 'FG Net Production', val: prodData?.fgnetproduction ?? prodData?.fg_net ?? prodData?.netproduction, unit: 'Kg' },
-                      { label: 'Raw Material',      val: prodData?.rawmaterialused ?? prodData?.raw_material,                      unit: 'Kg' },
-                      { label: 'Efficiency',        val: prodData?.efficiency ?? prodData?.efficiencypct,                          unit: '%' },
+                      { label: 'FG Net Production', val: prodSummary?.fgnetproduction, unit: 'Kg' },
+                      { label: 'Raw Material',      val: prodSummary?.rawmaterialused, unit: 'Kg' },
+                      { label: 'Efficiency',        val: prodSummary?.efficiency,      unit: '%' },
                     ].map(({ label, val, unit }) => (
                       <div key={label}>
                         <div style={{ fontSize: '0.60rem', fontWeight: 600, color: textMut, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
@@ -616,7 +661,7 @@ const Dashboard = () => {
                 <motion.i className="bi bi-exclamation-circle-fill"
                   animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1.8, repeat: Infinity }}
                   style={{ color: '#ef4444', fontSize: '0.82rem' }} />
-                <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isDarkMode ? '#e2e8f0' : '#1e293b' }}>Short Supply</span>
+                <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isDarkMode ? '#e2e8f0' : '#1e293b' }}>Short Supply — {monthName}</span>
               </div>
               <motion.span
                 animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 2.5, repeat: Infinity }}

@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import axios from 'axios';
 import { useAuth } from './AuthContext';
 import {
   getLastUpdatedDates,
@@ -8,6 +7,8 @@ import {
   getMultiYearSales,
   getGraphSellingData,
 } from '../services/salesDashboardApi';
+import { getProductionReportTonnage } from '../services/productionApi';
+import { flattenUnitArray } from '../utils/productionHelpers';
 
 const SummaryCardsContext = createContext(null);
 export const useSummaryCards = () => useContext(SummaryCardsContext);
@@ -28,7 +29,8 @@ export function SummaryCardsProvider({ children }) {
   const [shortSupply,   setShortSupply]   = useState(null);
   const [multiYearData, setMultiYearData] = useState(null);
   const [sellingData,   setSellingData]   = useState(null);
-  const [prodData,      setProdData]      = useState(null);
+  const [prodData,      setProdData]      = useState(null); // raw API response for SummaryCardsSystem
+  const [prodSummary,   setProdSummary]   = useState(null); // derived flat values for Dashboard/Reports mini-card
   const [prodLoading,   setProdLoading]   = useState(false);
   const [fetched,       setFetched]       = useState(false);
 
@@ -74,24 +76,28 @@ export function SummaryCardsProvider({ children }) {
       .then(data => setSellingData(Array.isArray(data) ? data : (data?.list ?? [])))
       .catch(() => setSellingData([]));
 
-    const token =
-      localStorage.getItem('authToken') ||
-      sessionStorage.getItem('authToken') ||
-      sessionStorage.getItem('token');
-    if (token) {
-      setProdLoading(true);
-      axios.post(
-        `${import.meta.env.VITE_API_URL || ''}/Report/production-report`,
-        { fromdate, todate, catgroup: 'Fried Gram Mill' },
-        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
-      )
-        .then(res => {
-          const d = res.data;
-          setProdData(d && Object.keys(d).length > 0 ? d : null);
-        })
-        .catch(() => {})
-        .finally(() => setProdLoading(false));
-    }
+    // Use same endpoint + KG unit as Production Report page for consistent values
+    setProdLoading(true);
+    getProductionReportTonnage({ fromdate, todate })
+      .then(res => {
+        if (!res || Object.keys(res).length === 0) { setProdData(null); setProdSummary(null); return; }
+        // KG unit variant — matches Production Report page when "Kg" is selected
+        const d = flattenUnitArray(res.kg);
+        if (!d || Object.keys(d).length === 0) { setProdData(null); setProdSummary(null); return; }
+        // Keep raw for SummaryCardsSystem production cards
+        setProdData(d);
+        // Derive flat summary for Dashboard/Reports Production Today mini-card
+        const allFinished = Object.values(d.finished || {}).flat();
+        const fgNetProd   = allFinished.reduce((s, i) => s + (parseFloat(i['purchased/transfer in']) || 0), 0);
+        const allRaw      = d.raw?.['All Raw Materials'] ?? [];
+        const rawUsed     = allRaw.reduce((s, i) => s + (parseFloat(i['consumed/transfer out']) || 0), 0);
+        const eff         = rawUsed > 0 && fgNetProd > 0 ? ((fgNetProd / rawUsed) * 100).toFixed(1) : null;
+        setProdSummary(fgNetProd > 0 || rawUsed > 0
+          ? { fgnetproduction: fgNetProd, rawmaterialused: rawUsed, efficiency: eff }
+          : null);
+      })
+      .catch(() => {})
+      .finally(() => setProdLoading(false));
   }, [employeename, fetched]);
 
   // Reset when user logs out
@@ -104,13 +110,14 @@ export function SummaryCardsProvider({ children }) {
       setMultiYearData(null);
       setSellingData(null);
       setProdData(null);
+      setProdSummary(null);
     }
   }, [user]);
 
   return (
     <SummaryCardsContext.Provider value={{
       dates, header, shortSupply, multiYearData, sellingData,
-      prodData, prodLoading: prodLoading && !prodData,
+      prodData, prodSummary, prodLoading: prodLoading && !prodData,
     }}>
       {children}
     </SummaryCardsContext.Provider>

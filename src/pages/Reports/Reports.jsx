@@ -13,6 +13,17 @@ const fmt = (v) => {
   return n.toFixed(1);
 };
 
+const fmtT = (v) => {
+  const n = parseFloat(v);
+  if (!n || isNaN(n)) return null;
+  if (Math.abs(n) >= 1000) return (n / 1000).toFixed(1) + 'K T';
+  return n.toFixed(1) + ' T';
+};
+
+const MON_KEYS = ['jantonnage','febtonnage','martonnage','aprtonnage','maytonnage','juntonnage',
+                  'jultonnage','augtonnage','septonnage','octtonnage','novtonnage','dectonnage'];
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
 const REPORT_ITEMS = [
   {
     id: 'production',
@@ -53,7 +64,6 @@ const ReportCard = ({ item, accent, isDarkMode, border, delay }) => {
         gap: 14,
         cursor: 'pointer',
         flex: '1 1 280px',
-        maxWidth: 480,
         position: 'relative',
         overflow: 'hidden',
         boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
@@ -136,52 +146,60 @@ const ReportCard = ({ item, accent, isDarkMode, border, delay }) => {
 
 const Reports = () => {
   const { isDarkMode, selectedAccent } = useColorMode();
-  const { dates, multiYearData, shortSupply, sellingData, prodData, prodLoading } = useSummaryCards();
+  const { dates, multiYearData, shortSupply, sellingData } = useSummaryCards();
   const accent  = selectedAccent?.primary   || '#1a237e';
   const accent2 = selectedAccent?.secondary || '#283593';
 
-  useEffect(() => { logActivity('Reports'); }, []);
+  useEffect(() => { logActivity('Reports', 'Landing', '', 'view'); }, []);
   const textMut = isDarkMode ? '#94a3b8' : '#64748b';
   const border  = isDarkMode ? '#334155' : '#e2e8f0';
 
-  const curRow = multiYearData?.length ? multiYearData[multiYearData.length - 1] : null;
+  const curRow      = multiYearData?.length ? multiYearData[multiYearData.length - 1] : null;
+  const priorYearRow = multiYearData?.length > 1 ? multiYearData[multiYearData.length - 2] : null;
 
-  // Current month name for Sales Insight card title
   const currentMonthName = new Date().toLocaleString('default', { month: 'long' });
+  const currentMonIdx    = new Date().getMonth();
 
-  // Top 5 categories sorted by tonnage desc
-  const top5Categories = useMemo(() => {
-    if (!sellingData || !sellingData.length) return sellingData === null ? null : [];
-    const mapped = sellingData.map(item => ({
-      name: item.catgroup || item.description || item.catdescription || item.category || 'Unknown',
-      tonnage: parseFloat(item.tonnage || item.totaltonnage || item.value || 0),
-    }));
-    return mapped.sort((a, b) => b.tonnage - a.tonnage).slice(0, 5);
+  const allShortSupply = useMemo(() =>
+    (shortSupply ?? []).filter(r => (parseFloat(r.shortsupplytonnage) || 0) > 0)
+      .sort((a, b) => (parseFloat(b.shortsupplytonnage) || 0) - (parseFloat(a.shortsupplytonnage) || 0)),
+  [shortSupply]);
+
+  const topCat = useMemo(() => {
+    if (!sellingData?.length) return null;
+    return [...sellingData].sort((a, b) => (parseFloat(b.tonnage) || 0) - (parseFloat(a.tonnage) || 0))[0] || null;
   }, [sellingData]);
+
+  const ssTonnage = parseFloat(dates?.shortsupplytonnage) || 0;
 
   // Build quickStats only with real non-zero values
   const quickStats = useMemo(() => {
-    const ytd    = parseFloat(curRow?.ttltonnage_crnt)   || 0;
-    const curMon = dates?.currentmonthtonnage
-      || (multiYearData ?? []).find(r => parseFloat(r.currentmonthtonnage) > 0)?.currentmonthtonnage;
-    const yoy    = parseFloat(curRow?.ttltonnage_crntwy) || 0;
-    const ssCount = (shortSupply ?? []).filter(r => (parseFloat(r.shortsupplytonnage) || 0) > 0).length;
+    const ytd     = parseFloat(curRow?.ttltonnage_crnt)   || 0;
+    const curMon  = parseFloat(dates?.currentmonthtonnage
+      || (multiYearData ?? []).find(r => parseFloat(r.currentmonthtonnage) > 0)?.currentmonthtonnage) || 0;
+    const yoy     = parseFloat(curRow?.ttltonnage_crntwy) || 0;
+    const q1      = parseFloat(curRow?.Q1) || 0;
+    const q2      = parseFloat(curRow?.Q2) || 0;
+    const q3      = parseFloat(curRow?.Q3) || 0;
+    const ssCount = allShortSupply.length;
+    const topCatTon  = parseFloat(topCat?.tonnage) || 0;
+    const topCatName = topCat?.catgroup || topCat?.description || '';
+    const priorVal   = parseFloat(priorYearRow?.ttltonnage_crntwy || priorYearRow?.ttltonnage_crnt) || 0;
 
     const stats = [];
-    if (ytd > 0)    stats.push({ label: 'YTD Tonnage',    value: fmt(ytd) + ' T',           icon: 'bi-bar-chart-fill',       color: accent });
-    if (curMon)     stats.push({ label: 'Current Month',  value: fmt(curMon) + ' T',         icon: 'bi-calendar3',            color: accent2 });
-    if (yoy > 0)    stats.push({ label: 'YOY Comparable', value: fmt(yoy) + ' T',            icon: 'bi-arrow-left-right',     color: accent });
-    if (ssCount > 0) stats.push({ label: 'Short Supply',  value: String(ssCount) + ' items', icon: 'bi-exclamation-triangle', color: '#ef4444' });
-
-    // Prior Year stat — only when there are at least 2 year rows
-    if (multiYearData && multiYearData.length > 1) {
-      const priorRow = multiYearData[multiYearData.length - 2];
-      const priorVal = parseFloat(priorRow?.ttltonnage_crntwy || priorRow?.ttltonnage_crnt) || 0;
-      if (priorVal > 0) stats.push({ label: 'Prior Year', value: fmt(priorVal) + ' T', icon: 'bi-clock-history', color: accent2 });
-    }
+    if (ytd > 0)       stats.push({ label: 'YTD Tonnage',                  value: fmt(ytd) + ' T',           icon: 'bi-bar-chart-fill',       color: accent });
+    if (curMon > 0)    stats.push({ label: 'Current Month',                value: fmt(curMon) + ' T',        icon: 'bi-calendar3',            color: accent2 });
+    if (q1 > 0)        stats.push({ label: 'Q1 (Jan–Mar)',                 value: fmtT(q1),                  icon: 'bi-bar-chart',            color: accent });
+    if (q2 > 0)        stats.push({ label: 'Q2 (Apr–Jun)',                 value: fmtT(q2),                  icon: 'bi-bar-chart',            color: accent2 });
+    if (q3 > 0)        stats.push({ label: 'Q3 (Jul–Sep)',                 value: fmtT(q3),                  icon: 'bi-bar-chart',            color: accent });
+    if (yoy > 0)       stats.push({ label: 'YOY Comparable',              value: fmt(yoy) + ' T',            icon: 'bi-arrow-left-right',     color: accent });
+    if (priorVal > 0)  stats.push({ label: 'Prior Year',                   value: fmt(priorVal) + ' T',      icon: 'bi-clock-history',        color: accent2 });
+    if (topCatTon > 0) stats.push({ label: `Top: ${topCatName}`,          value: fmtT(topCatTon),            icon: 'bi-award-fill',           color: accent });
+    if (ssCount > 0)   stats.push({ label: `Short Supply — ${currentMonthName}`, value: String(ssCount) + ' items', icon: 'bi-exclamation-triangle', color: '#ef4444' });
+    if (ssTonnage > 0) stats.push({ label: 'S.Supply Tonnage',            value: fmtT(ssTonnage),            icon: 'bi-exclamation-circle',   color: '#ef4444' });
 
     return stats;
-  }, [curRow, dates, multiYearData, shortSupply, accent, accent2]);
+  }, [curRow, priorYearRow, dates, multiYearData, allShortSupply, topCat, ssTonnage, accent, accent2, currentMonthName]);
 
   return (
     <motion.div
@@ -210,8 +228,8 @@ const Reports = () => {
         </div>
         <div style={{
           overflow: 'hidden', marginBottom: 24,
-          maskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%)',
-          WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%)',
+          maskImage: 'linear-gradient(to right, transparent 0%, black 8%, black 90%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 8%, black 90%, transparent 100%)',
         }}>
           <motion.div
             animate={{ x: ['0%', '-50%'] }}
@@ -258,7 +276,7 @@ const Reports = () => {
         </div>
       </>}
 
-      {/* Report Insights — Sales by Category + Production Snapshot */}
+      {/* Report Insights — Monthly Sales Comparison + Short Supply Detail */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
         <i className="bi bi-lightbulb-fill" style={{ color: accent, fontSize: '0.9rem' }} />
         <span style={{ fontWeight: 700, fontSize: '0.9rem', color: isDarkMode ? '#e2e8f0' : '#1e293b' }}>
@@ -267,7 +285,7 @@ const Reports = () => {
       </div>
       <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 28 }}>
 
-        {/* Card A — Sales by Category */}
+        {/* Card A — Monthly Sales: current year vs prior year */}
         <div style={{
           flex: '2 1 280px',
           background: isDarkMode ? '#1e293b' : '#ffffff',
@@ -277,51 +295,63 @@ const Reports = () => {
           boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <i className="bi bi-bar-chart-fill" style={{ color: accent, fontSize: '0.9rem' }} />
+            <i className="bi bi-calendar3" style={{ color: accent, fontSize: '0.9rem' }} />
             <span style={{ fontWeight: 700, fontSize: '0.9rem', color: isDarkMode ? '#e2e8f0' : '#1e293b' }}>
-              Sales by Category — {currentMonthName}
+              Monthly Sales — {curRow?.year || new Date().getFullYear()}
             </span>
           </div>
 
-          {top5Categories === null ? (
-            /* Loading skeletons */
-            [0, 1, 2].map(k => (
-              <motion.div
-                key={k}
-                animate={{ opacity: [0.4, 0.9, 0.4] }}
-                transition={{ duration: 1.2, repeat: Infinity, delay: k * 0.2 }}
-                style={{ height: 24, borderRadius: 6, background: isDarkMode ? '#334155' : '#e2e8f0', marginBottom: 10 }}
-              />
+          {!multiYearData ? (
+            [0,1,2,3].map(k => (
+              <motion.div key={k} animate={{ opacity: [0.4,0.9,0.4] }} transition={{ duration: 1.2, repeat: Infinity, delay: k*0.15 }}
+                style={{ height: 20, borderRadius: 5, background: isDarkMode ? '#334155' : '#e2e8f0', marginBottom: 8 }} />
             ))
-          ) : top5Categories.length === 0 ? (
-            <span style={{ fontSize: '0.78rem', color: textMut }}>No category data available</span>
+          ) : !curRow ? (
+            <span style={{ fontSize: '0.78rem', color: textMut }}>No year data available</span>
           ) : (() => {
-            const maxTon = top5Categories[0]?.tonnage || 1;
-            const barOpacities = ['ee', 'cc', 'aa', '88', '66'];
-            return top5Categories.map((cat, i) => (
-              <div key={cat.name} style={{ marginBottom: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                  <span style={{ fontSize: '0.72rem', color: isDarkMode ? '#cbd5e1' : '#475569', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8 }}>
-                    {cat.name}
-                  </span>
-                  <span style={{ fontSize: '0.72rem', color: accent, fontWeight: 700, flexShrink: 0 }}>
-                    {cat.tonnage.toFixed(1)} T
-                  </span>
+            const vals = MON_KEYS.map(k => parseFloat(curRow?.[k]) || 0);
+            const maxVal = Math.max(...vals, 1);
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 60px', gap: 4, paddingBottom: 5, borderBottom: `1px solid ${border}` }}>
+                  <span style={{ fontSize: '0.6rem', fontWeight: 700, color: textMut, textTransform: 'uppercase' }}>Mon</span>
+                  <span />
+                  <span style={{ fontSize: '0.6rem', fontWeight: 700, color: accent, textAlign: 'right', textTransform: 'uppercase' }}>Tonnage</span>
                 </div>
-                <div style={{ height: 6, borderRadius: 3, background: isDarkMode ? '#334155' : '#e2e8f0', overflow: 'hidden' }}>
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(cat.tonnage / maxTon) * 100}%` }}
-                    transition={{ duration: 0.6, delay: i * 0.06, ease: 'easeOut' }}
-                    style={{ height: '100%', borderRadius: 3, background: `${accent}${barOpacities[i]}` }}
-                  />
-                </div>
+                {MONTHS_SHORT.map((mon, idx) => {
+                  const cy = vals[idx];
+                  const isCurrent = idx === currentMonIdx;
+                  const isFuture  = idx > currentMonIdx && cy === 0;
+                  if (isFuture) return null;
+                  return (
+                    <div key={mon} style={{
+                      display: 'grid', gridTemplateColumns: '40px 1fr 60px', gap: 4, alignItems: 'center',
+                      padding: isCurrent ? '3px 4px' : '1px 4px',
+                      borderRadius: isCurrent ? 6 : 0,
+                      background: isCurrent ? `${accent}12` : 'transparent',
+                    }}>
+                      <span style={{ fontSize: '0.68rem', fontWeight: isCurrent ? 800 : 600, color: isCurrent ? accent : (isDarkMode ? '#94a3b8' : '#64748b') }}>
+                        {mon}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        {cy > 0 && (
+                          <motion.div initial={{ width: 0 }} animate={{ width: `${(cy / maxVal) * 100}%` }}
+                            transition={{ delay: 0.05 + idx * 0.04, duration: 0.5, ease: 'easeOut' }}
+                            style={{ height: 5, borderRadius: 2, background: isCurrent ? accent : `${accent}99` }} />
+                        )}
+                      </div>
+                      <span style={{ fontSize: '0.68rem', fontWeight: isCurrent ? 800 : 600, color: cy > 0 ? (isCurrent ? accent : (isDarkMode ? '#e2e8f0' : '#1e293b')) : textMut, textAlign: 'right' }}>
+                        {cy > 0 ? fmt(cy) : '—'}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
-            ));
+            );
           })()}
         </div>
 
-        {/* Card B — Production Snapshot */}
+        {/* Card B — Short Supply Detail */}
         <div style={{
           flex: '1 1 200px',
           background: isDarkMode ? '#1e293b' : '#ffffff',
@@ -330,37 +360,68 @@ const Reports = () => {
           padding: '16px 18px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <i className="bi bi-gear-wide-connected" style={{ color: accent2, fontSize: '0.9rem' }} />
-            <span style={{ fontWeight: 700, fontSize: '0.9rem', color: isDarkMode ? '#e2e8f0' : '#1e293b' }}>
-              Production Today
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <i className="bi bi-exclamation-triangle-fill" style={{ color: '#ef4444', fontSize: '0.9rem' }} />
+              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: isDarkMode ? '#e2e8f0' : '#1e293b' }}>
+                Short Supply — {currentMonthName}
+              </span>
+            </div>
+            {allShortSupply.length > 0 && (
+              <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#ef4444',
+                background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
+                borderRadius: 999, padding: '2px 8px' }}>
+                {allShortSupply.length} items
+              </span>
+            )}
           </div>
 
-          {prodLoading ? (
-            [0, 1, 2].map(k => (
-              <motion.div
-                key={k}
-                animate={{ opacity: [0.4, 0.9, 0.4] }}
-                transition={{ duration: 1.2, repeat: Infinity, delay: k * 0.2 }}
-                style={{ height: 28, borderRadius: 6, background: isDarkMode ? '#334155' : '#e2e8f0', marginBottom: 10 }}
-              />
+          {shortSupply === null ? (
+            [0,1,2,3].map(k => (
+              <motion.div key={k} animate={{ opacity: [0.4,0.9,0.4] }} transition={{ duration: 1.2, repeat: Infinity, delay: k*0.15 }}
+                style={{ height: 22, borderRadius: 5, background: isDarkMode ? '#334155' : '#e2e8f0', marginBottom: 8 }} />
             ))
-          ) : prodData ? (
-            [
-              { label: 'FG Net Production', value: `${prodData?.fgnetproduction || prodData?.fg_net || '—'} Kg` },
-              { label: 'Raw Material',      value: `${prodData?.rawmaterialused || '—'} Kg` },
-              { label: 'Efficiency',        value: `${prodData?.efficiency || prodData?.efficiencypct || '—'} %` },
-              { label: 'Bags',              value: prodData?.bags || prodData?.totalbags || '—' },
-            ].map(row => (
-              <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontSize: '0.7rem', color: textMut }}>{row.label}</span>
-                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: accent2 }}>{row.value}</span>
-              </div>
-            ))
-          ) : (
-            <span style={{ fontSize: '0.78rem', color: textMut }}>No production data for today</span>
-          )}
+          ) : allShortSupply.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 0', gap: 8 }}>
+              <i className="bi bi-check-circle-fill" style={{ fontSize: '1.4rem', color: '#22c55e' }} />
+              <span style={{ fontSize: '0.75rem', color: textMut }}>No short supply items</span>
+            </div>
+          ) : (() => {
+            const maxTon = parseFloat(allShortSupply[0].shortsupplytonnage) || 1;
+            const totalTon = allShortSupply.reduce((s, r) => s + (parseFloat(r.shortsupplytonnage) || 0), 0);
+            return (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, paddingBottom: 8, borderBottom: `1px solid ${border}` }}>
+                  <span style={{ fontSize: '0.68rem', color: textMut }}>Total deficit</span>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#ef4444' }}>{totalTon.toFixed(1)} T</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7, maxHeight: 280, overflowY: 'auto' }}>
+                  {allShortSupply.map((item, i) => {
+                    const v = parseFloat(item.shortsupplytonnage) || 0;
+                    const pct = (v / maxTon) * 100;
+                    return (
+                      <motion.div key={i} initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.08 + i * 0.04 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                          <span style={{ fontSize: '0.68rem', fontWeight: 600, color: isDarkMode ? '#fca5a5' : '#b91c1c', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
+                            {item.description}
+                          </span>
+                          <span style={{ fontSize: '0.64rem', color: textMut, flexShrink: 0 }}>{v.toFixed(1)} T</span>
+                        </div>
+                        <div style={{ height: 4, background: isDarkMode ? '#0f172a' : '#f8fafc', borderRadius: 3, border: `1px solid ${border}`, overflow: 'hidden' }}>
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            transition={{ delay: 0.1 + i * 0.04, duration: 0.5, ease: 'easeOut' }}
+                            style={{ height: '100%', background: 'linear-gradient(90deg, #ef4444, #f87171)', borderRadius: 3 }}
+                          />
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
         </div>
 
       </div>

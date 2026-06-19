@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createTheme, CssBaseline, ThemeProvider } from "@mui/material";
 import { MotionConfig } from "framer-motion";
+import { useAuth } from '../context/AuthContext';
+import { getTheme, saveTheme } from '../services/themeApi';
 
 const ColorModeContext = createContext();
 
@@ -128,9 +130,20 @@ const animationOptions = {
 
 const getStoredValue = (key, fallback) => localStorage.getItem(key) || fallback;
 
+// Summary-cards storage keys (mirrors SummaryCardsSystem constants)
+const SC_STORAGE_KEY = 'summaryCards_global';
+const SC_HIDDEN_KEY  = 'summaryCardsHidden_global';
+const SC_DEFAULT     = ['current_month_dist', 'short_supply', 'fg_closing_stock', 'raw_total_used'];
+
+// Canonical snapshot — same key order used for both saving and comparing
+const toSnapshot = (mode, accentId, fontId, fontScale, sidebarMode, densityId, animId, selectedCards, isCardsHidden) =>
+  JSON.stringify({ themeMode: mode, accentId, fontId, fontScale, sidebarMode, densityId, animId, selectedCards, isCardsHidden });
+
 export const useColorMode = () => useContext(ColorModeContext);
 
 export const ColorModeProvider = ({ children }) => {
+  const { isAuthenticated } = useAuth();
+
   const [mode,        setMode]        = useState(getStoredValue("themeMode",            "light"));
   const [accentId,    setAccentId]    = useState(getStoredValue("dashboardAccent",      "ocean"));
   const [fontId,      setFontId]      = useState(getStoredValue("dashboardFont",        "inter"));
@@ -138,6 +151,76 @@ export const ColorModeProvider = ({ children }) => {
   const [sidebarMode, setSidebarMode] = useState(getStoredValue("dashboardSidebarMode", "fixed"));
   const [densityId,   setDensityId]   = useState(getStoredValue("dashboardDensity",     "comfortable"));
   const [animId,      setAnimId]      = useState(getStoredValue("dashboardAnimation",   "on"));
+
+  // Summary cards — persisted alongside theme
+  const [selectedCards,  setSelectedCards]  = useState(() => {
+    try {
+      const raw = localStorage.getItem(SC_STORAGE_KEY);
+      if (!raw) return SC_DEFAULT;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : SC_DEFAULT;
+    } catch { return SC_DEFAULT; }
+  });
+  const [isCardsHidden, setIsCardsHidden] = useState(() => localStorage.getItem(SC_HIDDEN_KEY) === 'true');
+
+  // Save-status shown in Theme Studio: 'idle' | 'saving' | 'saved' | 'error'
+  const [saveStatus, setSaveStatus] = useState('idle');
+
+  const debounceRef   = useRef(null);
+  const isReadyRef    = useRef(false);   // true once API load attempt completes
+  const lastSavedRef  = useRef(null);    // JSON of last successfully saved state
+
+  // Load user's theme from DB after login
+  useEffect(() => {
+    if (!isAuthenticated) { isReadyRef.current = false; return; }
+    getTheme().then(data => {
+      if (data) {
+        if (data.themeMode)         setMode(data.themeMode);
+        if (data.accentId)          setAccentId(data.accentId);
+        if (data.fontId)            setFontId(data.fontId);
+        if (data.fontScale != null) setFontScale(Number(data.fontScale));
+        if (data.sidebarMode)       setSidebarMode(data.sidebarMode);
+        if (data.densityId)         setDensityId(data.densityId);
+        if (data.animId)            setAnimId(data.animId);
+        if (Array.isArray(data.selectedCards))  setSelectedCards(data.selectedCards);
+        if (data.isCardsHidden != null)         setIsCardsHidden(Boolean(data.isCardsHidden));
+        // Mark what we just loaded — so debounce skips an immediate re-save
+        lastSavedRef.current = toSnapshot(
+          data.themeMode      ?? mode,
+          data.accentId       ?? accentId,
+          data.fontId         ?? fontId,
+          data.fontScale      ?? fontScale,
+          data.sidebarMode    ?? sidebarMode,
+          data.densityId      ?? densityId,
+          data.animId         ?? animId,
+          data.selectedCards  ?? selectedCards,
+          data.isCardsHidden  ?? isCardsHidden,
+        );
+      }
+      isReadyRef.current = true;
+    });
+  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced auto-save: fires 1.5s after the last setting change
+  useEffect(() => {
+    if (!isReadyRef.current) return;
+    const snapshot = toSnapshot(mode, accentId, fontId, fontScale, sidebarMode, densityId, animId, selectedCards, isCardsHidden);
+    if (snapshot === lastSavedRef.current) return; // nothing changed since last save
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSaveStatus('saving');
+      const result = await saveTheme({ themeMode: mode, accentId, fontId, fontScale, sidebarMode, densityId, animId, selectedCards, isCardsHidden });
+      if (result) {
+        lastSavedRef.current = snapshot;
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2500);
+      } else {
+        setSaveStatus('error');
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      }
+    }, 1500);
+    return () => clearTimeout(debounceRef.current);
+  }, [mode, accentId, fontId, fontScale, sidebarMode, densityId, animId, selectedCards, isCardsHidden]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const accent  = accentThemes[accentId]     || accentThemes.ocean;
   const font    = fontThemes[fontId]         || fontThemes.inter;
@@ -153,6 +236,8 @@ export const ColorModeProvider = ({ children }) => {
   useEffect(() => { localStorage.setItem("dashboardSidebarMode",sidebarMode); }, [sidebarMode]);
   useEffect(() => { localStorage.setItem("dashboardDensity",    densityId);   }, [densityId]);
   useEffect(() => { localStorage.setItem("dashboardAnimation",  animId);      }, [animId]);
+  useEffect(() => { localStorage.setItem(SC_STORAGE_KEY, JSON.stringify(selectedCards)); }, [selectedCards]);
+  useEffect(() => { localStorage.setItem(SC_HIDDEN_KEY,  String(isCardsHidden));         }, [isCardsHidden]);
 
   /* Lazy-load Google Font */
   useEffect(() => {
@@ -240,6 +325,11 @@ export const ColorModeProvider = ({ children }) => {
     fontScale,
     sidebarMode,
     density,
+    saveStatus,
+    selectedCards,
+    setSelectedCards,
+    isCardsHidden,
+    setIsCardsHidden,
     toggleMode,
     setMode,
     setAccentTheme: setAccentId,

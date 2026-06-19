@@ -34,7 +34,7 @@ const priceKey = (row, d) =>
 const canExpandToThird = (subRow) =>
   subRow.type === 'Distribution' || subRow.type === 'SBL OTHERS';
 
-export default function DayWisePage() {
+export default function DayWisePage({ syncKey = 0, onLastUpdateChange }) {
   const { user } = useAuth();
   const employeename = user?.username;
   const { daywiseyear, daywisemonth, daywisecompany, daywisedisttype } = useSalesFilterStore();
@@ -112,7 +112,7 @@ export default function DayWisePage() {
       });
       setRows(Array.isArray(data) ? data : []);
       setAppliedFilters({ year: daywiseyear, month: daywisemonth, company: daywisecompany, disttype: daywisedisttype });
-      logActivity('Sales-Report', 'Day Wise', 'First Step');
+      logActivity('Sales', 'Day Wise', '', 'generate', { year: daywiseyear, month: daywisemonth, company: daywisecompany, method: daywisedisttype });
     } catch (err) {
       setError(err?.response?.data?.error || err?.message || 'Failed to load day-wise data');
     } finally {
@@ -121,6 +121,10 @@ export default function DayWisePage() {
   }, [employeename]); // filter values read from refs; avoids auto-refetch on filter change
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Re-fetch when global Sync completes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (syncKey > 0) fetchData(); }, [syncKey]);
 
   // Fetch last-updated dates once on mount — never on filter change
   useEffect(() => {
@@ -160,7 +164,6 @@ export default function DayWisePage() {
       }
       setSecondLevel(p => ({ ...p, [id]: Array.isArray(data) ? data : [] }));
       setExpandedL1(p => ({ ...p, [id]: true }));
-      logActivity('Sales-Report', 'Day Wise', 'Second Step');
     } catch {
       setExpandedL1(p => ({ ...p, [id]: true }));
     } finally {
@@ -186,7 +189,6 @@ export default function DayWisePage() {
       });
       setThirdLevel(p => ({ ...p, [subKey]: Array.isArray(data) ? data : [] }));
       setExpandedL2(p => ({ ...p, [subKey]: true }));
-      logActivity('Sales-Report', 'Day Wise', 'Third Step');
     } catch {
       setExpandedL2(p => ({ ...p, [subKey]: true }));
     } finally {
@@ -196,6 +198,10 @@ export default function DayWisePage() {
 
   const MONTH_NAMES = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const lastUpdateDate = lastUpdate ? fmtDate(lastUpdate.dispatchlastupdate) : null;
+
+  // Propagate last update date to parent (SalesDashboard tab bar)
+  useEffect(() => { onLastUpdateChange?.(lastUpdateDate); }, [lastUpdateDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const isDrillLoading = Object.values(secondLoading).some(Boolean) || Object.values(thirdLoading).some(Boolean);
 
   return (

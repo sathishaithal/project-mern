@@ -454,7 +454,7 @@ function ShortSupplyTable({
   );
 }
 
-export default function ShortSupplyPage() {
+export default function ShortSupplyPage({ syncKey = 0 }) {
   const { user } = useAuth();
   const { isDarkMode, selectedAccent, selectedFont } = useColorMode();
 
@@ -522,7 +522,7 @@ export default function ShortSupplyPage() {
         const arr = (Array.isArray(data) ? data : []).filter(r => r.description !== 'Total');
         setLeftData([...arr].sort((a, b) => (parseFloat(b.shortsupplytonnage) || 0) - (parseFloat(a.shortsupplytonnage) || 0)));
         setLeftLoading(false);
-        logActivity('Sales-Report', 'Short Supply');
+        logActivity('Sales', 'Short Supply', '', 'view', { from: leftFrom, to: leftTo });
         showToast('Success', 'Data loaded successfully!', 'success');
       })
       .catch(err => {
@@ -560,6 +560,12 @@ export default function ShortSupplyPage() {
     fetchRight();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.username]);
+
+  // Re-fetch when global Sync completes
+  useEffect(() => {
+    if (syncKey > 0) { fetchLeft(); fetchRight(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncKey]);
 
   // Clear initialLoad once both fetches complete for the first time
   useEffect(() => {

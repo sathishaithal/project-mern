@@ -27,6 +27,7 @@ const MainLayout = ({ children }) => {
     selectedAnimation,
     fontScale,
     sidebarMode,
+    saveStatus,
     setAccentTheme,
     setFontTheme,
     setFontScale,
@@ -170,7 +171,27 @@ const MainLayout = ({ children }) => {
                     <div className={styles.themeStudioTop}>
                       <div>
                         <span className={styles.themeStudioEyebrow}>Appearance</span>
-                        <h4>Theme Studio</h4>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <h4 style={{ margin: 0 }}>Theme Studio</h4>
+                          {saveStatus === 'saving' && (
+                            <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 500 }}>
+                              <i className="bi bi-arrow-repeat" style={{ marginRight: 3, animation: 'spin 1s linear infinite' }} />
+                              Saving…
+                            </span>
+                          )}
+                          {saveStatus === 'saved' && (
+                            <span style={{ fontSize: '0.68rem', color: '#4ade80', fontWeight: 600 }}>
+                              <i className="bi bi-check-circle-fill" style={{ marginRight: 3 }} />
+                              Saved
+                            </span>
+                          )}
+                          {saveStatus === 'error' && (
+                            <span style={{ fontSize: '0.68rem', color: '#f87171', fontWeight: 600 }}>
+                              <i className="bi bi-exclamation-circle-fill" style={{ marginRight: 3 }} />
+                              Not saved
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <Tooltip content="Close">
                         <button
