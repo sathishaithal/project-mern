@@ -5,12 +5,11 @@ export const fmt = (val) => {
   return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-// Rounded integer format — no decimal places; used for level-0 rows
 export const fmtR = (val) => {
-  if (val === null || val === undefined || val === '') return '0';
+  if (val === null || val === undefined || val === '') return '0.00';
   const n = parseFloat(val);
-  if (isNaN(n)) return '0';
-  return Math.round(n).toLocaleString('en-IN');
+  if (isNaN(n)) return '0.00';
+  return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 export const fmtAmt = (val) => {

@@ -34,9 +34,9 @@ const priceKey = (row, d) =>
 const canExpandToThird = (subRow) =>
   subRow.type === 'Distribution' || subRow.type === 'SBL OTHERS';
 
-export default function DayWisePage({ syncKey = 0, onLastUpdateChange }) {
+export default function DayWisePage({ syncKey = 0, onLastUpdateChange, loggedInRole = null, loggedInRolex = null }) {
   const { user } = useAuth();
-  const employeename = user?.username;
+  const employeename = user?.empname || user?.username;
   const { daywiseyear, daywisemonth, daywisecompany, daywisedisttype } = useSalesFilterStore();
   // Refs keep current filter values so fetchData doesn't auto-refetch on filter change
   const daywiseyearRef     = useRef(daywiseyear);
@@ -222,7 +222,7 @@ export default function DayWisePage({ syncKey = 0, onLastUpdateChange }) {
         </h2>
       </motion.div>
 
-      <FilterBar mode="daywise" onApply={fetchData} isLoading={loading} lastUpdateDate={lastUpdateDate} />
+      <FilterBar mode="daywise" onApply={fetchData} isLoading={loading} lastUpdateDate={lastUpdateDate} loggedInRole={loggedInRole} loggedInRolex={loggedInRolex} />
 
       {error && (
         <div style={{ padding: '0.75rem 1rem', marginBottom: '1rem', background: isDarkMode ? '#2d1515' : '#fff5f5', border: '1px solid #fecaca', borderRadius: 8, color: '#ef4444', fontSize: '0.82rem' }}>

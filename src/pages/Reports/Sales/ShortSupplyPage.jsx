@@ -219,7 +219,7 @@ function ShortSupplyTable({
     fontWeight: 600, fontSize: '0.72rem', color: mutedClr,
     whiteSpace: 'nowrap', display: 'block', marginBottom: 2,
   };
-  const ssz = (v, digits = 3) => {
+  const ssz = (v, digits = 2) => {
     const n = parseFloat(v) || 0;
     return n === 0
       ? <span style={{ color: 'var(--sr-zero-dim, #cbd5e1)' }}>{n.toFixed(digits)}</span>
@@ -366,7 +366,7 @@ function ShortSupplyTable({
                   const diffVal    = curVal - lyVal;
                   const isUp       = diffVal > 0.0005;
                   const isDown     = diffVal < -0.0005;
-                  const lyTooltip = `Current : ${curVal.toFixed(3)}\nLast Year : ${lyVal.toFixed(3)}\nDifference : ${isUp ? '+' : ''}${diffVal.toFixed(3)} ${isUp ? '↑' : isDown ? '↓' : ''}`.trim();
+                  const lyTooltip = `Current : ${curVal.toFixed(2)}\nLast Year : ${lyVal.toFixed(2)}\nDifference : ${isUp ? '+' : ''}${diffVal.toFixed(2)} ${isUp ? '↑' : isDown ? '↓' : ''}`.trim();
                   return (
                     <motion.tr
                       key={row.id ?? globalNum}
@@ -402,10 +402,10 @@ function ShortSupplyTable({
                   <tr style={{ background: totalRowBg, borderTop: `2px solid ${borderClr}`, fontWeight: 700 }}>
                     <td className="ss-td" style={{ textAlign: 'center', color: accent }}>{data.length + 1}</td>
                     <td className="ss-td" style={{ textAlign: 'left', color: accent, fontWeight: 800 }}>Total</td>
-                    <td className="ss-td" style={{ color: accent }}>{totals.order.toFixed(3)}</td>
-                    <td className="ss-td" style={{ color: accent }}>{totals.supply.toFixed(3)}</td>
-                    <td className="ss-td" style={{ color: accent }}>{totals.short.toFixed(3)}</td>
-                    <td className="ss-td" style={{ color: accent }}>{totals.lastYear.toFixed(3)}</td>
+                    <td className="ss-td" style={{ color: accent }}>{totals.order.toFixed(2)}</td>
+                    <td className="ss-td" style={{ color: accent }}>{totals.supply.toFixed(2)}</td>
+                    <td className="ss-td" style={{ color: accent }}>{totals.short.toFixed(2)}</td>
+                    <td className="ss-td" style={{ color: accent }}>{totals.lastYear.toFixed(2)}</td>
                   </tr>
                 )}
               </tbody>
@@ -456,6 +456,7 @@ function ShortSupplyTable({
 
 export default function ShortSupplyPage({ syncKey = 0 }) {
   const { user } = useAuth();
+  const employeename = user?.empname || user?.username;
   const { isDarkMode, selectedAccent, selectedFont } = useColorMode();
 
   const accent     = selectedAccent?.primary   || '#1a237e';
@@ -517,7 +518,7 @@ export default function ShortSupplyPage({ syncKey = 0 }) {
     setLeftLoading(true);
     setLeftError(null);
     showToast('Loading', 'Fetching short supply data...', 'info');
-    getShortSupplyByCategory({ fromdate: leftFrom, todate: leftTo, employeename: user?.username })
+    getShortSupplyByCategory({ fromdate: leftFrom, todate: leftTo, employeename })
       .then(data => {
         const arr = (Array.isArray(data) ? data : []).filter(r => r.description !== 'Total');
         setLeftData([...arr].sort((a, b) => (parseFloat(b.shortsupplytonnage) || 0) - (parseFloat(a.shortsupplytonnage) || 0)));
@@ -531,14 +532,14 @@ export default function ShortSupplyPage({ syncKey = 0 }) {
         setLeftLoading(false);
         showToast('Error', msg, 'error');
       });
-  }, [leftFrom, leftTo, user?.username, showToast]);
+  }, [leftFrom, leftTo, employeename, showToast]);
 
   const fetchRight = useCallback(() => {
     appLog('[ShortSupply] fetchRight', rightFrom, '→', rightTo);
     setRightLoading(true);
     setRightError(null);
     showToast('Loading', 'Fetching short supply data...', 'info');
-    getShortSupplyByCategory({ fromdate: rightFrom, todate: rightTo, employeename: user?.username })
+    getShortSupplyByCategory({ fromdate: rightFrom, todate: rightTo, employeename })
       .then(data => {
         const arr = (Array.isArray(data) ? data : []).filter(r => r.description !== 'Total');
         setRightData([...arr].sort((a, b) => (parseFloat(a.shortsupplytonnage) || 0) - (parseFloat(b.shortsupplytonnage) || 0)));
@@ -551,15 +552,15 @@ export default function ShortSupplyPage({ syncKey = 0 }) {
         setRightLoading(false);
         showToast('Error', msg, 'error');
       });
-  }, [rightFrom, rightTo, user?.username, showToast]);
+  }, [rightFrom, rightTo, employeename, showToast]);
 
   // Initial load — fires once when user becomes available
   useEffect(() => {
-    if (!user?.username) return;
+    if (!employeename) return;
     fetchLeft();
     fetchRight();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.username]);
+  }, [employeename]);
 
   // Re-fetch when global Sync completes
   useEffect(() => {

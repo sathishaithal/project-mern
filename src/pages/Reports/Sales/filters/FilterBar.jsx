@@ -6,7 +6,7 @@ import DistTypeSelector from './DistTypeSelector';
 import MonthSelector from './MonthSelector';
 import '../Sales.css';
 
-const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateDate, activeReportTab = '', children }) => {
+const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateDate, activeReportTab = '', loggedInRole = null, loggedInRolex = null, children }) => {
   const { isDarkMode, selectedAccent } = useColorMode();
   const accent  = selectedAccent?.primary   || '#2563eb';
   const accent2 = selectedAccent?.secondary || '#1e40af';
@@ -24,22 +24,19 @@ const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateD
           <YearSelector mode={mode} />
           {mode === 'daywise' && <MonthSelector />}
           <CompanySelector mode={mode} />
-          <DistTypeSelector mode={mode} activeReportTab={activeReportTab} />
+          <DistTypeSelector mode={mode} activeReportTab={activeReportTab} loggedInRole={loggedInRole} loggedInRolex={loggedInRolex} />
           {onApply && (
-            <>
-              <div style={{ width: 1, height: 28, background: isDarkMode ? '#334155' : '#e2e8f0', alignSelf: 'center' }} />
-              <button
-                onClick={onApply}
-                disabled={isLoading}
-                className="fb-generate-btn btn-generate-anim"
-                style={{ background: `linear-gradient(135deg, ${accent}, ${accent2})`, opacity: isLoading ? 0.6 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }}
-              >
-                {isLoading
-                  ? <><i className="bi bi-arrow-clockwise" style={{ marginRight: 4 }} />Loading…</>
-                  : <><i className="bi bi-play-fill" style={{ marginRight: 4 }} />Generate</>
-                }
-              </button>
-            </>
+            <button
+              onClick={onApply}
+              disabled={isLoading}
+              className="fb-generate-btn btn-generate-anim"
+              style={{ background: `linear-gradient(135deg, ${accent}, ${accent2})`, opacity: isLoading ? 0.6 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }}
+            >
+              {isLoading
+                ? <><i className="bi bi-arrow-clockwise" style={{ marginRight: 4 }} />Loading…</>
+                : <><i className="bi bi-play-fill" style={{ marginRight: 4 }} />Generate</>
+              }
+            </button>
           )}
         </div>
 
@@ -52,18 +49,14 @@ const FilterBar = ({ mode = 'monthwise', onApply, isLoading = false, lastUpdateD
           </div>
         )}
 
-        <div className="fb-actions">
-          {lastUpdateDate ? (
+        {lastUpdateDate && (
+          <div className="fb-actions">
             <span className="fb-last-update" style={{ color: isDarkMode ? '#94a3b8' : '#64748b' }}>
               Last update on:&nbsp;
               <strong style={{ color: accent, fontWeight: 700 }}>{lastUpdateDate}</strong>
             </span>
-          ) : (
-            <span className="fb-last-update" style={{ color: isDarkMode ? '#94a3b8' : '#64748b', fontSize: '0.7rem' }}>
-              Last update: unavailable
-            </span>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

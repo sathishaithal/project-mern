@@ -38,10 +38,11 @@ export const AuthProvider = ({ children }) => {
           payload.username || payload.sub || payload.name || payload.employeename;
         if (!username) return;
         sessionStorage.setItem('username', username);
+        sessionStorage.setItem('empname', localStorage.getItem('empname') || username);
         sessionStorage.setItem('token', token);
         sessionStorage.setItem('authToken', token);
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        setUser({ username, token });
+        setUser({ username, empname: localStorage.getItem('empname') || username, token });
         setAuthReady(true);
       }
     };
@@ -83,14 +84,20 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
+    const empname =
+      sessionStorage.getItem("empname") ||
+      localStorage.getItem("empname") ||
+      username;
+
     // Restore sessionStorage for this tab so the expiry watcher works
     if (!sessionStorage.getItem("username")) {
       sessionStorage.setItem("username", username);
+      sessionStorage.setItem("empname", empname);
       sessionStorage.setItem("token", token);
       sessionStorage.setItem("authToken", token);
     }
 
-    setUser({ username, token });
+    setUser({ username, empname, token });
     axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     setAuthReady(true);
   }, []);
@@ -113,15 +120,18 @@ export const AuthProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [user]);
 
-  const login = (username, token) => {
+  const login = (username, empname, token) => {
+    const resolvedEmpname = empname || username;
     sessionStorage.setItem("username", username);
+    sessionStorage.setItem("empname", resolvedEmpname);
     sessionStorage.setItem("token", token);
     sessionStorage.setItem("authToken", token);
     localStorage.setItem("authToken", token);
     localStorage.setItem("username", username);
+    localStorage.setItem("empname", resolvedEmpname);
 
     axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    setUser({ username, token });
+    setUser({ username, empname: resolvedEmpname, token });
     setAuthReady(true);
   };
 
@@ -147,11 +157,13 @@ const logout = async (message = "You have been logged out") => {
     : String(message?.message || message?.error || "You have been logged out");
 
   sessionStorage.removeItem("username");
+  sessionStorage.removeItem("empname");
   sessionStorage.removeItem("token");
   sessionStorage.removeItem("authToken");
   sessionStorage.removeItem("themeMode");
   localStorage.removeItem("authToken");
   localStorage.removeItem("username");
+  localStorage.removeItem("empname");
   delete axios.defaults.headers.common["Authorization"];
 
   setUser(null);

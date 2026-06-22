@@ -78,7 +78,7 @@ const InsidePieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, v
   const y = cy + r * Math.sin(-midAngle * R);
   return (
     <text textAnchor="middle" fill="#fff" fontSize={8} fontWeight={600}>
-      <tspan x={x} y={y - 5}>{Math.round(value)}</tspan>
+      <tspan x={x} y={y - 5}>{parseFloat(value).toFixed(2)}</tspan>
       <tspan x={x} y={y + 6}>{(percent * 100).toFixed(0)}%</tspan>
     </text>
   );
@@ -144,7 +144,7 @@ export function BarChartCard({ title, data, viewMode, onViewModeChange, onZoom,
 
   const topLabel = ({ x, y, width, value }) => {
     if (!value) return null;
-    return <text x={x + width / 2} y={y - 4} fill={labelFill} textAnchor="middle" fontSize={10} fontWeight={600}>{Math.round(value)}</text>;
+    return <text x={x + width / 2} y={y - 4} fill={labelFill} textAnchor="middle" fontSize={10} fontWeight={600}>{parseFloat(value).toFixed(2)}</text>;
   };
 
   const barTooltip = ({ active, payload, label }) => {
@@ -155,7 +155,7 @@ export function BarChartCard({ title, data, viewMode, onViewModeChange, onZoom,
           {label}
         </div>
         <div style={{ padding: '6px 10px', color: isDarkMode ? '#e2e8f0' : '#1e293b', fontWeight: 600, fontSize: '0.88rem', textAlign: 'center' }}>
-          {Math.round(payload[0].value).toLocaleString()}
+          {parseFloat(payload[0].value).toFixed(2)}
         </div>
       </div>
     );
@@ -255,7 +255,7 @@ export function PieChartCard({ title, data, viewMode, onViewModeChange, onZoom, 
           {d.name}
         </div>
         <div style={{ padding: '6px 10px', color: isDarkMode ? '#e2e8f0' : '#1e293b', fontWeight: 600, fontSize: '0.88rem', textAlign: 'center' }}>
-          {Math.round(d.value).toLocaleString()}
+          {parseFloat(d.value).toFixed(2)}
         </div>
       </div>
     );
@@ -368,7 +368,7 @@ export function DrillPieCard({ title, data, onSliceClick, onZoom }) {
           {d.name}
         </div>
         <div style={{ padding: '6px 10px', color: isDarkMode ? '#e2e8f0' : '#1e293b', fontWeight: 600, fontSize: '0.88rem', textAlign: 'center' }}>
-          {Math.round(d.value).toLocaleString()}
+          {parseFloat(d.value).toFixed(2)}
         </div>
       </div>
     );
@@ -400,7 +400,7 @@ export function DrillPieCard({ title, data, onSliceClick, onZoom }) {
             <div key={d.name} onClick={() => toggleHidden(d.name)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.66rem' }}>
               <div style={{ width: 9, height: 9, borderRadius: 2, background: isHidden ? '#9ca3af' : color, flexShrink: 0 }} />
               <span style={{ textDecoration: isHidden ? 'line-through' : 'none', opacity: isHidden ? 0.45 : 1, color: legendClr }}>
-                {d.name}: {Math.round(d.value)} ({pct}%)
+                {d.name}: {parseFloat(d.value).toFixed(2)} ({pct}%)
               </span>
             </div>
           );
@@ -463,7 +463,7 @@ export function HBarCard({ title, data, onBarClick, onZoom, showFullTooltip = fa
           {d.name}
         </div>
         <div style={{ padding: '6px 10px', color: isDarkMode ? '#e2e8f0' : '#1e293b', fontWeight: 600, fontSize: '0.88rem', textAlign: 'center' }}>
-          {Math.round(d.value).toLocaleString()}
+          {parseFloat(d.value).toFixed(2)}
         </div>
       </div>
     );
@@ -472,7 +472,7 @@ export function HBarCard({ title, data, onBarClick, onZoom, showFullTooltip = fa
     const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
     return (
       <text x={x + width + 6} y={y + height / 2} fill={labelClr} dominantBaseline="central" fontSize={9}>
-        {Math.round(value)} ({pct}%)
+        {parseFloat(value).toFixed(2)} ({pct}%)
       </text>
     );
   };
@@ -592,7 +592,7 @@ export function MirroredHBarCard({ title, data, onBarClick, onZoom }) {
               <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridClr} />
               <XAxis type="number" domain={[0, tonPadded]} reversed
                 tick={{ fontSize: 9, fill: axisClr }}
-                tickFormatter={v => v === 0 ? '' : `${Math.round(v)}`}
+                tickFormatter={v => v === 0 ? '' : parseFloat(v).toFixed(2)}
               />
               <YAxis dataKey="name" type="category" orientation="right" width={120}
                 tick={centerTick} tickLine={false} axisLine={false}
@@ -695,7 +695,7 @@ export function DwTableCard({ title, data, basedon }) {
   const rowEven   = isDarkMode ? '#0f172a' : 'white';
   const rowOdd    = isDarkMode ? '#1e293b' : '#f8fafc';
   const muted     = isDarkMode ? '#94a3b8' : '#64748b';
-  const dz = (v) => { const n = v ?? 0; return n === 0 ? <span style={{ color: 'var(--sr-zero-dim, #cbd5e1)' }}>0</span> : n; };
+  const dz = (v) => { const n = parseFloat(v) || 0; const s = n.toFixed(2); return n === 0 ? <span style={{ color: 'var(--sr-zero-dim, #cbd5e1)' }}>{s}</span> : s; };
 
   const [page, setPage]               = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(15);

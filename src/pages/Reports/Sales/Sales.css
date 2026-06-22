@@ -452,14 +452,22 @@
   box-shadow: 0 2px 8px rgba(37,99,235,0.07);
   margin-bottom: 1.25rem;
   max-width: 100%;
+  overflow: hidden;
+}
+
+/* scrollable inner tabs — Sync button stays outside scroll */
+.dash-report-tabs-inner {
+  display: flex;
+  flex: 1;
+  min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
-.dash-report-tabs::-webkit-scrollbar { display: none; }
-.dash-report-tabs > button {
+.dash-report-tabs-inner::-webkit-scrollbar { display: none; }
+.dash-report-tabs-inner > button {
   flex-shrink: 0;
   white-space: nowrap;
 }

@@ -115,7 +115,7 @@ export const MonthCell = React.memo(function MonthCell({
   const isL0Summary = isSummary && level === 0;
   const f = level === 0 ? fmtR : fmt;
   const dz = (v) => { const n = parseFloat(v); return (n === 0 || isNaN(n)) ? <span style={{ color: 'var(--sr-zero-dim, #cbd5e1)' }}>{f(v)}</span> : f(v); };
-  const diff = isL0Summary ? l0diff(rows, rowIdx, mKey) : subDiff(row, mKey, mLyKey);
+  const diff = subDiff(row, mKey, mLyKey);
 
   if (!isSummary) {
     return (
@@ -127,9 +127,7 @@ export const MonthCell = React.memo(function MonthCell({
     );
   }
   const label = mKey.replace('tonnage', '').replace(/^./, c => c.toUpperCase());
-  const lyVal = isL0Summary
-    ? (rowIdx > 0 ? rows[rowIdx - 1][mKey] : undefined)
-    : row[mLyKey];
+  const lyVal = row[mLyKey];
   return (
     <CellTooltip
       className="sr-td"
@@ -153,7 +151,7 @@ export const QuarterCell = React.memo(function QuarterCell({
   const isL0Summary = isSummary && level === 0;
   const f = level === 0 ? fmtR : fmt;
   const dz = (v) => { const n = parseFloat(v); return (n === 0 || isNaN(n)) ? <span style={{ color: 'var(--sr-zero-dim, #cbd5e1)' }}>{f(v)}</span> : f(v); };
-  const diff = isL0Summary ? l0diff(rows, rowIdx, qKey) : subDiff(row, qKey, qKey + '_last');
+  const diff = subDiff(row, qKey, qKey + '_last');
 
   if (!isSummary) {
     return (
@@ -164,9 +162,7 @@ export const QuarterCell = React.memo(function QuarterCell({
       </td>
     );
   }
-  const lyVal = isL0Summary
-    ? (rowIdx > 0 ? rows[rowIdx - 1][qKey] : undefined)
-    : row[qKey + '_last'];
+  const lyVal = row[qKey + '_last'];
   return (
     <CellTooltip
       className="sr-td"

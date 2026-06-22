@@ -208,8 +208,9 @@ body {
 }
 
 .appDateMenu {
-  width: 320px;
-  padding: 14px;
+  width: 364px;
+  max-width: calc(100vw - 32px);
+  padding: 16px 20px 20px;
   overflow: visible;
 }
 
@@ -223,7 +224,7 @@ body {
 
 .appDateMonth {
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: #0f172a;
 }
@@ -272,28 +273,46 @@ body {
 .appDateGrid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
+  gap: 4px;
 }
 
 .appDateWeekday {
-  color: #64748b;
+  color: var(--dashboard-accent, #2563eb);
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 800;
   text-align: center;
   padding: 5px 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--dashboard-accent, #2563eb) 8%, transparent);
+  border-radius: 5px;
+}
+
+.appDateSep {
+  grid-column: 1 / -1;
+  height: 2px;
+  background: color-mix(in srgb, var(--dashboard-accent, #2563eb) 20%, rgba(148, 163, 184, 0.4));
+  border-radius: 2px;
+  margin: 2px 0;
 }
 
 [data-theme="dark"] .appDateWeekday {
-  color: #94a3b8;
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+}
+
+[data-theme="dark"] .appDateSep {
+  background: rgba(96, 165, 250, 0.25);
 }
 
 .appDateDay {
+  width: 100%;
   aspect-ratio: 1;
   border: 1px solid transparent;
   border-radius: 10px;
   background: transparent;
   color: #0f172a;
-  font-size: 0.82rem;
+  font-size: 0.88rem;
   font-weight: 600;
   display: grid;
   place-items: center;

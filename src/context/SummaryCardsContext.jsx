@@ -22,7 +22,7 @@ const fmtDate = (d) => {
 
 export function SummaryCardsProvider({ children }) {
   const { user } = useAuth();
-  const employeename = user?.username;
+  const employeename = user?.empname || user?.username;
 
   const [dates,         setDates]         = useState(null);
   const [header,        setHeader]        = useState(null);

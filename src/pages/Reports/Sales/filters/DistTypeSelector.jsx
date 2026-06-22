@@ -6,8 +6,10 @@ import { useColorMode } from '../../../../theme/ThemeContext';
 import { useSalesSelectStyles } from './useSalesSelectStyles';
 
 const ASM_SOFF_TABS = ['asm', 'soff'];
+// Both Month Wise and Day Wise use loggedInRolex with truthy check — mirrors Angular HTML *ngIf lines 663 + 195
+const SHOPS_BLOCKED_ROLES = ['Distributor', 'Sales Man', 'Sales Executive', 'Asst, Manager Sales'];
 
-const DistTypeSelector = ({ mode = 'monthwise', activeReportTab = '' }) => {
+const DistTypeSelector = ({ mode = 'monthwise', activeReportTab = '', loggedInRole = null, loggedInRolex = null }) => {
   const {
     monthwisedisttype, setMonthwiseDisttype, monthwisecompany,
     daywisedisttype, setDaywiseDisttype, daywisecompany,
@@ -18,7 +20,9 @@ const DistTypeSelector = ({ mode = 'monthwise', activeReportTab = '' }) => {
   const disttype  = mode === 'daywise' ? daywisedisttype  : monthwisedisttype;
   const company   = mode === 'daywise' ? daywisecompany   : monthwisecompany;
   const setFn     = mode === 'daywise' ? setDaywiseDisttype : setMonthwiseDisttype;
-  const showShops = company === 'SBL';
+
+  // Angular HTML: loggedInRolex must be truthy AND not in blocked list (same condition for both tabs)
+  const showShops = company === 'SBL' && !!loggedInRolex && !SHOPS_BLOCKED_ROLES.includes(loggedInRolex);
 
   const options = [
     { value: 'Distribution', label: 'Distribution' },

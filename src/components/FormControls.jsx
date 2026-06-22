@@ -113,6 +113,7 @@ export const AppSelect = ({ value, onChange, options }) => {
 export const AppDatePicker = ({ value, onChange, min, max }) => {
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(new Date(value.getFullYear(), value.getMonth(), 1));
+  const [calendarStyle, setCalendarStyle] = useState({});
   const controlRef = useRef(null);
   const days = getCalendarDays(month);
   const weekDays = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -154,6 +155,34 @@ export const AppDatePicker = ({ value, onChange, min, max }) => {
     };
   }, [open]);
 
+  // When calendar opens, compute positioning to keep it within the viewport
+  useEffect(() => {
+    if (!open || !controlRef.current) return;
+    const rect = controlRef.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const calWidth = Math.min(364, vw - 32);
+    const rightEdgeIfLeft = rect.left + calWidth;
+
+    if (rightEdgeIfLeft <= vw - 8) {
+      // Fits opening rightward — default
+      setCalendarStyle({});
+    } else {
+      const leftEdgeIfRight = rect.right - calWidth;
+      if (leftEdgeIfRight >= 8) {
+        // Clean flip: right-align calendar with control's right edge
+        setCalendarStyle({ right: 0, left: 'auto' });
+      } else {
+        // Neither side fits cleanly — shift calendar so its right edge is 8px from viewport right
+        // left_offset (relative to control) = (vw - 8 - calWidth) - rect.left
+        // Also clamp so left edge doesn't go below 8px from viewport left
+        const shiftToFitRight = (vw - 8 - calWidth) - rect.left;
+        const shiftToFitLeft  = 8 - rect.left;
+        const optLeft = Math.max(shiftToFitLeft, shiftToFitRight);
+        setCalendarStyle({ left: `${optLeft}px`, right: 'auto' });
+      }
+    }
+  }, [open]);
+
   return (
     <div ref={controlRef} className="appControl appDatePicker">
       <motion.button
@@ -174,6 +203,7 @@ export const AppDatePicker = ({ value, onChange, min, max }) => {
         {open && (
         <motion.div
           className="appDateMenu"
+          style={calendarStyle}
           initial={{ opacity: 0, scale: 0.97, y: -4 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.97, y: -4 }}
@@ -209,6 +239,7 @@ export const AppDatePicker = ({ value, onChange, min, max }) => {
             {weekDays.map((day) => (
               <div key={day} className="appDateWeekday">{day}</div>
             ))}
+            <div className="appDateSep" />
             {days.map((day, index) => {
               const outsideMonth = day.getMonth() !== month.getMonth();
               const blocked = isDateBlocked(day, min, max);
@@ -217,6 +248,7 @@ export const AppDatePicker = ({ value, onChange, min, max }) => {
               return (
                 <motion.div
                   key={day.toISOString()}
+                  style={{ width: '100%', display: 'flex' }}
                   initial={{ opacity: 0, scale: 0.85 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: Math.min(index, 35) * 0.008, duration: 0.12 }}

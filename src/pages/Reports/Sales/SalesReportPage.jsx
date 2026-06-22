@@ -418,7 +418,7 @@ function ColorLegend({ accent, isDarkMode }) {
 
 export default function SalesReportPage({ loggedInRole = null, loggedInRolex = null, syncKey = 0, onLastUpdateChange }) {
   const { user } = useAuth();
-  const employeename = user?.username;
+  const employeename = user?.empname || user?.username;
   const { multiyear, monthwisecompany, monthwisedisttype, setMonthwiseDisttype } = useSalesFilterStore();
   // Refs keep current filter values so fetchData can read them without being in its dep array
   const multiyearRef         = useRef(multiyear);
@@ -1268,7 +1268,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
           </h2>
         </motion.div>
 
-        <FilterBar mode="monthwise" onApply={fetchData} isLoading={loading} lastUpdateDate={lastUpdateDate} activeReportTab={activeTab} />
+        <FilterBar mode="monthwise" onApply={fetchData} isLoading={loading} lastUpdateDate={lastUpdateDate} activeReportTab={activeTab} loggedInRole={loggedInRole} loggedInRolex={loggedInRolex} />
 
         {error && (
           <div style={{ padding: '0.75rem 1rem', marginBottom: '1rem', background: isDarkMode ? '#2d1515' : '#fff5f5', border: '1px solid #fecaca', borderRadius: 8, color: '#ef4444', fontSize: '0.82rem' }}>

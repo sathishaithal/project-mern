@@ -925,11 +925,16 @@ function CardPickerModal({ selectedCards, onSave, onClose, accent, accent2, isDa
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
+// Angular libdash-graph:59 — hide Short Supply cards for Distributor / Sales Man / Sales Executive
+const SHORT_SUPPLY_IDS = new Set(['short_supply', 'short_supply_high_top3', 'short_supply_low_top3']);
+
 export default function SummaryCardsSystem({
   context = 'sales',                    // kept for callers, used for logging only
   productionData: prodDataProp = null,  // optional prop from Production.jsx (date-range override)
   accent: accentProp,
   accent2: accent2Prop,
+  loggedInRole = null,
+  loggedInRolex = null,
 }) {
   const { isDarkMode, selectedAccent, selectedCards, setSelectedCards, isCardsHidden, setIsCardsHidden } = useColorMode();
   // All API data comes from the global context — fetched once on login, shared across all pages
@@ -957,11 +962,15 @@ export default function SummaryCardsSystem({
 
   const gradients = buildGradients(accent, accent2);
 
-  // visibleCards — find any selected ID in ALL_CARDS (no context filter)
+  // Angular: hide Short Supply cards for Distributor / Sales Man / Sales Executive
+  const hideShortSupply = loggedInRole === 'Distributor' || loggedInRolex === 'Sales Man' || loggedInRolex === 'Sales Executive';
+
+  // visibleCards — find any selected ID in ALL_CARDS, then apply role filter
   const visibleCards = selectedCards
     .slice(0, MAX_CARDS)
     .map(id => ALL_CARDS.find(c => c.id === id))
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter(c => !hideShortSupply || !SHORT_SUPPLY_IDS.has(c.id));
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const toggleHide = () => {

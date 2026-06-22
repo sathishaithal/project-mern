@@ -32,13 +32,12 @@ import {
 } from './components/ChartComponents';
 
 
-export default function ChartsPage({ loggedInRolex }) {
+export default function ChartsPage({ loggedInRolex, syncNode }) {
   const { user }     = useAuth();
-  const employeename = user?.username;
+  const employeename = user?.empname || user?.username;
   const { multiyear, monthwisecompany, monthwisedisttype } = useSalesFilterStore();
 
-  const rolex           = typeof loggedInRolex === 'string' ? loggedInRolex : (loggedInRolex?.designation || '');
-  const showShopsOption = !SHOP_RESTRICTED_ROLES.includes(rolex);
+  const rolex = typeof loggedInRolex === 'string' ? loggedInRolex : (loggedInRolex?.designation || '');
   const { isDarkMode, selectedAccent } = useColorMode();
   const accent  = selectedAccent?.primary   || '#1a237e';
   const accent2 = selectedAccent?.secondary || '#283593';
@@ -77,6 +76,9 @@ export default function ChartsPage({ loggedInRolex }) {
   const [graphDataAll,      setGraphDataAll]      = useState([]);
   const [yrFilterMode,      setYrFilterMode]      = useState('-Select-');
   const [yrFilterSub,       setYrFilterSub]       = useState('-Select-');
+
+  // Angular libdash-graph:152 — grdaiycomp === 'SBL' && loggedInRolex (truthy) && not in blocked roles
+  const showDwShopsOption = dwCompany === 'SBL' && !!loggedInRolex && !SHOP_RESTRICTED_ROLES.includes(rolex);
 
   // Month-wise drill-down state
   const [pieData1,        setPieData1]        = useState([]);
@@ -159,12 +161,18 @@ export default function ChartsPage({ loggedInRolex }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartTab, employeename]);
 
+  // Reset DW method to Distribution when Shops is no longer available (company changed to non-SBL or null role)
+  useEffect(() => {
+    if (!showDwShopsOption && dwMethod === 'Shops') setDwMethod('Distribution');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showDwShopsOption]);
+
   const monthlyBarData = useMemo(() => {
     if (!graphData) return [];
     if (viewMode === 'Quarterly') {
       return ['Q1','Q2','Q3','Q4'].map((q, qi) => ({
         name: q,
-        value: Math.round(Q_KEYS[qi].reduce((s, k) => s + (parseFloat(graphData[k]) || 0), 0)),
+        value: Q_KEYS[qi].reduce((s, k) => s + (parseFloat(graphData[k]) || 0), 0),
       }));
     }
     return MONTH_LABELS.map((label, i) => ({
@@ -199,12 +207,12 @@ export default function ChartsPage({ loggedInRolex }) {
       if (qtIdx === undefined) return [];
       return rows.map(row => ({
         name: `${row.year}(${yrFilterSub})`,
-        value: Math.round(Q_KEYS[qtIdx].reduce((s, k) => s + (parseFloat(row[k]) || 0), 0)),
+        value: Q_KEYS[qtIdx].reduce((s, k) => s + (parseFloat(row[k]) || 0), 0),
       }));
     }
     return rows.map(row => ({
       name: String(row.year),
-      value: Math.round(MONTH_KEYS.reduce((s, k) => s + (parseFloat(row[k]) || 0), 0)),
+      value: MONTH_KEYS.reduce((s, k) => s + (parseFloat(row[k]) || 0), 0),
     }));
   }, [isMultiYear, graphDataAll, yrFilterMode, yrFilterSub]);
 
@@ -455,7 +463,7 @@ export default function ChartsPage({ loggedInRolex }) {
     setHbar2Title('');
     flushSync(() => setCategoryLoading(true));
     try {
-      const rows = await getGraphCategoryForCatgroup({ selectedyear: year, month, catgroup: catgroupName, dataget: pieNum, monthwisedisttype, monthwisecompany });
+      const rows = await getGraphCategoryForCatgroup({ selectedyear: year, month, catgroup: catgroupName, dataget: pieNum, monthwisedisttype, monthwisecompany, employeename });
       setCategoryData(Array.isArray(rows) ? rows.map(r => ({ name: r.category ?? r.catgroup ?? r.name, value: parseFloat(r.monthval) || 0 })) : []);
       logActivity('Sales', 'Charts', 'Month Wise', 'drill_down', { year, month, catgroup: catgroupName, company: monthwisecompany, method: monthwisedisttype });
     } catch { setCategoryData([]); }
@@ -527,8 +535,15 @@ export default function ChartsPage({ loggedInRolex }) {
     <div style={{ width: '100%' }}>
 
       {/* ── Tab bar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.25rem' }}>
-        <div style={{ display: 'flex', gap: 4, background: tabBg, borderRadius: 8, padding: 3 }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: '1.25rem',
+        background: isDarkMode ? '#1e293b' : 'white',
+        border: `1px solid ${isDarkMode ? '#334155' : 'rgba(148,163,184,0.18)'}`,
+        borderRadius: 10, padding: 4,
+        boxShadow: '0 2px 8px rgba(37,99,235,0.07)',
+      }}>
+        <div style={{ display: 'flex', gap: 4 }}>
           {[{ id: 'monthwise', label: 'Month Wise' }, { id: 'daywise', label: 'Day Wise' }].map(t => (
             <button key={t.id} onClick={() => setChartTab(t.id)} style={{
               background: chartTab === t.id ? `linear-gradient(135deg,${accent},${accent2})` : 'none',
@@ -540,9 +555,10 @@ export default function ChartsPage({ loggedInRolex }) {
             }}>{t.label}</button>
           ))}
         </div>
+        {syncNode}
       </div>
 
-      {chartTab === 'monthwise' && <FilterBar mode="monthwise" isLoading={loading} />}
+      {chartTab === 'monthwise' && <FilterBar mode="monthwise" isLoading={loading} loggedInRolex={loggedInRolex} />}
 
       {/* ── MONTH WISE / DAY WISE — tab-switch animation ── */}
       <AnimatePresence mode="wait">
@@ -645,7 +661,7 @@ export default function ChartsPage({ loggedInRolex }) {
                 onChange={o => setDwDaysel(o.value)} styles={selStyles} isSearchable={false}
                 menuPortalTarget={document.body} menuPosition="fixed" />
             </div>
-            {showShopsOption && (
+            {showDwShopsOption && (
               <div className="sr-sel-wrap">
                 <label className="sr-filter-label" style={{ color: isDarkMode ? '#94a3b8' : accent }}>Methods :</label>
                 <Select options={DW_METHOD_OPTIONS} value={DW_METHOD_OPTIONS.find(o => o.value === dwMethod)}

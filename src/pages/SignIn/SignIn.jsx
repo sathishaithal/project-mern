@@ -291,10 +291,10 @@ const SignIn = () => {
         `${import.meta.env.VITE_API_URL}/api/auth/login`,
         { username, password }
       );
-      const { token, username: uname } = res.data;
+      const { token, username: uname, empname } = res.data;
       localStorage.setItem("authToken", token);
       sessionStorage.setItem("authToken", token);
-      login(uname, token);
+      login(uname, empname, token);
       showAlert(`Welcome back, ${uname}!`, "success");
       triggerIntro(2100);
       setTimeout(() => navigate("/dashboard"), 300);

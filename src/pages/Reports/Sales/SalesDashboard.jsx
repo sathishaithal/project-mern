@@ -27,7 +27,8 @@ const TOP_TABS = [
 
 export default function SalesDashboard() {
   const { user } = useAuth();
-  const employeename = user?.username;
+  const username = user?.username;
+  const empname  = user?.empname || user?.username;
   const { triggerIntro } = usePageIntro();
 
   const [topTab,          setTopTab]          = useState('reports');
@@ -86,16 +87,16 @@ export default function SalesDashboard() {
   };
 
   useEffect(() => {
-    if (!employeename) return;
+    if (!username) return;
     const now = new Date().toISOString();
-    getAccessType(employeename)
+    getAccessType(username)
       .then(d => setLoggedInRole(Array.isArray(d) ? d[0] : d))
       .catch(() => null);
-    getHrDesignation(employeename)
+    getHrDesignation(empname)
       .then(d => setLoggedInRolex(Array.isArray(d) ? d[0] : d))
       .catch(() => null);
-    logLogin({ username: employeename, current_time: now }).catch(() => null);
-  }, [employeename]);
+    logLogin({ username, current_time: now }).catch(() => null);
+  }, [username, empname]);
 
   const { isDarkMode, selectedAccent, selectedFont } = useColorMode();
 
@@ -282,19 +283,23 @@ export default function SalesDashboard() {
       {topTab === 'reports' && (
         <>
           {/* Summary cards — hide in fullscreen */}
-          {!isFullscreen && <SummaryCardsSystem context="sales" accent={accent} accent2={accent2} />}
+          {!isFullscreen && <SummaryCardsSystem context="sales" accent={accent} accent2={accent2} loggedInRole={loggedInRole} loggedInRolex={loggedInRolex} />}
 
-          {/* Report sub-tab pills + Last update + global Sync button — hide in fullscreen */}
+          {/* Report sub-tab pills + global Sync button — hide in fullscreen */}
           {!isFullscreen && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.28, delay: 0.08 }}
               className="dash-report-tabs"
-              style={{ background: tabBg, border: `1px solid ${tabBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+              style={{ background: tabBg, border: `1px solid ${tabBorder}`, display: 'flex', alignItems: 'center', overflow: 'hidden' }}
             >
-              <div style={{ display: 'flex' }}>
-                {REPORT_TABS.map(t => (
+              <div className="dash-report-tabs-inner">
+                {REPORT_TABS.filter(t => {
+                  // Mirrors Angular *ngIf="loggedInRolex !== 'Sales' && loggedInRolex !== 'Distributor'"
+                  if (t.id === 'shortsupply') return loggedInRolex !== 'Sales' && loggedInRolex !== 'Distributor';
+                  return true;
+                }).map(t => (
                   <motion.button
                     key={t.id}
                     onClick={() => { setReportTab(t.id); setLastUpdateDate(null); }}
@@ -307,7 +312,9 @@ export default function SalesDashboard() {
                   </motion.button>
                 ))}
               </div>
-              <SyncToolbar />
+              <div style={{ flexShrink: 0 }}>
+                <SyncToolbar />
+              </div>
             </motion.div>
           )}
 
@@ -319,7 +326,7 @@ export default function SalesDashboard() {
             )}
             {reportTab === 'daywise' && (
               <motion.div key="tab-daywise" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
-                <DayWisePage syncKey={syncKey} onLastUpdateChange={setLastUpdateDate} />
+                <DayWisePage syncKey={syncKey} onLastUpdateChange={setLastUpdateDate} loggedInRole={loggedInRole} loggedInRolex={loggedInRolex} />
               </motion.div>
             )}
             {reportTab === 'shortsupply' && (
@@ -335,18 +342,8 @@ export default function SalesDashboard() {
       <AnimatePresence mode="wait">
         {topTab === 'charts' && (
           <motion.div key="top-charts" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
-            {!isFullscreen && <SummaryCardsSystem context="sales" accent={accent} accent2={accent2} />}
-            {/* Charts Sync toolbar */}
-            {!isFullscreen && (
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-                background: tabBg, border: `1px solid ${tabBorder}`,
-                borderRadius: 10, padding: '6px 10px', marginBottom: 10,
-              }}>
-                <SyncToolbar compact />
-              </div>
-            )}
-            <ChartsPage loggedInRolex={loggedInRolex} />
+            {!isFullscreen && <SummaryCardsSystem context="sales" accent={accent} accent2={accent2} loggedInRole={loggedInRole} loggedInRolex={loggedInRolex} />}
+            <ChartsPage loggedInRolex={loggedInRolex} syncNode={!isFullscreen ? <SyncToolbar compact /> : null} />
           </motion.div>
         )}
       </AnimatePresence>
