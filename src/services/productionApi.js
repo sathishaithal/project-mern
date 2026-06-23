@@ -28,3 +28,21 @@ export async function getProductionReportTonnage(params) {
     throw err;
   }
 }
+
+/**
+ * Fetch manual entry by-product report (bags / tonnage / kg).
+ * Returns full API response: { bags, tonnage, kg, grand_total_bags, grand_total_tonnage, grand_total_kg, fromdate, todate }
+ * @param {{ fromdate: string, todate: string }} params
+ */
+export async function getByProductReport(params) {
+  const url = `${BASE}/Report/by-product-report`;
+  appLog('[productionApi] getByProductReport → REQUEST', url, '\nBODY', params);
+  try {
+    const res = await axios.post(url, params);
+    appLog('[productionApi] getByProductReport → RESPONSE', res.data);
+    return res.data;
+  } catch (err) {
+    appError('[productionApi] getByProductReport → ERROR', url, err?.response?.data || err.message);
+    throw err;
+  }
+}

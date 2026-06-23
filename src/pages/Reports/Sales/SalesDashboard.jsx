@@ -155,13 +155,13 @@ export default function SalesDashboard() {
   // Reusable Sync button + Last update row
   const SyncToolbar = ({ compact = false }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 6 : 8, paddingRight: compact ? 2 : 4 }}>
-      <span style={{ fontSize: '0.7rem', color: mutedClr, whiteSpace: 'nowrap' }}>
+      {/* <span style={{ fontSize: '0.7rem', color: mutedClr, whiteSpace: 'nowrap' }}>
         Last update:{' '}
         {lastUpdateDate
           ? <strong style={{ color: accent, fontWeight: 700 }}>{lastUpdateDate}</strong>
           : <span style={{ fontStyle: 'italic' }}>unavailable</span>
         }
-      </span>
+      </span> */}
       {syncStatus === 'ok' && (
         <span style={{ color: '#22c55e', fontSize: '0.7rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 2 }}>
           <i className="bi bi-check-circle-fill" />

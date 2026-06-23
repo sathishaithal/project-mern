@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import ThemedTooltip from "../../../components/ui/Tooltip";
 import { logActivity } from '../../../services/activityLog';
 import { motion, AnimatePresence } from "framer-motion";
-import { getProductionReportTonnage } from '../../../services/productionApi';
+import { getProductionReportTonnage, getByProductReport } from '../../../services/productionApi';
 import {
   toNumber, flattenUnitArray,
   hasRoundedDisplayValue, hasFinishedDisplayValue,
@@ -61,6 +61,12 @@ const Production = () => {
   const [packingCollapsed, setPackingCollapsed] = useState(false);
   const [chartCollapsed, setChartCollapsed] = useState(false);
   const [collapsedCats, setCollapsedCats] = useState({});
+
+  // Manual Entry By Products section
+  const [byProductAllUnitsData, setByProductAllUnitsData] = useState(null);
+  const [byProductData, setByProductData] = useState([]);
+  const [byProductGrandTotal, setByProductGrandTotal] = useState({});
+  const [byProductCollapsed, setByProductCollapsed] = useState(false);
 
   // Unit toggle (bags / tonnage / kg)
   const [unitType, setUnitType] = useState('tonnage');
@@ -596,6 +602,9 @@ let othersProdPercentage = 0;
     setLoading(true);
     setAllUnitsData(null);
     setData(null);
+    setByProductAllUnitsData(null);
+    setByProductData([]);
+    setByProductGrandTotal({});
     showToast("Loading", "Fetching production report...", "info");
 
     try {
@@ -638,6 +647,22 @@ let othersProdPercentage = 0;
       }
 
       showToast("Success", "Report loaded successfully!", "success");
+
+      // Fetch Manual Entry By Products (independent — failure doesn't block main report)
+      try {
+        const bpRes = await getByProductReport({
+          fromdate: formatPayloadDate(fromDate),
+          todate: formatPayloadDate(toDate),
+        });
+        if (bpRes && (bpRes.bags || bpRes.tonnage || bpRes.kg)) {
+          setByProductAllUnitsData(bpRes);
+          const activeUnit = parsed[unitType] ? unitType : 'tonnage';
+          setByProductData(bpRes[activeUnit] || []);
+          setByProductGrandTotal(bpRes[`grand_total_${activeUnit}`] || {});
+        }
+      } catch (_bpErr) {
+        // By-product section stays empty — non-blocking
+      }
 
     } catch (err) {
       let errorTitle = "Error";
@@ -746,6 +771,21 @@ let othersProdPercentage = 0;
         };
       });
     }
+    else if (selectedCategory === "byproducts") {
+      const bpItems = byProductData || [];
+      return bpItems.map(item => {
+        const opening    = toNumber(item.opening);
+        const production = toNumber(item.production);
+        return {
+          name:       item.description || item.code || "Unknown",
+          Opening:    opening,
+          Production: production,
+          Total:      opening + production,
+          Dispatch:   toNumber(item.dispatch),
+          Closing:    toNumber(item.closing),
+        };
+      });
+    }
     else if (selectedCategory === "packing") {
       const packingData = [];
       const source = packingProductionData || [];
@@ -784,6 +824,17 @@ let othersProdPercentage = 0;
         closing: "Closing",
       };
       return rawMap[metricType] || "Opening";
+    }
+
+    if (selectedCategory === "byproducts") {
+      const bpMap = {
+        opening:    "Opening",
+        production: "Production",
+        total:      "Total",
+        dispatch:   "Dispatch",
+        closing:    "Closing",
+      };
+      return bpMap[metricType] || "Opening";
     }
 
     const finishedMap = {
@@ -829,7 +880,7 @@ let othersProdPercentage = 0;
       );
     }
 
-    const isSingleMetric = ["finished", "others", "raw"].includes(selectedCategory) && metricType;
+    const isSingleMetric = ["finished", "others", "raw", "byproducts"].includes(selectedCategory) && metricType;
     const pieMetricKey = isSingleMetric ? metricLabel : "Production";
     const pieChartData = chartData.filter((item) => Number(item[pieMetricKey]) > 0);
 
@@ -1511,6 +1562,107 @@ case "pie": {
     );
   };
 
+  const renderByProductsTable = () => {
+    const isMobile = window.innerWidth < 768;
+    const items = byProductData || [];
+    const gt = byProductGrandTotal || {};
+
+    if (!items.length) {
+      return (
+        <div className={styles.noDataMessage}>
+          <i className="bi bi-inbox"></i>
+          <p>No data available</p>
+        </div>
+      );
+    }
+
+    const gtOpening    = toNumber(gt.totalOpening);
+    const gtProduction = toNumber(gt.totalProduction);
+    const gtTotal      = gtOpening + gtProduction;
+    const gtDispatch   = toNumber(gt.totalDispatch);
+    const gtClosing    = toNumber(gt.totalClosing);
+
+    if (isMobile) {
+      return (
+        <div className={styles.mobileTableContainer}>
+          {items.map((item, idx) => {
+            const opening    = toNumber(item.opening);
+            const production = toNumber(item.production);
+            return (
+              <motion.div
+                key={idx}
+                className={`${styles.mobileItem} ${isDarkMode ? styles.mobileItemDark : ''}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2, delay: Math.min(idx, 12) * 0.035 }}
+              >
+                <div className={styles.mobileItemTitle}>{item.description || item.code}</div>
+                <MobileRow label="Opening"    value={formatIndianNumber(opening)} />
+                <MobileRow label="Production" value={formatIndianNumber(production)} />
+                <MobileRow label="Total"      value={formatIndianNumber(opening + production)} />
+                <MobileRow label="Dispatch"   value={formatIndianNumber(toNumber(item.dispatch))} />
+                <MobileRow label="Closing"    value={formatIndianNumber(toNumber(item.closing))} />
+              </motion.div>
+            );
+          })}
+          <div className={`${styles.mobileCard} ${styles.rawTotalCard}`}>
+            <div className={styles.mobileCardBody}>
+              <div className={styles.mobileCardFooterTitle}>Grand Total - Manual Entry By Products</div>
+              <MobileRow label="Opening"    value={formatIndianNumber(gtOpening)} />
+              <MobileRow label="Production" value={formatIndianNumber(gtProduction)} />
+              <MobileRow label="Total"      value={formatIndianNumber(gtTotal)} />
+              <MobileRow label="Dispatch"   value={formatIndianNumber(gtDispatch)} />
+              <MobileRow label="Closing"    value={formatIndianNumber(gtClosing)} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className={styles.tableWrapper}>
+        <table className={styles.dataTable} style={{ tableLayout: 'fixed' }}>
+          <thead>
+            <tr>
+              <th className={styles.tableCellArrow}></th>
+              <th className={styles.tableCellDescription}>Manual By Products</th>
+              <th className={styles.tableCellNumber} style={{ width: 164 }}>Opening</th>
+              <th className={styles.tableCellNumber} style={{ width: 164 }}>Production</th>
+              <th className={styles.tableCellNumber} style={{ width: 164 }}>Total</th>
+              <th className={styles.tableCellNumber} style={{ width: 164 }}>Dispatch</th>
+              <th className={styles.tableCellNumber} style={{ width: 164 }}>Closing</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item, i) => {
+              const opening    = toNumber(item.opening);
+              const production = toNumber(item.production);
+              return (
+                <tr key={i} className={i % 2 === 0 ? styles.tableRowEven : ''}>
+                  <td className={styles.tableCellArrow}></td>
+                  <td className={styles.tableCellDescription}>{item.description || item.code || '—'}</td>
+                  <td className={styles.tableCellNumber}>{dimProd(opening)}</td>
+                  <td className={styles.tableCellNumber}>{dimProd(production)}</td>
+                  <td className={styles.tableCellNumber}>{dimProd(opening + production)}</td>
+                  <td className={styles.tableCellNumber}>{dimProd(toNumber(item.dispatch))}</td>
+                  <td className={styles.tableCellNumber}>{dimProd(toNumber(item.closing))}</td>
+                </tr>
+              );
+            })}
+            <tr className={styles.tableGrandTotalRaw}>
+              <td colSpan="2" className={styles.tableCellDescription}>Grand Total - Manual Entry By Products</td>
+              <td className={styles.tableCellNumber}>{dimProd(gtOpening)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(gtProduction)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(gtTotal)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(gtDispatch)}</td>
+              <td className={styles.tableCellNumber}>{dimProd(gtClosing)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   // Render Raw Materials Table (keep your existing working version)
   const renderRawMaterialsTable = () => {
     const isMobile = window.innerWidth < 768;
@@ -1569,17 +1721,17 @@ case "pie": {
 
     return (
       <div className={styles.tableWrapper}>
-        <table className={styles.dataTable}>
+        <table className={styles.dataTable} style={{ tableLayout: 'fixed' }}>
           <thead>
             <tr>
               <th className={styles.tableCellArrow}></th>
               <th className={styles.tableCellDescription}>Raw Material</th>
-              <th className={styles.tableCellNumber}>Opening</th>
-              <th className={styles.tableCellNumber}>Arrival</th>
-              <th className={styles.tableCellNumber}>Total</th>
-              <th className={styles.tableCellNumber}>Used</th>
-              <th className={styles.tableCellNumber}>Returned</th>
-              <th className={styles.tableCellNumber}>Closing</th>
+              <th className={styles.tableCellNumber} style={{ width: 137 }}>Opening</th>
+              <th className={styles.tableCellNumber} style={{ width: 137 }}>Arrival</th>
+              <th className={styles.tableCellNumber} style={{ width: 137 }}>Total</th>
+              <th className={styles.tableCellNumber} style={{ width: 137 }}>Used</th>
+              <th className={styles.tableCellNumber} style={{ width: 137 }}>Returned</th>
+              <th className={styles.tableCellNumber} style={{ width: 137 }}>Closing</th>
             </tr>
           </thead>
           <tbody>
@@ -1611,6 +1763,9 @@ case "pie": {
   };
 
   const renderProductionRatioTable = () => {
+    const unitLabelMap = { bags: 'Bags', tonnage: 'Tonnage', kg: 'KG' };
+    const unitLabel = unitLabelMap[unitType] || 'KG';
+
     const rawItems = rawData?.["All Raw Materials"] || [];
     const gram100KGItem = rawItems.find(
       (item) => item.description?.toUpperCase().trim() === "GRAM 100 KG"
@@ -1622,26 +1777,37 @@ case "pie": {
       .find((item) => item.description?.toUpperCase().includes("GRAM BROKEN"));
     const gramBrokenQty = gramBrokenItem ? getFinishedItemMetrics(gramBrokenItem).production : null;
 
+    const gramHuskPackingItem = (byProductData || []).find(
+      (item) => item.description?.toUpperCase().includes("GRAM HUSK PACKING")
+    );
+    const gramHuskPackingQty = gramHuskPackingItem ? toNumber(gramHuskPackingItem.production) : null;
+
     const calcPct = (qty) =>
       gram100KGUsed > 0 ? ((qty / gram100KGUsed) * 100).toFixed(2) + "%" : "-";
 
     const makeTooltip = (label, qty) =>
       gram100KGUsed > 0
         ? `${label} (${formatIndianNumber(qty)}) / GRAM 100 KG Raw Materials Usage (${formatIndianNumber(gram100KGUsed)}) × 100 = ${calcPct(qty)}`
-        : "GRAM 100 KG usage not available";
+        : `GRAM 100 KG usage not available`;
+
+    const makeQtyLabel = (label) => `${label} Qty in ${unitLabel}`;
 
     const rows = [
       {
         name: "Finished Goods",
         qty: fgProduction,
         hasData: true,
-        qtyLabel: "Finished Goods Total Production",
-        pctTooltip: makeTooltip("Finished Goods Qty in KG", fgProduction),
+        qtyLabel: makeQtyLabel("Finished Goods"),
+        pctTooltip: makeTooltip(`Finished Goods Qty in ${unitLabel}`, fgProduction),
       },
       {
         name: "Gram Husk Packing 18KG",
-        qty: null,
-        hasData: false,
+        qty: gramHuskPackingQty,
+        hasData: gramHuskPackingQty !== null,
+        qtyLabel: makeQtyLabel("Gram Husk Packing 18KG"),
+        pctTooltip: gramHuskPackingQty !== null
+          ? makeTooltip(`Gram Husk Packing 18KG Qty in ${unitLabel}`, gramHuskPackingQty)
+          : "",
       },
       {
         name: "Fried Gram Chikal",
@@ -1652,9 +1818,9 @@ case "pie": {
         name: "Fried Gram Broken",
         qty: gramBrokenQty,
         hasData: gramBrokenQty !== null,
-        qtyLabel: "Fried Gram Broken Total Production",
+        qtyLabel: makeQtyLabel("Fried Gram Broken"),
         pctTooltip: gramBrokenQty !== null
-          ? makeTooltip("Fried Gram Broken Qty in KG", gramBrokenQty)
+          ? makeTooltip(`Fried Gram Broken Qty in ${unitLabel}`, gramBrokenQty)
           : "",
       },
       {
@@ -1673,7 +1839,7 @@ case "pie": {
           <thead>
             <tr>
               <th className={styles.tableCellDescription} style={{ width: "60%" }}>Item</th>
-              <th className={styles.tableCellNumber}>Qty in KG</th>
+              <th className={styles.tableCellNumber}>Qty in {unitLabel}</th>
               <th className={styles.tableCellNumber}>Production %</th>
             </tr>
           </thead>
@@ -2328,6 +2494,10 @@ case "pie": {
                   onClick={() => {
                     setUnitType(key);
                     setData(allUnitsData[key]);
+                    if (byProductAllUnitsData) {
+                      setByProductData(byProductAllUnitsData[key] || []);
+                      setByProductGrandTotal(byProductAllUnitsData[`grand_total_${key}`] || {});
+                    }
                   }}
                   initial={{ opacity: 0, scale: 0.85 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -2469,6 +2639,34 @@ case "pie": {
               </div>
             </div>
           </div>
+          {/* Manual Entry By Products */}
+          {byProductData && byProductData.length > 0 && (
+            <div className={styles.reportCard}>
+              <div
+                className={`${styles.reportCardHeader} ${styles.othersHeader}`}
+                role="button" aria-expanded={!byProductCollapsed} aria-label="Toggle Manual Entry By Products section"
+                onClick={() => setByProductCollapsed(!byProductCollapsed)}
+              >
+                <div className={styles.reportCardTitle}>
+                  <i className="bi bi-journal-text"></i>
+                  <span>Manual Entry By Products</span>
+                </div>
+                <ThemedTooltip content={byProductCollapsed ? 'Expand' : 'Collapse'}>
+                  <motion.i className="bi bi-chevron-down" animate={{ rotate: byProductCollapsed ? 0 : 180 }} transition={{ duration: 0.2 }} style={{ display: 'inline-block' }} />
+                </ThemedTooltip>
+              </div>
+              <AnimatePresence>
+                {!byProductCollapsed && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.28 }} style={{ overflow: 'hidden' }}>
+                    <div className={styles.reportCardBody}>
+                      {renderByProductsTable()}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
           {/* 2. Raw Materials Usage */}
           <div className={styles.reportCard}>
             <div
@@ -2590,6 +2788,7 @@ case "pie": {
                         options={[
                           { value: "finished", label: "Finished Goods" },
                           { value: "others", label: "By Products and Packing Section Material" },
+                          { value: "byproducts", label: "Manual Entry By Products" },
                           { value: "raw", label: "Raw Materials" },
                           { value: "packing", label: "Packing" },
                         ]}
@@ -2621,20 +2820,28 @@ case "pie": {
                           value={metricType}
                           onChange={setMetricType}
                           options={
-                            selectedCategory !== "raw"
+                            selectedCategory === "raw"
                               ? [
-                                  { value: "opening", label: "Opening" },
-                                  { value: "produced", label: "Production" },
-                                  { value: "total", label: "Total" },
-                                  { value: "dispatch", label: "Dispatch" },
-                                  { value: "returned", label: "Returned" },
-                                  { value: "closing", label: "Closing" },
-                                ]
-                              : [
                                   { value: "opening", label: "Opening" },
                                   { value: "arrival", label: "Arrival" },
                                   { value: "total", label: "Total" },
                                   { value: "used", label: "Used" },
+                                  { value: "returned", label: "Returned" },
+                                  { value: "closing", label: "Closing" },
+                                ]
+                              : selectedCategory === "byproducts"
+                              ? [
+                                  { value: "opening",    label: "Opening" },
+                                  { value: "production", label: "Production" },
+                                  { value: "total",      label: "Total" },
+                                  { value: "dispatch",   label: "Dispatch" },
+                                  { value: "closing",    label: "Closing" },
+                                ]
+                              : [
+                                  { value: "opening", label: "Opening" },
+                                  { value: "produced", label: "Production" },
+                                  { value: "total", label: "Total" },
+                                  { value: "dispatch", label: "Dispatch" },
                                   { value: "returned", label: "Returned" },
                                   { value: "closing", label: "Closing" },
                                 ]

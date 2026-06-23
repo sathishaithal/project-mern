@@ -16,7 +16,7 @@ function resolveInitialIntro() {
   const isLogout  = !!sessionStorage.getItem('logoutMessage');
   const isRefresh = isPageRefresh();
 
-  if (isLogout)  { sessionStorage.removeItem('logoutMessage'); return { active: true, holdMs: 1200 }; }
+  if (isLogout)  { return { active: true, holdMs: 1200 }; }
   if (isRefresh) {                                              return { active: true, holdMs: 1100 }; }
   return { active: false, holdMs: 0 };
 }
