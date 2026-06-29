@@ -65,12 +65,9 @@ export default function ChartsPage({ loggedInRolex, syncNode }) {
   const [dwL3Loading,       setDwL3Loading]       = useState(false);
   const [dwClickedCatgroup, setDwClickedCatgroup] = useState(null);
   const [dwClickedCategory, setDwClickedCategory] = useState(null);
-  const [dwLevel4,          setDwLevel4]          = useState([]);
-  const [dwL4Loading,       setDwL4Loading]       = useState(false);
+
   const [dwL2LoadingVisible, setDwL2LoadingVisible] = useState(false);
   const [dwL3LoadingVisible, setDwL3LoadingVisible] = useState(false);
-  const [dwL4LoadingVisible, setDwL4LoadingVisible] = useState(false);
-  const [dwClickedItem,     setDwClickedItem]     = useState(null);
   // Tracks filter values at last Apply — titles and drill-downs use these, not the live dropdown state
   const [appliedDw, setAppliedDw] = useState({ daysel: 'yesterday', method: 'Distribution', company: 'SBL', filter: 'Category group', basedon: 'Tonnage' });
   const [graphDataAll,      setGraphDataAll]      = useState([]);
@@ -124,7 +121,6 @@ export default function ChartsPage({ loggedInRolex, syncNode }) {
   const mwHbarTitle   = useRef('');
   const dwL2LoadingTimer = useRef(null);
   const dwL3LoadingTimer = useRef(null);
-  const dwL4LoadingTimer = useRef(null);
 
   useEffect(() => {
     const h = () => setIsMobile(window.innerWidth < 768);
@@ -234,18 +230,12 @@ export default function ChartsPage({ loggedInRolex, syncNode }) {
     return copy;
   }, [dwLevel3, dwSellingTab]);
 
-  const sortedDwLevel4 = useMemo(() => {
-    const copy = [...dwLevel4];
-    copy.sort((a, b) => dwSellingTab === 'lowview' ? a.value - b.value : b.value - a.value);
-    return copy;
-  }, [dwLevel4, dwSellingTab]);
 
   // ── Day Wise fetch + drill-down (keeps raw fields for full table) ────────────
   const fetchDwData = useCallback(async () => {
     flushSync(() => setDwL1Loading(true));
-    setDwLevel1([]); setDwLevel2([]); setDwLevel3([]); setDwLevel4([]);
+    setDwLevel1([]); setDwLevel2([]); setDwLevel3([]);
     setDwClickedCatgroup(null); setDwClickedCategory(null);
-    setDwClickedItem(null);
     try {
       const result = await getGraphSellingData({ daysel: dwDaysel, method: dwMethod, company: dwCompany, basedon: dwBasedon, grdaiyfilter: dwFilter, employeename });
       const list = Array.isArray(result) ? result : (result?.list ?? []);
@@ -271,12 +261,10 @@ export default function ChartsPage({ loggedInRolex, syncNode }) {
   const handleDwBarClick = useCallback(async (payload) => {
     if (!payload?.name) return;
     setDwClickedCatgroup(payload.name);
-    setDwLevel2([]); setDwLevel3([]); setDwLevel4([]);
-    setDwClickedCategory(null); setDwClickedItem(null);
+    setDwLevel2([]); setDwLevel3([]);
+    setDwClickedCategory(null);
     clearTimeout(dwL3LoadingTimer.current);
-    clearTimeout(dwL4LoadingTimer.current);
     setDwL3Loading(false); setDwL3LoadingVisible(false);
-    setDwL4Loading(false); setDwL4LoadingVisible(false);
     flushSync(() => { setDwL2LoadingVisible(true); setDwL2Loading(true); });
     try {
       const rows = await getGraphSellingDataByCategory({ label: payload.name, daysel: appliedDw.daysel, method: appliedDw.method, company: appliedDw.company, basedon: appliedDw.basedon });
@@ -298,10 +286,7 @@ export default function ChartsPage({ loggedInRolex, syncNode }) {
   const handleDwCategoryClick = useCallback(async (payload) => {
     if (!payload?.name) return;
     setDwClickedCategory(payload.name);
-    setDwLevel3([]); setDwLevel4([]);
-    setDwClickedItem(null);
-    clearTimeout(dwL4LoadingTimer.current);
-    setDwL4Loading(false); setDwL4LoadingVisible(false);
+    setDwLevel3([]);
     flushSync(() => { setDwL3LoadingVisible(true); setDwL3Loading(true); });
     try {
       const rows = await getGraphSellingDataByItem({ catgory: dwClickedCatgroup, label: payload.name, daysel: appliedDw.daysel, method: appliedDw.method, company: appliedDw.company, basedon: appliedDw.basedon });
@@ -320,34 +305,6 @@ export default function ChartsPage({ loggedInRolex, syncNode }) {
     scrollTo('dw-section3');
   }, [dwClickedCatgroup, appliedDw]);
 
-  const handleDwItemClick = useCallback(async (payload) => {
-    if (!payload?.name) return;
-    setDwClickedItem(payload.name);
-    setDwLevel4([]);
-    flushSync(() => { setDwL4LoadingVisible(true); setDwL4Loading(true); });
-    try {
-      const rows = await getGraphSellingDataByItem({
-        catgory: dwClickedCatgroup,
-        label:   payload.name,
-        daysel:  appliedDw.daysel,
-        method:  appliedDw.method,
-        company: appliedDw.company,
-        basedon: appliedDw.basedon,
-      });
-      setDwLevel4(Array.isArray(rows) ? rows.map(r => ({
-        name:       r.catgroup,
-        value:      parseFloat(appliedDw.basedon === 'Tonnage' ? r.tonnage : r.amount) || 0,
-        tonnage:    parseFloat(r.tonnage)    || 0,
-        amount:     parseFloat(r.amount)     || 0,
-        ly_tonnage: parseFloat(r.ly_tonnage) || 0,
-        ly_amount:  parseFloat(r.ly_amount)  || 0,
-      })) : []);
-      logActivity('Sales', 'Charts', 'Day Wise', 'drill_down');
-    } catch { setDwLevel4([]); }
-    setDwL4LoadingVisible(false);
-    setDwL4Loading(false);
-    scrollTo('dw-section4');
-  }, [dwClickedCatgroup, appliedDw]);
 
   const handleZoom = (title, content) => setZoomChart({ title, content });
 
@@ -758,34 +715,12 @@ export default function ChartsPage({ loggedInRolex, syncNode }) {
                     data={sortedDwLevel3} basedon={appliedDw.basedon} />
                   <MirroredHBarCard
                     title={`Day Wise — ${dwClickedCatgroup} → ${dwClickedCategory} items (${appliedDw.basedon})`}
-                    data={sortedDwLevel3} onBarClick={handleDwItemClick} onZoom={handleZoom} />
+                    data={sortedDwLevel3} onBarClick={null} onZoom={handleZoom} />
                 </div>
               )}
             </motion.div>
           )}
 
-          {/* DW Level 4 — table + chart side by side */}
-          {dwL4LoadingVisible && <LoaderOverlay />}
-          {(dwL4Loading || dwLevel4.length > 0) && (
-            <motion.div id="dw-section4" style={{ marginBottom: 20 }}
-              initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-              {!dwL4LoadingVisible && dwLevel4.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
-                  <DwTableCard
-                    title={`${appliedDw.company} ${appliedDw.method} — ${dwClickedCatgroup} → ${dwClickedCategory} → ${dwClickedItem} Items (${appliedDw.daysel})`}
-                    data={sortedDwLevel4}
-                    basedon={appliedDw.basedon}
-                  />
-                  <MirroredHBarCard
-                    title={`Day Wise — ${dwClickedCatgroup} → ${dwClickedCategory} → ${dwClickedItem} (${appliedDw.basedon})`}
-                    data={sortedDwLevel4}
-                    onBarClick={null}
-                    onZoom={handleZoom}
-                  />
-                </div>
-              )}
-            </motion.div>
-          )}
 
           {!dwL1Loading && dwLevel1.length === 0 && (
             <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8', fontSize: '0.85rem' }}>

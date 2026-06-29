@@ -1,6 +1,6 @@
 // ─── Global App Configuration ────────────────────────────────────────────────
 
-export const IS_CONSOLE = true; // true = dev, false = prod
+export const IS_CONSOLE = false;
 
 // Helper function — use this instead of console.log/warn/error everywhere
 export const appLog   = (...args) => { if (IS_CONSOLE) console.log(...args); };

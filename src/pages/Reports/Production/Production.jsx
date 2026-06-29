@@ -2640,32 +2640,30 @@ case "pie": {
             </div>
           </div>
           {/* Manual Entry By Products */}
-          {byProductData && byProductData.length > 0 && (
-            <div className={styles.reportCard}>
-              <div
-                className={`${styles.reportCardHeader} ${styles.othersHeader}`}
-                role="button" aria-expanded={!byProductCollapsed} aria-label="Toggle Manual Entry By Products section"
-                onClick={() => setByProductCollapsed(!byProductCollapsed)}
-              >
-                <div className={styles.reportCardTitle}>
-                  <i className="bi bi-journal-text"></i>
-                  <span>Manual Entry By Products</span>
-                </div>
-                <ThemedTooltip content={byProductCollapsed ? 'Expand' : 'Collapse'}>
-                  <motion.i className="bi bi-chevron-down" animate={{ rotate: byProductCollapsed ? 0 : 180 }} transition={{ duration: 0.2 }} style={{ display: 'inline-block' }} />
-                </ThemedTooltip>
+          <div className={styles.reportCard}>
+            <div
+              className={`${styles.reportCardHeader} ${styles.othersHeader}`}
+              role="button" aria-expanded={!byProductCollapsed} aria-label="Toggle Manual Entry By Products section"
+              onClick={() => setByProductCollapsed(!byProductCollapsed)}
+            >
+              <div className={styles.reportCardTitle}>
+                <i className="bi bi-journal-text"></i>
+                <span>Manual Entry By Products</span>
               </div>
-              <AnimatePresence>
-                {!byProductCollapsed && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.28 }} style={{ overflow: 'hidden' }}>
-                    <div className={styles.reportCardBody}>
-                      {renderByProductsTable()}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <ThemedTooltip content={byProductCollapsed ? 'Expand' : 'Collapse'}>
+                <motion.i className="bi bi-chevron-down" animate={{ rotate: byProductCollapsed ? 0 : 180 }} transition={{ duration: 0.2 }} style={{ display: 'inline-block' }} />
+              </ThemedTooltip>
             </div>
-          )}
+            <AnimatePresence>
+              {!byProductCollapsed && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.28 }} style={{ overflow: 'hidden' }}>
+                  <div className={styles.reportCardBody}>
+                    {renderByProductsTable()}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* 2. Raw Materials Usage */}
           <div className={styles.reportCard}>
@@ -2749,7 +2747,7 @@ case "pie": {
 
 
           {/* Chart Section */}
-          {activeProductionTab === "charts" && data && (brands.length > 0 || othersBrands.length > 0) && (
+          {activeProductionTab === "charts" && data && (
             <motion.div
               key="prod-tab-charts"
               initial={{ opacity: 0, y: 10 }}

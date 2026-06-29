@@ -161,7 +161,8 @@ const Reports = () => {
   const currentMonIdx    = new Date().getMonth();
 
   const allShortSupply = useMemo(() =>
-    (shortSupply ?? []).filter(r => (parseFloat(r.shortsupplytonnage) || 0) > 0)
+    (shortSupply ?? [])
+      .filter(r => (parseFloat(r.shortsupplytonnage) || 0) > 0 && r.description?.toLowerCase() !== 'total')
       .sort((a, b) => (parseFloat(b.shortsupplytonnage) || 0) - (parseFloat(a.shortsupplytonnage) || 0)),
   [shortSupply]);
 
