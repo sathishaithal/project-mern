@@ -9,6 +9,7 @@ import bhagyaLogo from "../../assets/bhagya.png";
 import styles from "./SignIn.module.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
+import ProductCarousel from "../../components/ProductCarousel/ProductCarousel";
 
 const SignIn = () => {
   const theme = {
@@ -589,78 +590,13 @@ const SignIn = () => {
                   ))}
                 </div>
 
-                {/* Feature Carousel */}
+                {/* Product Image Carousel */}
                 <motion.div
-                  className={styles.featureSection}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.62 }}
                 >
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={activeFeature}
-                      initial={{ opacity: 0, x: -80 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 80 }}
-                      transition={{ duration: 0.45, ease: "easeInOut" }}
-                    >
-                      <motion.div
-                        whileHover={{ scale: 1.02, y: -5 }}
-                        transition={{ duration: 0.3 }}
-                        className={styles.featureCard}
-                        style={{
-                          background: `linear-gradient(135deg, ${features[activeFeature].color}15, transparent)`,
-                          border: `1px solid ${features[activeFeature].color}30`,
-                          cursor: "pointer",
-                        }}
-                      >
-                        <div className={styles.featureCardInner}>
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                            whileHover={{ scale: 1.1, rotate: 0 }}
-                          >
-                            <div
-                              className={styles.featureIcon}
-                              style={{
-                                background: `linear-gradient(135deg, ${features[activeFeature].color}, ${theme.primaryLight})`,
-                                boxShadow: `0 10px 30px ${features[activeFeature].color}60`,
-                              }}
-                            >
-                              {features[activeFeature].icon}
-                            </div>
-                          </motion.div>
-                          <div>
-                            <h4 className={styles.featureTitle}>
-                              {features[activeFeature].title}
-                            </h4>
-                            <p className={styles.featureDescription}>
-                              {features[activeFeature].description}
-                            </p>
-                          </div>
-                        </div>
-                      </motion.div>
-                    </motion.div>
-                  </AnimatePresence>
-
-                  {/* Feature Dots */}
-                  <div className={styles.dotsContainer}>
-                    {features.map((feature, index) => (
-                      <motion.div
-                        key={index}
-                        onClick={() => setActiveFeature(index)}
-                        whileHover={{ scale: 1.5 }}
-                        animate={{
-                          scale: index === activeFeature ? 1.4 : 1,
-                          backgroundColor: index === activeFeature ? feature.color : "#94a3b860",
-                          boxShadow: index === activeFeature ? `0 0 10px ${feature.color}` : "none",
-                        }}
-                        transition={{ duration: 0.3 }}
-                        className={styles.dot}
-                        style={{ cursor: "pointer" }}
-                      />
-                    ))}
-                  </div>
+                  <ProductCarousel />
                 </motion.div>
               </div>
             </div>
