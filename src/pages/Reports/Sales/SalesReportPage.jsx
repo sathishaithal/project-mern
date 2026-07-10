@@ -300,42 +300,27 @@ function GrandTotalRow({ rows, expandedQuarters, isSummary, showTillLast, accent
     }
 
     // Summary tab: mirrors SummaryCells per-row logic then aggregates
-    // YTD% and YOY% are sums of per-row rounded values (e.g. 2024:12% + 2025:12% = 24%)
+    // YTD% and YOY% are sums of per-row exact (unrounded) values, shown to 2 decimals
     let totalYtdGr = 0, totalYoyGr = 0, totalYoyBase = 0;
     let ytdPctSum = 0, ytdPctRows = 0, yoyPctSum = 0;
-    rows.forEach((row, rowIdx) => {
-      // YTD Gr/Degr base — mirrors SummaryCells exactly
-      let ytdGrBase;
-      if (rowIdx > 0) {
-        ytdGrBase = parseFloat(rows[rowIdx - 1].ttltonnage_crnt) || 0;
-      } else {
-        const prevYrRow = allSummaryRows?.find(r => String(r.year) === String(parseInt(row.year, 10) - 1));
-        ytdGrBase = prevYrRow
-          ? (parseFloat(prevYrRow.ttltonnage) || 0) + (parseFloat(prevYrRow.currentmonthtonnage) || 0)
-          : GROUPS.flatMap(g => g.months.map(m => parseFloat(row[m.lyKey]) || 0)).reduce((s, v) => s + v, 0);
-      }
+    rows.forEach((row) => {
+      // YTD Gr/Degr base — row already carries prior-year till-last-month (ttltonnage)
+      // + prior-year current-month (currentmonthtonnage_last); mirrors SummaryCells exactly.
+      const ytdGrBase = (parseFloat(row.ttltonnage) || 0) + (parseFloat(row.currentmonthtonnage_last) || 0);
       totalYtdGr += (parseFloat(row.ttltonnage_crnt) || 0) - ytdGrBase;
 
-      // YTD % — sum of per-row rounded values (matches Angular: each year's % adds up)
+      // YTD % — sum of per-row exact values (matches Angular's "each year's % adds up" approach)
       const curMon = parseFloat(row.currentmonthtonnage) || 0;
-      const prevYrRowForPct = (allSummaryRows || rows).find(r => String(r.year) === String(parseInt(row.year, 10) - 1));
-      const prevMon = prevYrRowForPct
-        ? (parseFloat(prevYrRowForPct.currentmonthtonnage_last) || parseFloat(prevYrRowForPct.currentmonthtonnage) || 0)
-        : 0;
-      if (prevMon !== 0) { ytdPctSum += Math.round((curMon - prevMon) / Math.abs(prevMon) * 100); ytdPctRows++; }
+      const prevMon = parseFloat(row.currentmonthtonnage_last) || 0;
+      if (prevMon !== 0) { ytdPctSum += (curMon - prevMon) / Math.abs(prevMon) * 100; ytdPctRows++; }
 
-      // YOY Gr/Degr base
-      let yoyBase;
-      if (rowIdx > 0) {
-        yoyBase = parseFloat(rows[rowIdx - 1].ttltonnagewy) || 0;
-      } else {
-        const prevYrRow = allSummaryRows?.find(r => String(r.year) === String(parseInt(row.year, 10) - 1));
-        yoyBase = prevYrRow ? (parseFloat(prevYrRow.ttltonnagewy) || 0) : 0;
-      }
+      // YOY Gr/Degr base — row's own ttltonnagewy is already the correct one-year-back total
+      const yoyBase = parseFloat(row.ttltonnagewy) || 0;
       const yoyVal = parseFloat(row.ttltonnage_crntwy) || 0;
       if (yoyBase !== 0) {
         totalYoyGr += yoyVal - yoyBase;
-        yoyPctSum += Math.round((yoyVal - yoyBase) / Math.abs(yoyBase) * 100);
+        // Kept as exact (unrounded) so the Grand Total's YOY% can show 2-decimal precision
+        yoyPctSum += (yoyVal - yoyBase) / Math.abs(yoyBase) * 100;
       }
       totalYoyBase += yoyBase;
     });
@@ -364,14 +349,14 @@ function GrandTotalRow({ rows, expandedQuarters, isSummary, showTillLast, accent
         {gtGrowth != null ? fmtR(gtGrowth.totalYtdGr) : '—'}
       </td>
       <td className="sr-td" style={{ background: gtBg, color: 'white', fontWeight: 700 }}>
-        {gtGrowth?.ytdPct != null ? `${Math.round(gtGrowth.ytdPct)}%` : '—'}
+        {gtGrowth?.ytdPct != null ? `${gtGrowth.ytdPct.toFixed(2)}%` : '—'}
       </td>
       <td className="sr-td" style={{ background: gtBg, color: 'white', fontWeight: 800 }}>{fmtR(gt.ttltonnage_crntwy)}</td>
       <td className="sr-td" style={{ background: gtBg, color: 'white', fontWeight: 700 }}>
         {gtGrowth != null ? fmtR(gtGrowth.totalYoyGr) : '—'}
       </td>
       <td className="sr-td" style={{ background: gtBg, color: 'white', fontWeight: 700 }}>
-        {gtGrowth?.yoyPct != null ? `${Math.round(gtGrowth.yoyPct)}%` : '—'}
+        {gtGrowth?.yoyPct != null ? `${gtGrowth.yoyPct.toFixed(2)}%` : '—'}
       </td>
     </tr>
   );
@@ -1482,13 +1467,13 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
                 <div className="sr-tooltip-compare">
                   {tooltip.thisYear !== undefined && (
                     <div className="sr-tooltip-year">
-                      <span className="sr-tooltip-label" style={{ color: isDarkMode ? '#64748b' : '#94a3b8' }}>This Year</span>
+                      <span className="sr-tooltip-label" style={{ color: isDarkMode ? '#64748b' : '#94a3b8' }}>{tooltip.thisYearLabel || 'This Year'}</span>
                       <span className="sr-tooltip-val" style={{ color: '#22c55e' }}>{tooltip.thisYear}{tooltip.unit || ''}</span>
                     </div>
                   )}
                   {tooltip.lastYear !== undefined && (
                     <div className="sr-tooltip-year">
-                      <span className="sr-tooltip-label" style={{ color: isDarkMode ? '#64748b' : '#94a3b8' }}>Last Year</span>
+                      <span className="sr-tooltip-label" style={{ color: isDarkMode ? '#64748b' : '#94a3b8' }}>{tooltip.lastYearLabel || 'Last Year'}</span>
                       <span className="sr-tooltip-val" style={{ color: isDarkMode ? '#94a3b8' : '#64748b' }}>{tooltip.lastYear}{tooltip.unit || ''}</span>
                     </div>
                   )}

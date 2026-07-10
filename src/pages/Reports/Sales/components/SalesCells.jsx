@@ -80,7 +80,7 @@ export const ArrowIcon = React.memo(function ArrowIcon({ diff }) {
 // ── CellTooltip ───────────────────────────────────────────────────────────────
 
 export const CellTooltip = React.memo(function CellTooltip({
-  className, style, title, thisYear, lastYear, formula, unit = '', accent, isDarkMode, children,
+  className, style, title, thisYear, lastYear, thisYearLabel, lastYearLabel, formula, unit = '', accent, isDarkMode, children,
 }) {
   const timerRef = useRef(null);
   useEffect(() => () => clearTimeout(timerRef.current), []);
@@ -88,7 +88,7 @@ export const CellTooltip = React.memo(function CellTooltip({
     clearTimeout(timerRef.current);
     const x = e.clientX, y = e.clientY;
     timerRef.current = setTimeout(() => {
-      tooltipRegistry.setter?.({ x, y, title, thisYear, lastYear, formula, unit });
+      tooltipRegistry.setter?.({ x, y, title, thisYear, lastYear, thisYearLabel, lastYearLabel, formula, unit });
     }, 120);
   };
   const handleLeave = () => {
@@ -128,12 +128,15 @@ export const MonthCell = React.memo(function MonthCell({
   }
   const label = mKey.replace('tonnage', '').replace(/^./, c => c.toUpperCase());
   const lyVal = row[mLyKey];
+  const yearNum = isL0Summary ? parseInt(row.year, 10) : NaN;
   return (
     <CellTooltip
       className="sr-td"
       title={`${label} Tonnage`}
       thisYear={f(row[mKey])}
       lastYear={lyVal !== undefined && lyVal !== null && lyVal !== '' ? f(lyVal) : undefined}
+      thisYearLabel={Number.isFinite(yearNum) ? String(yearNum) : undefined}
+      lastYearLabel={Number.isFinite(yearNum) ? String(yearNum - 1) : undefined}
       accent={accent} isDarkMode={isDarkMode}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, fontWeight: 500, color: 'var(--sales-text, #1e293b)' }}>
@@ -163,6 +166,7 @@ export const QuarterCell = React.memo(function QuarterCell({
     );
   }
   const lyVal = row[qKey + '_last'];
+  const yearNum = isL0Summary ? parseInt(row.year, 10) : NaN;
   return (
     <CellTooltip
       className="sr-td"
@@ -170,6 +174,8 @@ export const QuarterCell = React.memo(function QuarterCell({
       title={`${qKey} Total`}
       thisYear={f(row[qKey])}
       lastYear={lyVal !== undefined && lyVal !== null && lyVal !== '' ? f(lyVal) : undefined}
+      thisYearLabel={Number.isFinite(yearNum) ? String(yearNum) : undefined}
+      lastYearLabel={Number.isFinite(yearNum) ? String(yearNum - 1) : undefined}
       accent={accent} isDarkMode={isDarkMode}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
@@ -192,17 +198,15 @@ export const SummaryCells = React.memo(function SummaryCells({
   const isNonSummaryL0 = !isSummary && level === 0 && isMultiYear;
   const tillLast = (parseFloat(row.ttltonnage_crnt) || 0) - (parseFloat(row.currentmonthtonnage) || 0);
 
-  const lyYtd = GROUPS.flatMap(g => g.months.map(m => parseFloat(row[m.lyKey]) || 0)).reduce((s, v) => s + v, 0);
+  const yearNum = (isSummary && level === 0) ? parseInt(row.year, 10) : NaN;
+  const thisYearLabel = Number.isFinite(yearNum) ? String(yearNum) : undefined;
+  const lastYearLabel = Number.isFinite(yearNum) ? String(yearNum - 1) : undefined;
+
   let ytdGr, ytdGrBase;
   if (isSummary && level === 0) {
-    if (rowIdx > 0) {
-      ytdGrBase = parseFloat(rows[rowIdx - 1].ttltonnage_crnt) || 0;
-    } else {
-      const prevYrRow = allSummaryRows?.find(r => String(r.year) === String(parseInt(row.year, 10) - 1));
-      ytdGrBase = prevYrRow
-        ? (parseFloat(prevYrRow.ttltonnage) || 0) + (parseFloat(prevYrRow.currentmonthtonnage) || 0)
-        : lyYtd;
-    }
+    // Row already carries prior-year till-last-month (ttltonnage) + prior-year
+    // current-month (currentmonthtonnage_last) — no need to look up a sibling row.
+    ytdGrBase = (parseFloat(row.ttltonnage) || 0) + (parseFloat(row.currentmonthtonnage_last) || 0);
     ytdGr = (parseFloat(row.ttltonnage_crnt) || 0) - ytdGrBase;
   } else {
     ytdGrBase = parseFloat(row.ttltonnage) || 0;
@@ -213,16 +217,13 @@ export const SummaryCells = React.memo(function SummaryCells({
   const curMonLy = parseFloat(row.currentmonthtonnage_last) || 0;
   let ytdPct, ytdPctFormula;
   if (isSummary && level === 0) {
-    const prevYearRow = (allSummaryRows || rows).find(r => String(r.year) === String(parseInt(row.year, 10) - 1));
-    const prevMonForPct = prevYearRow
-      ? (parseFloat(prevYearRow.currentmonthtonnage_last) || parseFloat(prevYearRow.currentmonthtonnage) || 0)
-      : 0;
+    const prevMonForPct = curMonLy;
     ytdPct = prevMonForPct !== 0 ? ((curMon - prevMonForPct) / Math.abs(prevMonForPct) * 100) : null;
-    ytdPctFormula = `(Current Month − Prev Year Month) ÷ Prev Year Month × 100\n= (${f(curMon)} − ${f(prevMonForPct)}) ÷ ${f(prevMonForPct)} × 100\n= ${(ytdPct ?? 0).toFixed(1)}%`;
+    ytdPctFormula = `(Current Month − Prev Year Month) ÷ Prev Year Month × 100\n= (${f(curMon)} − ${f(prevMonForPct)}) ÷ ${f(prevMonForPct)} × 100\n= ${(ytdPct ?? 0).toFixed(2)}%`;
   } else {
     ytdPct = ytdGrBase !== 0 ? (ytdGr / Math.abs(ytdGrBase) * 100) : null;
     const formulaPrefix = isNonSummaryL0 ? 'Multi-year aggregate (sum of all selected years)\n' : '';
-    ytdPctFormula = `${formulaPrefix}YTD Gr/Degr ÷ Prev Year YTD × 100\n= ${f(ytdGr ?? 0)} ÷ ${f(ytdGrBase)} × 100\n= ${(ytdPct ?? 0).toFixed(1)}%`;
+    ytdPctFormula = `${formulaPrefix}YTD Gr/Degr ÷ Prev Year YTD × 100\n= ${f(ytdGr ?? 0)} ÷ ${f(ytdGrBase)} × 100\n= ${(ytdPct ?? 0).toFixed(2)}%`;
   }
 
   const yoyVal   = parseFloat(row.ttltonnage_crntwy) || 0;
@@ -232,12 +233,8 @@ export const SummaryCells = React.memo(function SummaryCells({
 
   let yoyGr = null, yoyBase = 0;
   if (isSummary && level === 0) {
-    if (rowIdx > 0) {
-      yoyBase = parseFloat(rows[rowIdx - 1].ttltonnagewy) || 0;
-    } else {
-      const prevYrRow = allSummaryRows?.find(r => String(r.year) === String(parseInt(row.year, 10) - 1));
-      yoyBase = prevYrRow ? (parseFloat(prevYrRow.ttltonnagewy) || 0) : 0;
-    }
+    // Row's own ttltonnagewy is already the correct one-year-back total.
+    yoyBase = ttlYoyLy;
     yoyGr = yoyBase !== 0 ? yoyVal - yoyBase : null;
   } else {
     yoyBase = ttlYoyLy;
@@ -262,9 +259,10 @@ export const SummaryCells = React.memo(function SummaryCells({
       {isSummary ? (
         <CellTooltip className="sr-td" style={{ fontWeight: 600 }} title="Current Month"
           thisYear={f(row.currentmonthtonnage)} lastYear={(curMonLy > 0 ? f(curMonLy) : undefined)}
+          thisYearLabel={thisYearLabel} lastYearLabel={lastYearLabel}
           accent={accent} isDarkMode={isDarkMode}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
-            {dz(row.currentmonthtonnage)}<ArrowIcon diff={l0diff(rows, rowIdx, 'currentmonthtonnage')} />
+            {dz(row.currentmonthtonnage)}<ArrowIcon diff={subDiff(row, 'currentmonthtonnage', 'currentmonthtonnage_last')} />
           </div>
         </CellTooltip>
       ) : (
@@ -278,6 +276,7 @@ export const SummaryCells = React.memo(function SummaryCells({
       {isSummary ? (
         <CellTooltip className="sr-td" style={{ fontWeight: 700 }} title="Total (YTD)"
           thisYear={f(row.ttltonnage_crnt)} lastYear={ytdGrBase > 0 ? f(ytdGrBase) : undefined}
+          thisYearLabel={thisYearLabel} lastYearLabel={lastYearLabel}
           formula="Year-to-date total tonnage" accent={accent} isDarkMode={isDarkMode}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
             {dz(row.ttltonnage_crnt)}{ytdGr !== null && <ArrowIcon diff={ytdGr} />}
@@ -301,17 +300,26 @@ export const SummaryCells = React.memo(function SummaryCells({
 
       <CellTooltip className="sr-td" title="YTD %" formula={ytdPctFormula} accent={accent} isDarkMode={isDarkMode}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
-          {dp(ytdPct, level === 0)}<ArrowIcon diff={ytdPct ?? 0} />
+          {dp(ytdPct, false)}<ArrowIcon diff={ytdPct ?? 0} />
         </div>
       </CellTooltip>
 
-      <CellTooltip className="sr-td" style={{ fontWeight: 700 }} title="Total (YOY)"
-        thisYear={f(ttlYoy)} lastYear={(!isNonSummaryL0 && yoyBase > 0) ? f(yoyBase) : undefined}
-        formula="Full year comparison (same period)" accent={accent} isDarkMode={isDarkMode}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
-          {dz(yoyVal)}<ArrowIcon diff={yoyGr ?? 0} />
-        </div>
-      </CellTooltip>
+      {isSummary ? (
+        <CellTooltip className="sr-td" style={{ fontWeight: 700 }} title="Total (YOY)"
+          thisYear={f(ttlYoy)} lastYear={(!isNonSummaryL0 && yoyBase > 0) ? f(yoyBase) : undefined}
+          thisYearLabel={thisYearLabel} lastYearLabel={lastYearLabel}
+          formula="Full year comparison (same period)" accent={accent} isDarkMode={isDarkMode}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
+            {dz(yoyVal)}<ArrowIcon diff={yoyGr ?? 0} />
+          </div>
+        </CellTooltip>
+      ) : (
+        <td className="sr-td" style={{ fontWeight: 700 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
+            {dz(yoyVal)}<ArrowIcon diff={yoyGr ?? 0} />
+          </div>
+        </td>
+      )}
 
       <CellTooltip className="sr-td" title="YOY Growth / Degrowth"
         formula={isNonSummaryL0 ? `Multi-year aggregate (sum of all selected years)\nCurrent YOY − Last Year YOY\n= ${f(ttlYoy)} − ${f(yoyBase)}\n= ${f(yoyGr ?? 0)}` : `Current YOY − Last Year YOY\n= ${f(ttlYoy)} − ${f(yoyBase)}\n= ${f(yoyGr ?? 0)}`}
@@ -322,10 +330,10 @@ export const SummaryCells = React.memo(function SummaryCells({
       </CellTooltip>
 
       <CellTooltip className="sr-td" title="YOY %"
-        formula={isNonSummaryL0 ? `Multi-year aggregate (sum of all selected years)\n(YOY Gr/Degr ÷ Last Year YOY) × 100\n= (${f(yoyGr ?? 0)} ÷ ${f(yoyBase)}) × 100\n= ${(yoyPct ?? 0).toFixed(1)}%` : `(YOY Gr/Degr ÷ Last Year YOY) × 100\n= (${f(yoyGr ?? 0)} ÷ ${f(yoyBase)}) × 100\n= ${(yoyPct ?? 0).toFixed(1)}%`}
+        formula={isNonSummaryL0 ? `Multi-year aggregate (sum of all selected years)\n(YOY Gr/Degr ÷ Last Year YOY) × 100\n= (${f(yoyGr ?? 0)} ÷ ${f(yoyBase)}) × 100\n= ${(yoyPct ?? 0).toFixed(2)}%` : `(YOY Gr/Degr ÷ Last Year YOY) × 100\n= (${f(yoyGr ?? 0)} ÷ ${f(yoyBase)}) × 100\n= ${(yoyPct ?? 0).toFixed(2)}%`}
         accent={accent} isDarkMode={isDarkMode}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, color: 'var(--sales-text, #1e293b)' }}>
-          {dp(yoyPct, level === 0)}<ArrowIcon diff={yoyPct ?? 0} />
+          {dp(yoyPct, false)}<ArrowIcon diff={yoyPct ?? 0} />
         </div>
       </CellTooltip>
     </>
