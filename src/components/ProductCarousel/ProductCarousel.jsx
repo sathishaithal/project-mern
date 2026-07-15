@@ -302,7 +302,7 @@ function arrowStyle(side, cardH) {
     position:       'absolute',
     [side]:         14,
     top:            cardH / 2,
-    transform:      'translateY(-50%)',
+    y:              '-50%',
     zIndex:         20,
     width:          40,
     height:         40,

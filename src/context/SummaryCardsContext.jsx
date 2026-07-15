@@ -29,9 +29,12 @@ export function SummaryCardsProvider({ children }) {
   const [shortSupply,   setShortSupply]   = useState(null);
   const [multiYearData, setMultiYearData] = useState(null);
   const [sellingData,   setSellingData]   = useState(null);
-  const [prodData,      setProdData]      = useState(null); // raw API response for SummaryCardsSystem
-  const [prodSummary,   setProdSummary]   = useState(null); // derived flat values for Dashboard/Reports mini-card
+  const [prodData,      setProdData]      = useState(null); // raw API response for SummaryCardsSystem (Fried Gram Mill)
+  const [prodSummary,   setProdSummary]   = useState(null); // derived flat values for Dashboard/Reports mini-card (Fried Gram Mill)
   const [prodLoading,   setProdLoading]   = useState(false);
+  const [prodDataAvalakki,    setProdDataAvalakki]    = useState(null); // raw API response for SummaryCardsSystem (Avalakki Mill)
+  const [prodSummaryAvalakki, setProdSummaryAvalakki] = useState(null); // derived flat values for Dashboard mini-card (Avalakki Mill)
+  const [prodLoadingAvalakki, setProdLoadingAvalakki] = useState(false);
   const [fetched,       setFetched]       = useState(false);
 
   // Fetch all card data once when user logs in
@@ -98,6 +101,26 @@ export function SummaryCardsProvider({ children }) {
       })
       .catch(() => {})
       .finally(() => setProdLoading(false));
+
+    // Avalakki Mill — separate catgroup, only Finished Goods + Raw Materials apply
+    setProdLoadingAvalakki(true);
+    getProductionReportTonnage({ fromdate, todate, catgroup: 'Avalakki Mill' })
+      .then(res => {
+        if (!res || Object.keys(res).length === 0) { setProdDataAvalakki(null); setProdSummaryAvalakki(null); return; }
+        const d = flattenUnitArray(res.kg);
+        if (!d || Object.keys(d).length === 0) { setProdDataAvalakki(null); setProdSummaryAvalakki(null); return; }
+        setProdDataAvalakki(d);
+        const allFinished = Object.values(d.finished || {}).flat();
+        const fgNetProd   = allFinished.reduce((s, i) => s + (parseFloat(i['purchased/transfer in']) || 0), 0);
+        const allRaw      = d.raw?.['All Raw Materials'] ?? [];
+        const rawUsed     = allRaw.reduce((s, i) => s + (parseFloat(i['consumed/transfer out']) || 0), 0);
+        const eff         = rawUsed > 0 && fgNetProd > 0 ? ((fgNetProd / rawUsed) * 100).toFixed(1) : null;
+        setProdSummaryAvalakki(fgNetProd > 0 || rawUsed > 0
+          ? { fgnetproduction: fgNetProd, rawmaterialused: rawUsed, efficiency: eff }
+          : null);
+      })
+      .catch(() => {})
+      .finally(() => setProdLoadingAvalakki(false));
   }, [employeename, fetched]);
 
   // Reset when user logs out
@@ -111,6 +134,8 @@ export function SummaryCardsProvider({ children }) {
       setSellingData(null);
       setProdData(null);
       setProdSummary(null);
+      setProdDataAvalakki(null);
+      setProdSummaryAvalakki(null);
     }
   }, [user]);
 
@@ -118,6 +143,7 @@ export function SummaryCardsProvider({ children }) {
     <SummaryCardsContext.Provider value={{
       dates, header, shortSupply, multiYearData, sellingData,
       prodData, prodSummary, prodLoading: prodLoading && !prodData,
+      prodDataAvalakki, prodSummaryAvalakki, prodLoadingAvalakki: prodLoadingAvalakki && !prodDataAvalakki,
     }}>
       {children}
     </SummaryCardsContext.Provider>

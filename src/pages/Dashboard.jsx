@@ -286,7 +286,7 @@ const ReportCard = ({ title, desc, icon, path, accent, badge, isDarkMode, border
 const Dashboard = () => {
   const { user }    = useAuth();
   const { isDarkMode, selectedAccent } = useColorMode();
-  const { dates, multiYearData, shortSupply, sellingData, prodSummary, prodLoading } = useSummaryCards();
+  const { dates, multiYearData, shortSupply, sellingData, prodSummary, prodLoading, prodSummaryAvalakki, prodLoadingAvalakki } = useSummaryCards();
 
   useEffect(() => { logActivity('Dashboard', '', '', 'view'); }, []);
 
@@ -596,7 +596,7 @@ const Dashboard = () => {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
               <i className="bi bi-gear-wide-connected" style={{ color: accent2, fontSize: '0.82rem' }} />
-              <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isDarkMode ? '#e2e8f0' : '#1e293b' }}>Production Today</span>
+              <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isDarkMode ? '#e2e8f0' : '#1e293b' }}>Production {monthName} — Fried Gram Mill</span>
             </div>
             {prodLoading && !prodSummary
               ? (
@@ -616,6 +616,52 @@ const Dashboard = () => {
                       { label: 'FG Net Production', val: prodSummary?.fgnetproduction, unit: 'Kg' },
                       { label: 'Raw Material',      val: prodSummary?.rawmaterialused, unit: 'Kg' },
                       { label: 'Efficiency',        val: prodSummary?.efficiency,      unit: '%' },
+                    ].map(({ label, val, unit }) => (
+                      <div key={label}>
+                        <div style={{ fontSize: '0.60rem', fontWeight: 600, color: textMut, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
+                          {label}
+                        </div>
+                        <div style={{ fontSize: '0.92rem', fontWeight: 800, color: isDarkMode ? '#f1f5f9' : '#0f172a', lineHeight: 1.2 }}>
+                          {val !== null && val !== undefined && val !== '' ? `${val} ${unit}` : '—'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+            }
+          </motion.div>
+        )}
+
+        {/* Production Today — Avalakki Mill */}
+        {(prodLoadingAvalakki || prodSummaryAvalakki) && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.32 }}
+            style={{ flex: '1 1 180px', background: cardBg, border: `1px solid ${border}`, borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
+              <i className="bi bi-gear-wide-connected" style={{ color: accent, fontSize: '0.82rem' }} />
+              <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isDarkMode ? '#e2e8f0' : '#1e293b' }}>Production {monthName} — Avalakki Mill</span>
+            </div>
+            {prodLoadingAvalakki && !prodSummaryAvalakki
+              ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {[0, 1, 2].map(i => (
+                      <motion.div key={i}
+                        animate={{ opacity: [0.5, 1, 0.5] }}
+                        transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+                        style={{ height: 28, borderRadius: 6, background: isDarkMode ? '#1e293b' : '#f1f5f9' }}
+                      />
+                    ))}
+                  </div>
+                )
+              : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                    {[
+                      { label: 'FG Net Production', val: prodSummaryAvalakki?.fgnetproduction, unit: 'Kg' },
+                      { label: 'Raw Material',      val: prodSummaryAvalakki?.rawmaterialused, unit: 'Kg' },
+                      { label: 'Efficiency',        val: prodSummaryAvalakki?.efficiency,      unit: '%' },
                     ].map(({ label, val, unit }) => (
                       <div key={label}>
                         <div style={{ fontSize: '0.60rem', fontWeight: 600, color: textMut, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>

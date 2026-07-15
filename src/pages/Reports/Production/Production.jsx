@@ -46,6 +46,9 @@ const Production = () => {
     if (activeProductionTab === 'charts') logActivity('Production', 'Charts', '', 'view', { from: formatPayloadDate(fromDate), to: formatPayloadDate(toDate) });
   }, [activeProductionTab]);
   const [catGroup, setCatGroup] = useState("Fried Gram Mill");
+  // Snapshot of catGroup as of the last Generate click — section visibility follows
+  // this, not the live dropdown, so picking a new option doesn't hide anything until Generate.
+  const [appliedCatGroup, setAppliedCatGroup] = useState("Fried Gram Mill");
   const [fromDate, setFromDate] = useState(new Date());
   const [toDate, setToDate] = useState(new Date());
   const [loading, setLoading] = useState(false);
@@ -76,6 +79,14 @@ const Production = () => {
   const [selectedCategory, setSelectedCategory] = useState("finished");
   const [selectedBrand, setSelectedBrand] = useState("all");
   const [metricType, setMetricType] = useState("opening");
+
+  useEffect(() => {
+    if (appliedCatGroup === "Avalakki Mill" && ["others", "byproducts", "packing"].includes(selectedCategory)) {
+      setSelectedCategory("finished");
+      setMetricType("opening");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedCatGroup]);
   const [chartType, setChartType] = useState("bar");
   const [dataView, setDataView] = useState("produced");
 
@@ -600,6 +611,7 @@ let othersProdPercentage = 0;
 
   const fetchReport = async () => {
     setLoading(true);
+    setAppliedCatGroup(catGroup);
     setAllUnitsData(null);
     setData(null);
     setByProductAllUnitsData(null);
@@ -611,6 +623,7 @@ let othersProdPercentage = 0;
       const res = await getProductionReportTonnage({
         fromdate: formatPayloadDate(fromDate),
         todate: formatPayloadDate(toDate),
+        catgroup: catGroup,
       });
 
       if (!res || Object.keys(res).length === 0) {
@@ -2158,7 +2171,10 @@ case "pie": {
             <AppSelect
               value={catGroup}
               onChange={setCatGroup}
-              options={[{ value: "Fried Gram Mill", label: "Fried Gram Mill" }]}
+              options={[
+                { value: "Fried Gram Mill", label: "Fried Gram Mill" },
+                { value: "Avalakki Mill", label: "Avalakki Mill" },
+              ]}
             />
           </motion.div>
 
@@ -2568,6 +2584,7 @@ case "pie": {
                 </AnimatePresence>
               </div>
 
+              {appliedCatGroup !== "Avalakki Mill" && (
               <div className={styles.reportCard}>
                 <div
                   className={`${styles.reportCardHeader} ${styles.othersHeader}`}
@@ -2592,6 +2609,7 @@ case "pie": {
                   )}
                 </AnimatePresence>
               </div>
+              )}
 
           <div className={styles.totalCardWrapper}>
             <div className={styles.totalCard}>
@@ -2609,7 +2627,7 @@ case "pie": {
                     gap: "5px",
                   }}>
                     <i className="bi bi-info-circle" style={{ marginTop: "1px", flexShrink: 0 }}></i>
-                    <span>Finished Goods + By Products and Packing Section Material</span>
+                    <span>{appliedCatGroup === "Avalakki Mill" ? "Finished Goods" : "Finished Goods + By Products and Packing Section Material"}</span>
                   </div>
                 </div>
                 {[
@@ -2640,6 +2658,7 @@ case "pie": {
             </div>
           </div>
           {/* Manual Entry By Products */}
+          {appliedCatGroup !== "Avalakki Mill" && (
           <div className={styles.reportCard}>
             <div
               className={`${styles.reportCardHeader} ${styles.othersHeader}`}
@@ -2664,6 +2683,7 @@ case "pie": {
               )}
             </AnimatePresence>
           </div>
+          )}
 
           {/* 2. Raw Materials Usage */}
           <div className={styles.reportCard}>
@@ -2692,6 +2712,7 @@ case "pie": {
           </div>
 
           {/* 3. Production Ratio */}
+          {appliedCatGroup !== "Avalakki Mill" && (
           <div className={styles.reportCard}>
             <div
               className={`${styles.reportCardHeader} ${styles.productionRatioHeader}`}
@@ -2716,8 +2737,10 @@ case "pie": {
               )}
             </AnimatePresence>
           </div>
+          )}
 
           {/* 4. Packing Report */}
+          {appliedCatGroup !== "Avalakki Mill" && (
           <div className={styles.reportCard}>
             <div
               className={`${styles.reportCardHeader} ${styles.packingHeader}`}
@@ -2742,6 +2765,7 @@ case "pie": {
               )}
             </AnimatePresence>
           </div>
+          )}
             </motion.div>
           )}
 
@@ -2785,10 +2809,14 @@ case "pie": {
                         }}
                         options={[
                           { value: "finished", label: "Finished Goods" },
-                          { value: "others", label: "By Products and Packing Section Material" },
-                          { value: "byproducts", label: "Manual Entry By Products" },
+                          ...(appliedCatGroup !== "Avalakki Mill" ? [
+                            { value: "others", label: "By Products and Packing Section Material" },
+                            { value: "byproducts", label: "Manual Entry By Products" },
+                          ] : []),
                           { value: "raw", label: "Raw Materials" },
-                          { value: "packing", label: "Packing" },
+                          ...(appliedCatGroup !== "Avalakki Mill" ? [
+                            { value: "packing", label: "Packing" },
+                          ] : []),
                         ]}
                       />
                     </div>

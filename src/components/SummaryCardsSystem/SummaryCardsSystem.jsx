@@ -296,7 +296,7 @@ const ALL_CARDS = [
   // ── Production ───────────────────────────────────────────────────────────
   {
     id: 'fg_total_production',
-    label: 'FG TOTAL PRODUCTION',
+    label: 'FRIED GRAM TOTAL PRODUCTION',
     sublabel: '(Finished Goods - Current Month)',
     icon: 'bi-box-seam',
     section: 'production',
@@ -311,7 +311,7 @@ const ALL_CARDS = [
   },
   {
     id: 'fg_opening_stock',
-    label: 'FG OPENING STOCK',
+    label: 'FRIED GRAM OPENING STOCK',
     sublabel: '(Finished Goods)',
     icon: 'bi-box-arrow-in-down',
     section: 'production',
@@ -326,7 +326,7 @@ const ALL_CARDS = [
   },
   {
     id: 'fg_closing_stock',
-    label: 'FG CLOSING STOCK',
+    label: 'FRIED GRAM CLOSING STOCK',
     sublabel: '(Finished Goods)',
     icon: 'bi-archive',
     section: 'production',
@@ -341,7 +341,7 @@ const ALL_CARDS = [
   },
   {
     id: 'fg_dispatch',
-    label: 'FG DISPATCHED',
+    label: 'FRIED GRAM DISPATCHED',
     sublabel: '(Sold - Current Month)',
     icon: 'bi-send',
     section: 'production',
@@ -356,7 +356,7 @@ const ALL_CARDS = [
   },
   {
     id: 'fg_returned',
-    label: 'FG RETURNED',
+    label: 'FRIED GRAM RETURNED',
     sublabel: '(Sales Return)',
     icon: 'bi-arrow-counterclockwise',
     section: 'production',
@@ -371,7 +371,7 @@ const ALL_CARDS = [
   },
   {
     id: 'raw_total_used',
-    label: 'RAW MATERIAL USED',
+    label: 'FRIED GRAM RAW MATERIAL USED',
     sublabel: '(Used)',
     icon: 'bi-cpu',
     section: 'production',
@@ -385,7 +385,7 @@ const ALL_CARDS = [
   },
   {
     id: 'raw_opening_stock',
-    label: 'RAW MATERIAL OPENING',
+    label: 'FRIED GRAM RAW MATERIAL OPENING',
     sublabel: '(Stock)',
     icon: 'bi-box-arrow-in-up',
     section: 'production',
@@ -399,7 +399,7 @@ const ALL_CARDS = [
   },
   {
     id: 'raw_closing_stock',
-    label: 'RAW MATERIAL CLOSING',
+    label: 'FRIED GRAM RAW MATERIAL CLOSING',
     sublabel: '(Stock)',
     icon: 'bi-database',
     section: 'production',
@@ -413,7 +413,7 @@ const ALL_CARDS = [
   },
   {
     id: 'raw_arrival',
-    label: 'RAW MATERIAL ARRIVAL',
+    label: 'FRIED GRAM RAW MATERIAL ARRIVAL',
     sublabel: '(Arrival)',
     icon: 'bi-truck-front',
     section: 'production',
@@ -427,7 +427,7 @@ const ALL_CARDS = [
   },
   {
     id: 'byproducts_total',
-    label: 'BY-PRODUCTS PRODUCTION',
+    label: 'FRIED GRAM BY-PRODUCTS PRODUCTION',
     sublabel: '(Total)',
     icon: 'bi-boxes',
     section: 'production',
@@ -442,7 +442,7 @@ const ALL_CARDS = [
   },
   {
     id: 'byproducts_closing',
-    label: 'BY-PRODUCTS CLOSING',
+    label: 'FRIED GRAM BY-PRODUCTS CLOSING',
     sublabel: '(Stock)',
     icon: 'bi-boxes',
     section: 'production',
@@ -457,7 +457,7 @@ const ALL_CARDS = [
   },
   {
     id: 'total_packing_fg',
-    label: 'TOTAL PACKING',
+    label: 'FRIED GRAM TOTAL PACKING',
     sublabel: '(Fried + Bengal Gram)',
     icon: 'bi-box',
     section: 'production',
@@ -474,8 +474,8 @@ const ALL_CARDS = [
   },
   {
     id: 'production_ratio',
-    label: 'PRODUCTION RATIO',
-    sublabel: '(FG / Raw 100 KG %)',
+    label: 'FRIED GRAM PRODUCTION RATIO',
+    sublabel: '(Fried Gram / Raw 100 KG %)',
     icon: 'bi-bar-chart-steps',
     section: 'production',
     grad: 1,
@@ -492,7 +492,7 @@ const ALL_CARDS = [
   },
   {
     id: 'fg_net_sold',
-    label: 'FG NET SOLD',
+    label: 'FRIED GRAM NET SOLD',
     sublabel: '(Sold − Returned)',
     icon: 'bi-cart-check',
     section: 'production',
@@ -508,7 +508,7 @@ const ALL_CARDS = [
   },
   {
     id: 'fg_stock_delta',
-    label: 'FG STOCK CHANGE',
+    label: 'FRIED GRAM STOCK CHANGE',
     sublabel: '(Closing − Opening)',
     icon: 'bi-arrow-left-right',
     section: 'production',
@@ -525,7 +525,7 @@ const ALL_CARDS = [
   },
   {
     id: 'raw_stock_delta',
-    label: 'RAW STOCK CHANGE',
+    label: 'FRIED GRAM RAW STOCK CHANGE',
     sublabel: '(Closing − Opening)',
     icon: 'bi-arrow-left-right',
     section: 'production',
@@ -541,7 +541,7 @@ const ALL_CARDS = [
   },
   {
     id: 'fg_efficiency',
-    label: 'PRODUCTION EFFICIENCY',
+    label: 'FRIED GRAM PRODUCTION EFFICIENCY',
     sublabel: '(Avg % across all brands)',
     icon: 'bi-speedometer2',
     section: 'production',
@@ -550,6 +550,205 @@ const ALL_CARDS = [
     getValue: (d) => {
       if (!d.prodData?.finished) return '—';
       const items = Object.values(d.prodData.finished).flat()
+        .filter(i => parseFloat(i.prod_percentage) > 0);
+      if (items.length === 0) return '—';
+      const avg = items.reduce((s, i) => s + (parseFloat(i.prod_percentage) || 0), 0) / items.length;
+      return `${avg.toFixed(2)}%`;
+    },
+  },
+
+  // ── Production — Avalakki Mill (Finished Goods + Raw Materials only) ──────
+  {
+    id: 'avalakki_total_production',
+    label: 'AVALAKKI TOTAL PRODUCTION',
+    sublabel: '(Finished Goods - Current Month)',
+    icon: 'bi-box-seam',
+    section: 'production',
+    grad: 0,
+    isLoading: (d) => d.prodLoadingAvalakki,
+    getValue: (d) => {
+      if (!d.prodDataAvalakki?.finished) return '—';
+      const total = Object.values(d.prodDataAvalakki.finished).flat()
+        .reduce((s, i) => s + (parseFloat(i['purchased/transfer in']) || 0), 0);
+      return `${fmt(total)} KG`;
+    },
+  },
+  {
+    id: 'avalakki_opening_stock',
+    label: 'AVALAKKI OPENING STOCK',
+    sublabel: '(Finished Goods)',
+    icon: 'bi-box-arrow-in-down',
+    section: 'production',
+    grad: 1,
+    isLoading: (d) => d.prodLoadingAvalakki,
+    getValue: (d) => {
+      if (!d.prodDataAvalakki?.finished) return '—';
+      const total = Object.values(d.prodDataAvalakki.finished).flat()
+        .reduce((s, i) => s + (parseFloat(i.opening) || 0), 0);
+      return `${fmt(total)} KG`;
+    },
+  },
+  {
+    id: 'avalakki_closing_stock',
+    label: 'AVALAKKI CLOSING STOCK',
+    sublabel: '(Finished Goods)',
+    icon: 'bi-archive',
+    section: 'production',
+    grad: 3,
+    isLoading: (d) => d.prodLoadingAvalakki,
+    getValue: (d) => {
+      if (!d.prodDataAvalakki?.finished) return '—';
+      const total = Object.values(d.prodDataAvalakki.finished).flat()
+        .reduce((s, i) => s + (parseFloat(i.closing) || 0), 0);
+      return `${fmt(total)} KG`;
+    },
+  },
+  {
+    id: 'avalakki_dispatch',
+    label: 'AVALAKKI DISPATCHED',
+    sublabel: '(Sold - Current Month)',
+    icon: 'bi-send',
+    section: 'production',
+    grad: 5,
+    isLoading: (d) => d.prodLoadingAvalakki,
+    getValue: (d) => {
+      if (!d.prodDataAvalakki?.finished) return '—';
+      const total = Object.values(d.prodDataAvalakki.finished).flat()
+        .reduce((s, i) => s + (parseFloat(i.sold) || 0), 0);
+      return `${fmt(total)} KG`;
+    },
+  },
+  {
+    id: 'avalakki_returned',
+    label: 'AVALAKKI RETURNED',
+    sublabel: '(Sales Return)',
+    icon: 'bi-arrow-counterclockwise',
+    section: 'production',
+    grad: 4,
+    isLoading: (d) => d.prodLoadingAvalakki,
+    getValue: (d) => {
+      if (!d.prodDataAvalakki?.finished) return '—';
+      const total = Object.values(d.prodDataAvalakki.finished).flat()
+        .reduce((s, i) => s + (parseFloat(i.returned ?? i.return ?? i['sales return']) || 0), 0);
+      return `${fmt(total)} KG`;
+    },
+  },
+  {
+    id: 'avalakki_raw_total_used',
+    label: 'AVALAKKI RAW MATERIAL USED',
+    sublabel: '(Used)',
+    icon: 'bi-cpu',
+    section: 'production',
+    grad: 4,
+    isLoading: (d) => d.prodLoadingAvalakki,
+    getValue: (d) => {
+      const items = d.prodDataAvalakki?.raw?.['All Raw Materials'] ?? [];
+      const total = items.reduce((s, i) => s + (parseFloat(i['consumed/transfer out']) || 0), 0);
+      return `${fmt(total)} KG`;
+    },
+  },
+  {
+    id: 'avalakki_raw_opening_stock',
+    label: 'AVALAKKI RAW MATERIAL OPENING',
+    sublabel: '(Stock)',
+    icon: 'bi-box-arrow-in-up',
+    section: 'production',
+    grad: 2,
+    isLoading: (d) => d.prodLoadingAvalakki,
+    getValue: (d) => {
+      const items = d.prodDataAvalakki?.raw?.['All Raw Materials'] ?? [];
+      const total = items.reduce((s, i) => s + (parseFloat(i.opening) || 0), 0);
+      return `${fmt(total)} KG`;
+    },
+  },
+  {
+    id: 'avalakki_raw_closing_stock',
+    label: 'AVALAKKI RAW MATERIAL CLOSING',
+    sublabel: '(Stock)',
+    icon: 'bi-database',
+    section: 'production',
+    grad: 6,
+    isLoading: (d) => d.prodLoadingAvalakki,
+    getValue: (d) => {
+      const items = d.prodDataAvalakki?.raw?.['All Raw Materials'] ?? [];
+      const total = items.reduce((s, i) => s + (parseFloat(i.closing) || 0), 0);
+      return `${fmt(total)} KG`;
+    },
+  },
+  {
+    id: 'avalakki_raw_arrival',
+    label: 'AVALAKKI RAW MATERIAL ARRIVAL',
+    sublabel: '(Arrival)',
+    icon: 'bi-truck-front',
+    section: 'production',
+    grad: 6,
+    isLoading: (d) => d.prodLoadingAvalakki,
+    getValue: (d) => {
+      const items = d.prodDataAvalakki?.raw?.['All Raw Materials'] ?? [];
+      const total = items.reduce((s, i) => s + (parseFloat(i['purchased/transfer in']) || 0), 0);
+      return `${fmt(total)} KG`;
+    },
+  },
+  {
+    id: 'avalakki_net_sold',
+    label: 'AVALAKKI NET SOLD',
+    sublabel: '(Sold − Returned)',
+    icon: 'bi-cart-check',
+    section: 'production',
+    grad: 3,
+    isLoading: (d) => d.prodLoadingAvalakki,
+    getValue: (d) => {
+      if (!d.prodDataAvalakki?.finished) return '—';
+      const items = Object.values(d.prodDataAvalakki.finished).flat();
+      const sold     = items.reduce((s, i) => s + (parseFloat(i.sold) || 0), 0);
+      const returned = items.reduce((s, i) => s + (parseFloat(i.returned ?? i.return ?? i['sales return']) || 0), 0);
+      return `${fmt(sold - returned)} KG`;
+    },
+  },
+  {
+    id: 'avalakki_stock_delta',
+    label: 'AVALAKKI STOCK CHANGE',
+    sublabel: '(Closing − Opening)',
+    icon: 'bi-arrow-left-right',
+    section: 'production',
+    grad: 2,
+    isLoading: (d) => d.prodLoadingAvalakki,
+    getValue: (d) => {
+      if (!d.prodDataAvalakki?.finished) return '—';
+      const items   = Object.values(d.prodDataAvalakki.finished).flat();
+      const opening = items.reduce((s, i) => s + (parseFloat(i.opening) || 0), 0);
+      const closing = items.reduce((s, i) => s + (parseFloat(i.closing) || 0), 0);
+      const delta   = closing - opening;
+      return `${delta >= 0 ? '+' : ''}${fmt(delta)} KG`;
+    },
+  },
+  {
+    id: 'avalakki_raw_stock_delta',
+    label: 'AVALAKKI RAW STOCK CHANGE',
+    sublabel: '(Closing − Opening)',
+    icon: 'bi-arrow-left-right',
+    section: 'production',
+    grad: 6,
+    isLoading: (d) => d.prodLoadingAvalakki,
+    getValue: (d) => {
+      const items   = d.prodDataAvalakki?.raw?.['All Raw Materials'] ?? [];
+      const opening = items.reduce((s, i) => s + (parseFloat(i.opening) || 0), 0);
+      const closing = items.reduce((s, i) => s + (parseFloat(i.closing) || 0), 0);
+      const delta   = closing - opening;
+      return `${delta >= 0 ? '+' : ''}${fmt(delta)} KG`;
+    },
+  },
+  {
+    id: 'avalakki_efficiency',
+    label: 'AVALAKKI PRODUCTION EFFICIENCY',
+    sublabel: '(Avg % across all brands)',
+    icon: 'bi-speedometer2',
+    section: 'production',
+    grad: 1,
+    isLoading: (d) => d.prodLoadingAvalakki,
+    getValue: (d) => {
+      if (!d.prodDataAvalakki?.finished) return '—';
+      const items = Object.values(d.prodDataAvalakki.finished).flat()
         .filter(i => parseFloat(i.prod_percentage) > 0);
       if (items.length === 0) return '—';
       const avg = items.reduce((s, i) => s + (parseFloat(i.prod_percentage) || 0), 0) / items.length;
@@ -958,6 +1157,8 @@ export default function SummaryCardsSystem({
     sellingData:   ctx?.sellingData   ?? null,
     prodData,
     prodLoading:   (ctx?.prodLoading ?? false) && !prodData,
+    prodDataAvalakki:    ctx?.prodDataAvalakki    ?? null,
+    prodLoadingAvalakki: (ctx?.prodLoadingAvalakki ?? false) && !(ctx?.prodDataAvalakki ?? null),
   };
 
   const gradients = buildGradients(accent, accent2);
