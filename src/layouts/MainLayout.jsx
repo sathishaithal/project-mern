@@ -312,7 +312,7 @@ const MainLayout = ({ children }) => {
                       </div>
                       <input
                         type="range"
-                        min="0.9"
+                        min="0.8"
                         max="1.2"
                         step="0.05"
                         value={fontScale}

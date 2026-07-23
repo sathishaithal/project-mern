@@ -50,6 +50,18 @@ const CheckboxOption = (props) => (
   </components.Option>
 );
 
+// Caps rendered chips so the control's height stays fixed no matter how many
+// options are selected — avoids the layout jump/menu-jitter that unbounded
+// chip wrapping caused in multi-selects with large option counts.
+const MAX_VISIBLE_CHIPS = 2;
+const TabFilterMultiValue = (props) => {
+  const { index, getValue } = props;
+  if (index < MAX_VISIBLE_CHIPS) return <components.MultiValue {...props} />;
+  if (index > MAX_VISIBLE_CHIPS) return null;
+  const overflowCount = getValue().length - MAX_VISIBLE_CHIPS;
+  return <div className="sr-multivalue-more">+{overflowCount} more</div>;
+};
+
 const TABS = [
   { id: 'summary',      label: 'YoY Summary',   icon: 'bi-bar-chart-line-fill' },
   { id: 'distributors', label: 'Distributors',  icon: 'bi-diagram-3-fill' },
@@ -99,10 +111,11 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
   monthwisecompany, monthwisedisttype, employeename, tab,
   expanded, drillData, drillLoading, onExpand, onCollapse,
   expandedYear, onYearExpand, onYearCollapse, yearRowsEnabled,
-  getLabel, l0Bg, isDarkMode, accent, nameColWidth = 160, allSummaryRows, isMultiYear }) {
+  getLabel, l0Bg, isDarkMode, accent, nameColWidth = 160, allSummaryRows, isMultiYear, parentYear }) {
   const dataRows = rows.filter(r => !isGrandTotal(r));
   const effectiveParent = parentRows ? parentRows.filter(r => !isGrandTotal(r)) : dataRows;
   return dataRows.map((row, i) => {
+    const rowYear  = level === 0 ? row.year : parentYear;
     const rowId    = row.id ?? String(i);
     const stateKey = parentPath ? `${parentPath}__${rowId}` : `${level}_${rowId}`;
     const isOpen    = !!expanded[stateKey];
@@ -225,12 +238,12 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
           {GROUPS.flatMap(g => [
             ...(expandedQuarters[g.qKey] ? g.months.map(m => (
               <MonthCell key={m.key} row={row} rows={effectiveParent} rowIdx={i} level={level}
-                mKey={m.key} mLyKey={m.lyKey} accent={accent} isDarkMode={isDarkMode} isSummary={isSummary} />
+                mKey={m.key} mLyKey={m.lyKey} accent={accent} isDarkMode={isDarkMode} isSummary={isSummary} year={rowYear} />
             )) : []),
-            <QuarterCell key={g.qKey} row={row} rows={effectiveParent} rowIdx={i} level={level} qKey={g.qKey} accent={accent} isDarkMode={isDarkMode} isSummary={isSummary} />,
+            <QuarterCell key={g.qKey} row={row} rows={effectiveParent} rowIdx={i} level={level} qKey={g.qKey} accent={accent} isDarkMode={isDarkMode} isSummary={isSummary} year={rowYear} />,
           ])}
 
-          <SummaryCells row={row} rows={effectiveParent} rowIdx={i} level={level} showTillLast={showTillLast} accent={accent} isDarkMode={isDarkMode} isSummary={isSummary} allSummaryRows={allSummaryRows} isMultiYear={isMultiYear} />
+          <SummaryCells row={row} rows={effectiveParent} rowIdx={i} level={level} showTillLast={showTillLast} accent={accent} isDarkMode={isDarkMode} isSummary={isSummary} allSummaryRows={allSummaryRows} isMultiYear={isMultiYear} year={rowYear} />
         </motion.tr>
 
         {yearOpen && yearChildren.length > 0 && (
@@ -244,7 +257,7 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
             expandedYear={expandedYear} onYearExpand={onYearExpand} onYearCollapse={onYearCollapse}
             yearRowsEnabled={false}
             getLabel={getLabel} l0Bg={l0Bg}
-            isDarkMode={isDarkMode} accent={accent} nameColWidth={nameColWidth} allSummaryRows={allSummaryRows} isMultiYear={isMultiYear}
+            isDarkMode={isDarkMode} accent={accent} nameColWidth={nameColWidth} allSummaryRows={allSummaryRows} isMultiYear={isMultiYear} parentYear={rowYear}
           />
         )}
 
@@ -259,7 +272,7 @@ function DrillRows({ rows, level, parentPath = '', parentRows, expandedQuarters,
             expandedYear={expandedYear} onYearExpand={onYearExpand} onYearCollapse={onYearCollapse}
             yearRowsEnabled={yearRowsEnabled}
             getLabel={getLabel} l0Bg={l0Bg}
-            isDarkMode={isDarkMode} accent={accent} nameColWidth={nameColWidth} allSummaryRows={allSummaryRows} isMultiYear={isMultiYear}
+            isDarkMode={isDarkMode} accent={accent} nameColWidth={nameColWidth} allSummaryRows={allSummaryRows} isMultiYear={isMultiYear} parentYear={rowYear}
           />
         )}
       </React.Fragment>
@@ -1335,8 +1348,9 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
         <SrLoader accent={accent} isDarkMode={isDarkMode} text="Generating Report" />
       )}
 
-      {/* Color legend — only for tabs with traffic-light row colors */}
-      {activeTab !== 'summary' && (
+      {/* Color legend — only for tabs with traffic-light row colors (distfinf 5/6/8); */}
+      {/* catgroup uses a fixed color (distfinf 3), so the legend doesn't apply there */}
+      {(activeTab === 'distributors' || activeTab === 'asm' || activeTab === 'soff') && (
         <ColorLegend accent={accent} isDarkMode={isDarkMode} />
       )}
 
@@ -1514,6 +1528,18 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
 }
 
 function TabFilter({ label, value, onChange, options, styles, isDarkMode, accent }) {
+  // Extends the shared select styles with a fixed single-line value container —
+  // combined with TabFilterMultiValue's "+N more" cap, this keeps the control's
+  // height constant regardless of selection count (see MAX_VISIBLE_CHIPS above).
+  const noWrapStyles = useMemo(() => ({
+    ...styles,
+    valueContainer: (base, state) => ({
+      ...(styles?.valueContainer ? styles.valueContainer(base, state) : base),
+      flexWrap: 'nowrap',
+      overflow: 'hidden',
+    }),
+  }), [styles]);
+
   return (
     <div className="sr-filter-group">
       <label className="sr-filter-label" style={{ color: isDarkMode ? '#94a3b8' : (accent || '#1e3a5f') }}>{label}</label>
@@ -1523,14 +1549,14 @@ function TabFilter({ label, value, onChange, options, styles, isDarkMode, accent
         value={value.map(v => ({ value: v, label: v }))}
         onChange={selected => onChange(selected ? selected.map(s => s.value) : [])}
         placeholder="All"
-        styles={styles}
+        styles={noWrapStyles}
         isSearchable
         closeMenuOnSelect={false}
         hideSelectedOptions={false}
         menuPortalTarget={document.body}
         menuPosition="fixed"
         accentColor={accent}
-        components={{ Option: CheckboxOption }}
+        components={{ Option: CheckboxOption, MultiValue: TabFilterMultiValue }}
       />
     </div>
   );

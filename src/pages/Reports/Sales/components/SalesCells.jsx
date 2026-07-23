@@ -110,9 +110,8 @@ export const numColor = (v) =>
 // ── MonthCell ─────────────────────────────────────────────────────────────────
 
 export const MonthCell = React.memo(function MonthCell({
-  row, rows, rowIdx, level, mKey, mLyKey, accent, isDarkMode, isSummary,
+  row, rows, rowIdx, level, mKey, mLyKey, accent, isDarkMode, isSummary, year,
 }) {
-  const isL0Summary = isSummary && level === 0;
   const f = level === 0 ? fmtR : fmt;
   const dz = (v) => { const n = parseFloat(v); return (n === 0 || isNaN(n)) ? <span style={{ color: 'var(--sr-zero-dim, #cbd5e1)' }}>{f(v)}</span> : f(v); };
   const diff = subDiff(row, mKey, mLyKey);
@@ -128,7 +127,7 @@ export const MonthCell = React.memo(function MonthCell({
   }
   const label = mKey.replace('tonnage', '').replace(/^./, c => c.toUpperCase());
   const lyVal = row[mLyKey];
-  const yearNum = isL0Summary ? parseInt(row.year, 10) : NaN;
+  const yearNum = parseInt(year, 10);
   return (
     <CellTooltip
       className="sr-td"
@@ -149,9 +148,8 @@ export const MonthCell = React.memo(function MonthCell({
 // ── QuarterCell ───────────────────────────────────────────────────────────────
 
 export const QuarterCell = React.memo(function QuarterCell({
-  row, rows, rowIdx, level, qKey, accent, isDarkMode, isSummary,
+  row, rows, rowIdx, level, qKey, accent, isDarkMode, isSummary, year,
 }) {
-  const isL0Summary = isSummary && level === 0;
   const f = level === 0 ? fmtR : fmt;
   const dz = (v) => { const n = parseFloat(v); return (n === 0 || isNaN(n)) ? <span style={{ color: 'var(--sr-zero-dim, #cbd5e1)' }}>{f(v)}</span> : f(v); };
   const diff = subDiff(row, qKey, qKey + '_last');
@@ -166,7 +164,7 @@ export const QuarterCell = React.memo(function QuarterCell({
     );
   }
   const lyVal = row[qKey + '_last'];
-  const yearNum = isL0Summary ? parseInt(row.year, 10) : NaN;
+  const yearNum = parseInt(year, 10);
   return (
     <CellTooltip
       className="sr-td"
@@ -189,7 +187,7 @@ export const QuarterCell = React.memo(function QuarterCell({
 
 export const SummaryCells = React.memo(function SummaryCells({
   row, rows, rowIdx, level, showTillLast, accent, isDarkMode,
-  isSummary, allSummaryRows, isMultiYear,
+  isSummary, allSummaryRows, isMultiYear, year,
 }) {
   const f = level === 0 ? fmtR : fmt;
   const dz = (v) => { const n = parseFloat(v); return (n === 0 || isNaN(n)) ? <span style={{ color: 'var(--sr-zero-dim, #cbd5e1)' }}>{f(v)}</span> : f(v); };
@@ -198,7 +196,7 @@ export const SummaryCells = React.memo(function SummaryCells({
   const isNonSummaryL0 = !isSummary && level === 0 && isMultiYear;
   const tillLast = (parseFloat(row.ttltonnage_crnt) || 0) - (parseFloat(row.currentmonthtonnage) || 0);
 
-  const yearNum = (isSummary && level === 0) ? parseInt(row.year, 10) : NaN;
+  const yearNum = isSummary ? parseInt(year, 10) : NaN;
   const thisYearLabel = Number.isFinite(yearNum) ? String(yearNum) : undefined;
   const lastYearLabel = Number.isFinite(yearNum) ? String(yearNum - 1) : undefined;
 
@@ -246,7 +244,7 @@ export const SummaryCells = React.memo(function SummaryCells({
     <>
       {showTillLast && (isSummary ? (
         <CellTooltip className="sr-td" style={{ fontWeight: 600 }} title="Till Last Month"
-          thisYear={f(tillLast)} formula={`Total YTD − Current Month\n= ${f(ttlYtd)} − ${f(curMon)}`}
+          thisYear={f(tillLast)} thisYearLabel={thisYearLabel} formula={`Total YTD − Current Month\n= ${f(ttlYtd)} − ${f(curMon)}`}
           accent={accent} isDarkMode={isDarkMode}>
           <div style={{ color: 'var(--sales-text, #1e293b)' }}>{dz(tillLast)}</div>
         </CellTooltip>

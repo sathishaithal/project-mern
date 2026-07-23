@@ -66,6 +66,9 @@ export function groupByField(rows, groupField, parentFilters = {}) {
  * Returns a { bg, text } colour pair based on Angular's distfinf colour classes.
  * distfinf 5/6/8 (distname/soff/asm) → traffic-light from Q degrowth count.
  * All other distfinf → fixed palette matching Angular SCSS classes.
+ * distfinf 3 (catgroup) is intentionally excluded — those rows fall back to
+ * the theme-based accent/dark-mode row background used everywhere else
+ * (e.g. YoY Summary, deeper drill levels), instead of a fixed color.
  */
 export function getDistfinfColor(row) {
   const df = parseInt(row.distfinf, 10);
@@ -84,7 +87,6 @@ export function getDistfinfColor(row) {
   const MAP = {
     1: { bg: '#a3aba3',         text: '#1e293b' },
     2: { bg: '#f1a689',         text: '#1e293b' },
-    3: { bg: 'rgb(129,93,136)', text: '#ffffff' },
     4: { bg: '#e9d77c',         text: '#1e293b' },
     7: { bg: '#ebbad3',         text: '#1e293b' },
   };
