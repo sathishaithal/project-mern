@@ -27,7 +27,7 @@ import {
   SHOP_RESTRICTED_ROLES,
   DW_DAYSEL_OPTIONS, DW_METHOD_OPTIONS, DW_COMPANY_OPTIONS,
   DW_FILTER_OPTIONS, DW_BASEDON_OPTIONS,
-  ZoomModal, BarChartCard, PieChartCard, DrillPieCard,
+  ZoomModal, BarChartCard, PieChartCard, DrillBarCard,
   HBarCard, MirroredHBarCard, DwTableCard,
 } from './components/ChartComponents';
 
@@ -43,7 +43,6 @@ export default function ChartsPage({ loggedInRolex, syncNode }) {
   const accent2 = selectedAccent?.secondary || '#283593';
   const selStyles = useSalesSelectStyles({ minHeight: 30, height: 30, fontSize: '0.78rem', borderRadius: 6 });
 
-  const [isMobile,  setIsMobile]  = useState(() => window.innerWidth < 768);
   const [chartTab,  setChartTab]  = useState('monthwise');
   const [viewMode,  setViewMode]  = useState('Year');
   const [zoomChart, setZoomChart] = useState(null);
@@ -121,12 +120,6 @@ export default function ChartsPage({ loggedInRolex, syncNode }) {
   const mwHbarTitle   = useRef('');
   const dwL2LoadingTimer = useRef(null);
   const dwL3LoadingTimer = useRef(null);
-
-  useEffect(() => {
-    const h = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', h);
-    return () => window.removeEventListener('resize', h);
-  }, []);
 
   const fetchGraphData = useCallback(async () => {
     setLoading(true);
@@ -536,7 +529,7 @@ export default function ChartsPage({ loggedInRolex, syncNode }) {
               transition={{ duration: 0.38 }}
             >
               {/* Section 1 — bar + pie, both clickable to drill down */}
-              <div id="section1" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16, marginBottom: 20 }}>
+              <div id="section1" style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>
                 <BarChartCard
                   title={isMultiYear ? graphTitleYear : graphTitle}
                   data={isMultiYear ? yearlyBarData : monthlyBarData}
@@ -569,10 +562,10 @@ export default function ChartsPage({ loggedInRolex, syncNode }) {
             <motion.div id="mw-section2" style={{ marginBottom: 20 }}
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
               {!catgroupLoading && (
-                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
-                  <DrillPieCard title={pieTitle1} data={pieData1} onSliceClick={handlePie1Click} onZoom={handleZoom} />
-                  <DrillPieCard title={pieTitle2} data={pieData2} onSliceClick={handlePie2Click} onZoom={handleZoom} />
-                  <DrillPieCard title={pieTitle3} data={pieData3} onSliceClick={handlePie3Click} onZoom={handleZoom} />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+                  <DrillBarCard title={pieTitle1} data={pieData1} onSliceClick={handlePie1Click} onZoom={handleZoom} />
+                  <DrillBarCard title={pieTitle2} data={pieData2} onSliceClick={handlePie2Click} onZoom={handleZoom} />
+                  <DrillBarCard title={pieTitle3} data={pieData3} onSliceClick={handlePie3Click} onZoom={handleZoom} />
                 </div>
               )}
             </motion.div>
@@ -673,7 +666,7 @@ export default function ChartsPage({ loggedInRolex, syncNode }) {
             <motion.div id="dw-section1" style={{ marginBottom: 20 }}
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
               {!dwL1Loading && (
-                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
                   <DwTableCard
                     title={`${appliedDw.company} ${appliedDw.method} Wise Overview (${appliedDw.daysel})`}
                     data={sortedDwLevel1} basedon={appliedDw.basedon} />
@@ -691,7 +684,7 @@ export default function ChartsPage({ loggedInRolex, syncNode }) {
             <motion.div id="dw-section2" style={{ marginBottom: 20 }}
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
               {!dwL2LoadingVisible && dwLevel2.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
                   <DwTableCard
                     title={`${appliedDw.company} ${appliedDw.method} And ${dwClickedCatgroup} Wise Overview (${appliedDw.daysel})`}
                     data={sortedDwLevel2} basedon={appliedDw.basedon} />
@@ -709,7 +702,7 @@ export default function ChartsPage({ loggedInRolex, syncNode }) {
             <motion.div id="dw-section3" style={{ marginBottom: 20 }}
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
               {!dwL3LoadingVisible && dwLevel3.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
                   <DwTableCard
                     title={`${appliedDw.company} ${appliedDw.method} And ${dwClickedCatgroup} and ${dwClickedCategory} Category Wise Overview (${appliedDw.daysel})`}
                     data={sortedDwLevel3} basedon={appliedDw.basedon} />

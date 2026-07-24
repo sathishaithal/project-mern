@@ -29,6 +29,7 @@ import { useColorMode } from "../../../theme/ThemeContext";
 import { AppDatePicker, AppSelect } from "../../../components/FormControls";
 import styles from "./Production.module.css";
 import SummaryCardsSystem from "../../../components/SummaryCardsSystem/SummaryCardsSystem";
+import { ZoomModal } from "../Sales/components/ChartComponents";
 
 
 const PRODUCTION_TABS = [
@@ -63,6 +64,7 @@ const Production = () => {
   const [productionRatioCollapsed, setProductionRatioCollapsed] = useState(false);
   const [packingCollapsed, setPackingCollapsed] = useState(false);
   const [chartCollapsed, setChartCollapsed] = useState(false);
+  const [zoomChart, setZoomChart] = useState(null);
   const [collapsedCats, setCollapsedCats] = useState({});
 
   // Manual Entry By Products section
@@ -1023,16 +1025,41 @@ case "pie": {
   const visibleTotal   = visiblePieData.reduce((s, d) => s + Number(d[pieMetricKey] || 0), 0);
   const legendClr      = isDarkMode ? '#cbd5e1' : '#374151';
 
+  // Percent stays inside the slice; the value label moves outside on a leader line.
+  // Same line color as the Sales chart's PieSliceLabel (ChartComponents.jsx) for consistency.
+  const lineClr = isDarkMode ? '#94a3b8' : '#475569';
   const PieInsideLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }) => {
     if (percent <= 0.03) return null;
     const RADIAN = Math.PI / 180;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    const pctRadius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const px = cx + pctRadius * Math.cos(-midAngle * RADIAN);
+    const py = cy + pctRadius * Math.sin(-midAngle * RADIAN);
+
+    // Offset scales with the pie's own rendered radius (not a fixed pixel amount)
+    // so the leader line stays proportionally correct on any container size —
+    // matches PieSliceLabel in Sales' ChartComponents.jsx.
+    const lineOut = Math.max(8, outerRadius * 0.16);
+    const cos = Math.cos(-midAngle * RADIAN);
+    const sin = Math.sin(-midAngle * RADIAN);
+    const sx  = cx + outerRadius * cos;
+    const sy  = cy + outerRadius * sin;
+    const mx  = cx + (outerRadius + lineOut) * cos;
+    const my  = cy + (outerRadius + lineOut) * sin;
+    const ex  = mx + (cos >= 0 ? 1 : -1) * lineOut;
+    const ey  = my;
+
     return (
-      <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight="600">
-        {formatIndianNumber(value)}{'\n'}{(percent * 100).toFixed(0)}%
-      </text>
+      <g>
+        <text x={px} y={py} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight="700">
+          {(percent * 100).toFixed(0)}%
+        </text>
+        <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={lineClr} fill="none" />
+        <circle cx={ex} cy={ey} r={2} fill={lineClr} stroke="none" />
+        <text x={ex + (cos >= 0 ? 4 : -4)} y={ey} dy={4} textAnchor={cos >= 0 ? 'start' : 'end'} fontSize={12} fontWeight={600} fill={legendClr}>
+          {formatIndianNumber(value)}
+        </text>
+      </g>
     );
   };
 
@@ -1065,13 +1092,13 @@ case "pie": {
         {/* Chart */}
         <div style={{ flex: 1, minHeight: 0 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
+            <PieChart margin={{ top: 16, right: 16, bottom: 16, left: 16 }}>
               <Pie
                 data={visiblePieData}
                 cx="50%" cy="50%"
                 labelLine={false}
                 label={PieInsideLabel}
-                outerRadius={isMobile ? 60 : 130}
+                outerRadius="65%"
                 innerRadius={0}
                 dataKey={pieMetricKey}
                 isAnimationActive
@@ -2890,6 +2917,29 @@ case "pie": {
                         ]}
                       />
                     </div>
+
+                    {/* Expand chart — placed here (not the collapsible header) so it's actually visible */}
+                    <div className={styles.chartFilterItem}>
+                      <label className={styles.filterLabel}>&nbsp;</label>
+                      <button
+                        type="button"
+                        onClick={() => setZoomChart({
+                          title: `${getMetricLabel()} — ${chartType.charAt(0).toUpperCase() + chartType.slice(1)} Chart`,
+                          content: <div style={{ height: 560 }}>{renderChart()}</div>,
+                        })}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                          height: 42, borderRadius: 10, cursor: 'pointer',
+                          border: `1px solid ${selectedAccent?.primary || '#2563eb'}55`,
+                          background: isDarkMode ? 'rgba(37,99,235,0.12)' : 'rgba(37,99,235,0.06)',
+                          color: selectedAccent?.primary || '#2563eb',
+                          fontWeight: 600, fontSize: '0.85rem',
+                        }}
+                      >
+                        <i className="bi bi-arrows-fullscreen" />
+                        Expand Chart
+                      </button>
+                    </div>
                   </div>
 
                   {["finished", "others"].includes(selectedCategory) && chartCategoryBrands.length > 0 && (
@@ -2958,6 +3008,9 @@ case "pie": {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Chart zoom modal — same behavior as the Sales Charts page */}
+      {zoomChart && <ZoomModal chart={zoomChart} onClose={() => setZoomChart(null)} />}
 
       {/* Loading Overlay */}
       {loading && (

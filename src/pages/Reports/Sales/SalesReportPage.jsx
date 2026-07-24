@@ -83,6 +83,9 @@ const L0_BG = {
 const TILL_LAST_MONTH_TABS = { summary: true, distributors: false, catgroup: false, asm: false, soff: false };
 
 const NAME_COL_WIDTH = { summary: 130, distributors: 200, catgroup: 160, asm: 150, soff: 160 };
+// Narrower on small screens — otherwise the (much longer) wrapped distributor names
+// force this sticky column wide enough to leave almost no room for the scrollable columns.
+const NAME_COL_WIDTH_NARROW = { summary: 90, distributors: 120, catgroup: 100, asm: 95, soff: 100 };
 
 // getDistfinfColor imported from src/utils/salesGrouping.js
 
@@ -426,6 +429,16 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
   useEffect(() => { monthwisecompanyRef.current = monthwisecompany; }, [monthwisecompany]);
   useEffect(() => { monthwisedisttypeRef.current = monthwisedisttype; }, [monthwisedisttype]);
   const { isDarkMode, selectedAccent, selectedFont } = useColorMode();
+
+  // Shrinks the sticky Name column on narrow screens so long distributor names
+  // (which wrap to multiple lines) don't eat almost the entire visible width and
+  // leave the scrollable Q1..Grand Total columns squeezed to a sliver.
+  const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 480);
+  useEffect(() => {
+    const h = () => setIsNarrow(window.innerWidth < 480);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
 
   const [toast, setToast]       = useState({ show: false, message: '', type: 'info', title: '' });
   const [toastVisible, setToastVisible] = useState(false);
@@ -1226,7 +1239,7 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
   }, [activeTab, displayRows.length]);
   // ──────────────────────────────────────────────────────────────────────────────
 
-  const nameColWidth = NAME_COL_WIDTH[activeTab] ?? 160;
+  const nameColWidth = (isNarrow ? NAME_COL_WIDTH_NARROW : NAME_COL_WIDTH)[activeTab] ?? (isNarrow ? 100 : 160);
 
   const accent     = selectedAccent?.primary   || '#1a237e';
   const accent2    = selectedAccent?.secondary  || '#283593';

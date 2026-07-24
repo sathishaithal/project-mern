@@ -68,19 +68,42 @@ export const DW_FILTER_OPTIONS  = ['Category group','Category','Code'].map(v => 
 export const DW_BASEDON_OPTIONS = ['Tonnage','Amount'].map(v => ({ value: v, label: v }));
 const DW_ENTRIES_OPTIONS = [5, 10, 15, 20, 25, 50];
 
-// ── InsidePieLabel ─────────────────────────────────────────────────────────────
+// ── PieSliceLabel — percent stays inside the slice; value moves outside on a leader line ──
 
-const InsidePieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }) => {
+const RADIAN = Math.PI / 180;
+
+const PieSliceLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value, lineColor = '#94a3b8', textColor = '#475569' }) => {
   if (percent < 0.04) return null;
-  const R = Math.PI / 180;
-  const r = innerRadius + (outerRadius - innerRadius) * 0.5;
-  const x = cx + r * Math.cos(-midAngle * R);
-  const y = cy + r * Math.sin(-midAngle * R);
+
+  const pctR = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const px = cx + pctR * Math.cos(-midAngle * RADIAN);
+  const py = cy + pctR * Math.sin(-midAngle * RADIAN);
+
+  // Offset scales with the pie's own radius (not a fixed pixel amount) so the
+  // leader line stays proportionally correct whether the pie is rendered small
+  // (mobile card) or large (desktop zoom modal) — avoids the line/label running
+  // past the SVG's edge and getting clipped on narrow containers.
+  const lineOut = Math.max(8, outerRadius * 0.16);
+  const cos = Math.cos(-midAngle * RADIAN);
+  const sin = Math.sin(-midAngle * RADIAN);
+  const sx  = cx + outerRadius * cos;
+  const sy  = cy + outerRadius * sin;
+  const mx  = cx + (outerRadius + lineOut) * cos;
+  const my  = cy + (outerRadius + lineOut) * sin;
+  const ex  = mx + (cos >= 0 ? 1 : -1) * lineOut;
+  const ey  = my;
+
   return (
-    <text textAnchor="middle" fill="#fff" fontSize={8} fontWeight={600}>
-      <tspan x={x} y={y - 5}>{parseFloat(value).toFixed(2)}</tspan>
-      <tspan x={x} y={y + 6}>{(percent * 100).toFixed(0)}%</tspan>
-    </text>
+    <g>
+      <text x={px} y={py} textAnchor="middle" fill="#fff" fontSize={9} fontWeight={700}>
+        {(percent * 100).toFixed(0)}%
+      </text>
+      <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={lineColor} fill="none" />
+      <circle cx={ex} cy={ey} r={2} fill={lineColor} stroke="none" />
+      <text x={ex + (cos >= 0 ? 4 : -4)} y={ey} dy={4} textAnchor={cos >= 0 ? 'start' : 'end'} fontSize={10} fontWeight={600} fill={textColor}>
+        {parseFloat(value).toFixed(2)}
+      </text>
+    </g>
   );
 };
 
@@ -116,7 +139,12 @@ export function ChartCard({ title, onZoom, children, style = {} }) {
   const cardBg    = isDarkMode ? '#1e293b' : 'white';
   const borderClr = isDarkMode ? '#334155' : '#e2e8f0';
   return (
-    <div style={{ flex: 1, background: cardBg, borderRadius: 12, border: `1px solid ${borderClr}`, overflow: 'visible', boxShadow: '0 2px 10px rgba(37,99,235,0.07)', ...style }}>
+    // flexBasis 320px + minWidth 0: cards share the row equally down to ~320px each,
+    // then wrap to a new line once the row can't fit them side by side (standard
+    // responsive card-grid pattern — the parent row sets flexWrap:'wrap'). minWidth:0
+    // overrides the flex-item default (min-width:auto, which floors at content size)
+    // so a wide chart inside doesn't force its card to force cards away from an equal share.
+    <div style={{ flex: '1 1 320px', minWidth: 0, background: cardBg, borderRadius: 12, border: `1px solid ${borderClr}`, overflow: 'visible', boxShadow: '0 2px 10px rgba(37,99,235,0.07)', ...style }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.55rem 1rem', background: `linear-gradient(90deg, ${accent}, ${accent2})`, borderRadius: '12px 12px 0 0' }}>
         <span style={{ fontWeight: 700, fontSize: '0.75rem', color: '#fff', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '85%' }}>{title}</span>
         <ThemedTooltip content="Expand">
@@ -161,24 +189,35 @@ export function BarChartCard({ title, data, viewMode, onViewModeChange, onZoom,
     );
   };
 
-  const chart = (
-    <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={data} margin={{ top: 22, right: 10, left: 0, bottom: 0 }}
-        onClick={onBarClick ? (d) => { const lbl = d?.activeLabel || d?.activePayload?.[0]?.payload?.name; if (lbl) onBarClick(lbl); } : undefined}
-        style={{ cursor: onBarClick ? 'pointer' : 'default' }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={gridClr} />
-        <XAxis dataKey="name" tick={{ fontSize: 11, fill: axisClr }} />
-        <YAxis tick={{ fontSize: 10, fill: axisClr }} />
-        <Tooltip content={barTooltip} cursor={false} />
-        <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={40} isAnimationActive animationDuration={600}>
-          {data.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
-          <LabelList dataKey="value" content={topLabel} />
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+  // Parametrized so the zoom modal can render a taller version of the same chart
+  // instead of reusing the compact card's fixed height (which left the modal mostly empty).
+  // Wrapped in a min-width scroll container so bars/value-labels always get a legible
+  // minimum slot instead of being squeezed (and overlapping) on narrow/mobile widths —
+  // on wide containers the min-width is already satisfied so nothing scrolls.
+  const minChartWidth = Math.max(320, data.length * 55);
+  const renderChart = (h) => (
+    <div style={{ overflowX: 'auto' }}>
+      <div style={{ minWidth: minChartWidth }}>
+        <ResponsiveContainer width="100%" height={h}>
+          <BarChart data={data} margin={{ top: 22, right: 10, left: 0, bottom: 0 }}
+            onClick={onBarClick ? (d) => { const lbl = d?.activeLabel || d?.activePayload?.[0]?.payload?.name; if (lbl) onBarClick(lbl); } : undefined}
+            style={{ cursor: onBarClick ? 'pointer' : 'default' }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={gridClr} />
+            <XAxis dataKey="name" tick={{ fontSize: 11, fill: axisClr }} />
+            <YAxis tick={{ fontSize: 10, fill: axisClr }} />
+            <Tooltip content={barTooltip} cursor={false} />
+            <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={40} isAnimationActive animationDuration={600}>
+              {data.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
+              <LabelList dataKey="value" content={topLabel} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
+  const chart = renderChart(300);
   return (
-    <ChartCard title={title} onZoom={() => onZoom(title, chart)}>
+    <ChartCard title={title} onZoom={() => onZoom(title, renderChart(560))}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, flexWrap: 'wrap', marginBottom: 6, alignItems: 'center' }}>
         {isMultiYear ? (
           <>
@@ -261,12 +300,20 @@ export function PieChartCard({ title, data, viewMode, onViewModeChange, onZoom, 
     );
   };
 
-  const chart = (
+  // Parametrized so the zoom modal can render a taller pie instead of reusing
+  // the compact card's fixed height (which left the modal mostly empty).
+  // outerRadius is a PERCENTAGE (not a fixed pixel value) so the pie itself scales
+  // to whatever container it's actually rendered into — a narrow mobile card or a
+  // wide desktop zoom modal — instead of a hardcoded desktop-sized radius clipping
+  // its leader lines on small screens.
+  const renderChart = (h) => (
     <>
-      <ResponsiveContainer width="100%" height={260}>
-        <PieChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-          <Pie data={visibleData} cx="50%" cy="50%" outerRadius={100}
-            labelLine={false} label={InsidePieLabel} dataKey="value"
+      <ResponsiveContainer width="100%" height={h}>
+        <PieChart margin={{ top: 16, right: 16, bottom: 16, left: 16 }}>
+          <Pie data={visibleData} cx="50%" cy="50%" outerRadius="65%"
+            labelLine={false}
+            label={(props) => <PieSliceLabel {...props} lineColor={legendClr} textColor={labelFill} />}
+            dataKey="value"
             onClick={onPieClick ? (entry) => onPieClick(entry.name) : undefined}
             style={{ cursor: onPieClick ? 'pointer' : 'default' }}
             isAnimationActive animationDuration={700}>
@@ -296,8 +343,9 @@ export function PieChartCard({ title, data, viewMode, onViewModeChange, onZoom, 
       </div>
     </>
   );
+  const chart = renderChart(260);
   return (
-    <ChartCard title={title} onZoom={() => onZoom(title, chart)}>
+    <ChartCard title={title} onZoom={() => onZoom(title, renderChart(500))}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, flexWrap: 'wrap', marginBottom: 6, alignItems: 'center' }}>
         {isMultiYear ? (
           <>
@@ -338,14 +386,17 @@ export function PieChartCard({ title, data, viewMode, onViewModeChange, onZoom, 
   );
 }
 
-// ── DrillPieCard ───────────────────────────────────────────────────────────────
+// ── DrillBarCard ───────────────────────────────────────────────────────────────
 
-export function DrillPieCard({ title, data, onSliceClick, onZoom }) {
+export function DrillBarCard({ title, data, onSliceClick, onZoom }) {
   const { isDarkMode, selectedAccent } = useColorMode();
   const accent   = selectedAccent?.primary   || '#1a237e';
   const accent2  = selectedAccent?.secondary || '#283593';
   const colors   = getChartColors(accent, accent2);
   const legendClr = isDarkMode ? '#94a3b8' : '#475569';
+  const axisClr   = isDarkMode ? '#94a3b8' : '#64748b';
+  const gridClr   = isDarkMode ? '#334155' : '#f1f5f9';
+  const labelFill = isDarkMode ? '#94a3b8' : '#475569';
   const total = data.reduce((s, r) => s + r.value, 0);
 
   const [hiddenNames, setHiddenNames] = React.useState(new Set());
@@ -358,6 +409,11 @@ export function DrillPieCard({ title, data, onSliceClick, onZoom }) {
   }, []);
 
   const visibleData = data.filter(d => !hiddenNames.has(d.name));
+
+  const topLabel = ({ x, y, width, value }) => {
+    if (!value) return null;
+    return <text x={x + width / 2} y={y - 4} fill={labelFill} textAnchor="middle" fontSize={9} fontWeight={600}>{parseFloat(value).toFixed(2)}</text>;
+  };
 
   const renderTooltip = ({ active, payload }) => {
     if (!active || !payload?.[0]) return null;
@@ -374,23 +430,35 @@ export function DrillPieCard({ title, data, onSliceClick, onZoom }) {
     );
   };
 
-  const chart = (
+  // Parametrized so the zoom modal can render a taller version of the same chart
+  // instead of reusing the compact card's fixed height (which left the modal mostly empty).
+  // Wrapped in a min-width scroll container so bars/value-labels always get a legible
+  // minimum slot instead of being squeezed (and overlapping) on narrow/mobile widths —
+  // on wide containers the min-width is already satisfied so nothing scrolls.
+  const minChartWidth = Math.max(320, visibleData.length * 50);
+  const renderChart = (h) => (
     <>
-      <ResponsiveContainer width="100%" height={240}>
-        <PieChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-          <Pie data={visibleData} cx="50%" cy="50%" outerRadius={90}
-            labelLine={false} label={InsidePieLabel} dataKey="value"
-            onClick={(entry) => onSliceClick && onSliceClick(entry.name)}
-            style={{ cursor: onSliceClick ? 'pointer' : 'default' }}
-            isAnimationActive animationDuration={700}>
-            {visibleData.map((d) => {
-              const origIdx = data.indexOf(d);
-              return <Cell key={d.name} fill={colors[origIdx % colors.length]} />;
-            })}
-          </Pie>
-          <Tooltip content={renderTooltip} />
-        </PieChart>
-      </ResponsiveContainer>
+      <div style={{ overflowX: 'auto' }}>
+        <div style={{ minWidth: minChartWidth }}>
+          <ResponsiveContainer width="100%" height={h}>
+            <BarChart data={visibleData} margin={{ top: 22, right: 10, left: 0, bottom: 20 }}
+              onClick={onSliceClick ? (e) => { const lbl = e?.activeLabel || e?.activePayload?.[0]?.payload?.name; if (lbl) onSliceClick(lbl); } : undefined}
+              style={{ cursor: onSliceClick ? 'pointer' : 'default' }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={gridClr} />
+              <XAxis dataKey="name" tick={{ fontSize: 9, fill: axisClr }} interval={0} angle={-30} textAnchor="end" height={50} />
+              <YAxis tick={{ fontSize: 10, fill: axisClr }} />
+              <Tooltip content={renderTooltip} cursor={false} />
+              <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={34} isAnimationActive animationDuration={700}>
+                {visibleData.map((d) => {
+                  const origIdx = data.indexOf(d);
+                  return <Cell key={d.name} fill={colors[origIdx % colors.length]} />;
+                })}
+                <LabelList dataKey="value" content={topLabel} />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 6, justifyContent: 'center', paddingBottom: 2 }}>
         {data.map((d, i) => {
           const isHidden = hiddenNames.has(d.name);
@@ -408,8 +476,9 @@ export function DrillPieCard({ title, data, onSliceClick, onZoom }) {
       </div>
     </>
   );
+  const chart = renderChart(260);
   return (
-    <ChartCard title={title} onZoom={() => onZoom(title, chart)} style={{ flex: 1 }}>
+    <ChartCard title={title} onZoom={() => onZoom(title, renderChart(480))} >
       {data.length === 0
         ? <div style={{ height: 340, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '0.8rem' }}>No data</div>
         : chart}
@@ -476,25 +545,30 @@ export function HBarCard({ title, data, onBarClick, onZoom, showFullTooltip = fa
       </text>
     );
   };
-  const barH = Math.max(200, data.length * 40 + 40);
-  const chart = (
-    <ResponsiveContainer width="100%" height={barH}>
-      <BarChart data={data} layout="vertical" margin={{ top: 0, right: 130, left: 10, bottom: 0 }}
-        style={{ cursor: onBarClick ? 'pointer' : 'default' }}>
-        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridClr} />
-        <XAxis type="number" tick={{ fontSize: 10, fill: axisClr }} />
-        <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 9, fill: textClr, fontWeight: 500 }} />
-        <Tooltip content={showFullTooltip ? <DwFullTooltip isDarkMode={isDarkMode} /> : hbarTooltip} cursor={false} />
-        <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={24} isAnimationActive animationDuration={600}
-          onClick={onBarClick ? (barData) => { if (barData) onBarClick(barData); } : undefined}>
-          {data.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
-          <LabelList dataKey="value" content={hbarLabel} />
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  );
+  // Parametrized so the zoom modal can render a taller/roomier version of the same
+  // chart instead of reusing the compact card's height (which left the modal mostly empty).
+  const renderChart = (scale = 1) => {
+    const h = Math.max(200, data.length * 40 + 40) * scale;
+    return (
+      <ResponsiveContainer width="100%" height={h}>
+        <BarChart data={data} layout="vertical" margin={{ top: 0, right: 130, left: 10, bottom: 0 }}
+          style={{ cursor: onBarClick ? 'pointer' : 'default' }}>
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridClr} />
+          <XAxis type="number" tick={{ fontSize: 10, fill: axisClr }} />
+          <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 9, fill: textClr, fontWeight: 500 }} />
+          <Tooltip content={showFullTooltip ? <DwFullTooltip isDarkMode={isDarkMode} /> : hbarTooltip} cursor={false} />
+          <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={24} isAnimationActive animationDuration={600}
+            onClick={onBarClick ? (barData) => { if (barData) onBarClick(barData); } : undefined}>
+            {data.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
+            <LabelList dataKey="value" content={hbarLabel} />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  };
+  const chart = renderChart(1);
   return (
-    <ChartCard title={title} onZoom={() => onZoom(title, chart)} style={{ flex: 1 }}>
+    <ChartCard title={title} onZoom={() => onZoom(title, renderChart(1.6))}>
       {chart}
     </ChartCard>
   );
@@ -577,56 +651,62 @@ export function MirroredHBarCard({ title, data, onBarClick, onZoom }) {
     );
   };
 
-  const chart = (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', cursor: onBarClick ? 'pointer' : 'default' }}>
-      <div style={{ display: 'flex', width: '100%', marginBottom: 2 }}>
-        <div style={{ flex: 1, textAlign: 'center', fontSize: '0.68rem', fontWeight: 700, color: accent, letterSpacing: '0.04em' }}>◄ Tonnage</div>
-        <div style={{ width: 120, flexShrink: 0 }} />
-        <div style={{ flex: 1, textAlign: 'center', fontSize: '0.68rem', fontWeight: 700, color: accent2 || accent, letterSpacing: '0.04em' }}>Amount (Lacs) ►</div>
-      </div>
-      <div style={{ display: 'flex', width: '100%' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <ResponsiveContainer width="100%" height={barH}>
-            <BarChart data={chartData} layout="vertical" barCategoryGap="35%"
-              margin={{ top: 0, right: 0, left: 10, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridClr} />
-              <XAxis type="number" domain={[0, tonPadded]} reversed
-                tick={{ fontSize: 9, fill: axisClr }}
-                tickFormatter={v => v === 0 ? '' : parseFloat(v).toFixed(2)}
-              />
-              <YAxis dataKey="name" type="category" orientation="right" width={120}
-                tick={centerTick} tickLine={false} axisLine={false}
-              />
-              <Tooltip content={tonnageTooltip} cursor={false} />
-              <Bar dataKey="tonnage" barSize={16} isAnimationActive animationDuration={600} animationBegin={0} onClick={handleBarClick}>
-                {chartData.map((_, i) => <Cell key={`t${i}`} fill={colors[(i + 6) % colors.length]} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+  // Parametrized so the zoom modal can render a taller/roomier version of the same
+  // chart instead of reusing the compact card's height (which left the modal mostly empty).
+  const renderChart = (scale = 1) => {
+    const h = barH * scale;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', width: '100%', cursor: onBarClick ? 'pointer' : 'default' }}>
+        <div style={{ display: 'flex', width: '100%', marginBottom: 2 }}>
+          <div style={{ flex: 1, textAlign: 'center', fontSize: '0.68rem', fontWeight: 700, color: accent, letterSpacing: '0.04em' }}>◄ Tonnage</div>
+          <div style={{ width: 120, flexShrink: 0 }} />
+          <div style={{ flex: 1, textAlign: 'center', fontSize: '0.68rem', fontWeight: 700, color: accent2 || accent, letterSpacing: '0.04em' }}>Amount (Lacs) ►</div>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <ResponsiveContainer width="100%" height={barH}>
-            <BarChart data={chartData} layout="vertical" barCategoryGap="35%"
-              margin={{ top: 0, right: 10, left: 0, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridClr} />
-              <XAxis type="number" domain={[0, amtPadded]}
-                tick={{ fontSize: 9, fill: axisClr }}
-                tickFormatter={v => v === 0 ? '' : `${v % 1 === 0 ? v : v.toFixed(1)}Lacs`}
-              />
-              <YAxis dataKey="name" type="category" hide width={0} />
-              <Tooltip content={amountTooltip} cursor={false} />
-              <Bar dataKey="amount" barSize={16} isAnimationActive animationDuration={600} animationBegin={0} onClick={handleBarClick}>
-                {chartData.map((_, i) => <Cell key={`a${i}`} fill={colors[i % colors.length]} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+        <div style={{ display: 'flex', width: '100%' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <ResponsiveContainer width="100%" height={h}>
+              <BarChart data={chartData} layout="vertical" barCategoryGap="35%"
+                margin={{ top: 0, right: 0, left: 10, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridClr} />
+                <XAxis type="number" domain={[0, tonPadded]} reversed
+                  tick={{ fontSize: 9, fill: axisClr }}
+                  tickFormatter={v => v === 0 ? '' : parseFloat(v).toFixed(2)}
+                />
+                <YAxis dataKey="name" type="category" orientation="right" width={120}
+                  tick={centerTick} tickLine={false} axisLine={false}
+                />
+                <Tooltip content={tonnageTooltip} cursor={false} />
+                <Bar dataKey="tonnage" barSize={16} isAnimationActive animationDuration={600} animationBegin={0} onClick={handleBarClick}>
+                  {chartData.map((_, i) => <Cell key={`t${i}`} fill={colors[(i + 6) % colors.length]} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <ResponsiveContainer width="100%" height={h}>
+              <BarChart data={chartData} layout="vertical" barCategoryGap="35%"
+                margin={{ top: 0, right: 10, left: 0, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridClr} />
+                <XAxis type="number" domain={[0, amtPadded]}
+                  tick={{ fontSize: 9, fill: axisClr }}
+                  tickFormatter={v => v === 0 ? '' : `${v % 1 === 0 ? v : v.toFixed(1)}Lacs`}
+                />
+                <YAxis dataKey="name" type="category" hide width={0} />
+                <Tooltip content={amountTooltip} cursor={false} />
+                <Bar dataKey="amount" barSize={16} isAnimationActive animationDuration={600} animationBegin={0} onClick={handleBarClick}>
+                  {chartData.map((_, i) => <Cell key={`a${i}`} fill={colors[i % colors.length]} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
+  const chart = renderChart(1);
 
   return (
-    <ChartCard title={title} onZoom={() => onZoom(title, chart)} style={{ flex: 1 }}>
+    <ChartCard title={title} onZoom={() => onZoom(title, renderChart(1.6))}>
       {chart}
     </ChartCard>
   );
