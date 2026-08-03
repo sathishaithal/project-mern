@@ -32,6 +32,7 @@ import {
 } from './components/SalesCells';
 import { useAuth } from '../../../context/AuthContext';
 import { useSalesSelectStyles } from './filters/useSalesSelectStyles';
+import { CappedMultiValue, withNoWrapValueContainer } from './filters/salesSelectUtils';
 import { appLog } from '../../../config/appConfig';
 import { logActivity } from '../../../services/activityLog';
 
@@ -49,18 +50,6 @@ const CheckboxOption = (props) => (
     </div>
   </components.Option>
 );
-
-// Caps rendered chips so the control's height stays fixed no matter how many
-// options are selected — avoids the layout jump/menu-jitter that unbounded
-// chip wrapping caused in multi-selects with large option counts.
-const MAX_VISIBLE_CHIPS = 2;
-const TabFilterMultiValue = (props) => {
-  const { index, getValue } = props;
-  if (index < MAX_VISIBLE_CHIPS) return <components.MultiValue {...props} />;
-  if (index > MAX_VISIBLE_CHIPS) return null;
-  const overflowCount = getValue().length - MAX_VISIBLE_CHIPS;
-  return <div className="sr-multivalue-more">+{overflowCount} more</div>;
-};
 
 const TABS = [
   { id: 'summary',      label: 'YoY Summary',   icon: 'bi-bar-chart-line-fill' },
@@ -1541,17 +1530,10 @@ export default function SalesReportPage({ loggedInRole = null, loggedInRolex = n
 }
 
 function TabFilter({ label, value, onChange, options, styles, isDarkMode, accent }) {
-  // Extends the shared select styles with a fixed single-line value container —
-  // combined with TabFilterMultiValue's "+N more" cap, this keeps the control's
-  // height constant regardless of selection count (see MAX_VISIBLE_CHIPS above).
-  const noWrapStyles = useMemo(() => ({
-    ...styles,
-    valueContainer: (base, state) => ({
-      ...(styles?.valueContainer ? styles.valueContainer(base, state) : base),
-      flexWrap: 'nowrap',
-      overflow: 'hidden',
-    }),
-  }), [styles]);
+  // Shared with YearSelector.jsx (salesSelectUtils.jsx) — fixed single-line value
+  // container + "+N more" cap keeps the control's height constant regardless of
+  // selection count, instead of wrapping onto more lines as more options are picked.
+  const noWrapStyles = useMemo(() => withNoWrapValueContainer(styles), [styles]);
 
   return (
     <div className="sr-filter-group">
@@ -1565,11 +1547,12 @@ function TabFilter({ label, value, onChange, options, styles, isDarkMode, accent
         styles={noWrapStyles}
         isSearchable
         closeMenuOnSelect={false}
+        blurInputOnSelect={false}
         hideSelectedOptions={false}
         menuPortalTarget={document.body}
         menuPosition="fixed"
         accentColor={accent}
-        components={{ Option: CheckboxOption, MultiValue: TabFilterMultiValue }}
+        components={{ Option: CheckboxOption, MultiValue: CappedMultiValue }}
       />
     </div>
   );

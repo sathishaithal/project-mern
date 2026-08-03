@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import Select from 'react-select';
-import { CheckOption } from './salesSelectUtils';
+import { CheckOption, CappedMultiValue, withNoWrapValueContainer } from './salesSelectUtils';
 import { useSalesFilterStore, YEAR_OPTIONS } from '../../../../store/salesFilterStore';
 import { useColorMode } from '../../../../theme/ThemeContext';
 import { useSalesSelectStyles } from './useSalesSelectStyles';
@@ -39,7 +39,7 @@ const YearSelector = ({ mode = 'monthwise' }) => {
     );
   }
 
-  const selectStyles = monthwiseStyles;
+  const selectStyles = useMemo(() => withNoWrapValueContainer(monthwiseStyles), [monthwiseStyles]);
 
   const value = YEAR_OPTIONS.filter((o) => multiyear.includes(o.value));
 
@@ -57,11 +57,12 @@ const YearSelector = ({ mode = 'monthwise' }) => {
           }}
           styles={selectStyles}
           closeMenuOnSelect={false}
+          blurInputOnSelect={false}
           hideSelectedOptions={false}
           placeholder="Select fiscal years…"
           menuPortalTarget={document.body}
           menuPosition="fixed"
-          components={{ Option: CheckOption }}
+          components={{ Option: CheckOption, MultiValue: CappedMultiValue }}
         />
       </div>
     </div>
