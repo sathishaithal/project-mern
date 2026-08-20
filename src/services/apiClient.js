@@ -1,7 +1,8 @@
 /**
  * apiClient.js
  * Centralized Axios instance.
- * - Request interceptor: injects Bearer token from storage
+ * - Auth: httpOnly `authToken` cookie, sent automatically via withCredentials
+ *   (no client-readable JWT anymore — nothing to attach manually here).
  * - Response interceptor: 401/403 → redirect; 5xx → log
  */
 
@@ -11,19 +12,7 @@ import { appError, appWarn } from '../config/appConfig';
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '',
   headers: { 'Content-Type': 'application/json' },
-});
-
-apiClient.interceptors.request.use((config) => {
-  const token =
-    sessionStorage.getItem('token') ||
-    sessionStorage.getItem('authToken') ||
-    localStorage.getItem('authToken');
-  if (token) {
-    config.headers['Authorization'] = `Bearer ${token}`;
-  } else {
-    appWarn('[apiClient] No auth token found in storage — request will be unauthenticated');
-  }
-  return config;
+  withCredentials: true,
 });
 
 let _redirecting = false;
@@ -36,9 +25,6 @@ apiClient.interceptors.response.use(
     if ((status === 401 || status === 403) && !_redirecting) {
       _redirecting = true;
       appWarn(`[apiClient] ${status} — session expired, redirecting to login`);
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('authToken');
-      localStorage.removeItem('authToken');
       sessionStorage.setItem('logoutMessage', status === 401 ? 'Session expired. Please log in again.' : 'Access denied.');
       window.location.href = '/';
       return new Promise(() => {});

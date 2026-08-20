@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import axios from "axios";
 
+// Auth now lives in an httpOnly cookie (set by the backend) instead of a
+// JS-readable token — the browser must be told to send it on every request.
+axios.defaults.withCredentials = true;
+
 const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 
@@ -50,56 +54,46 @@ export const AuthProvider = ({ children }) => {
     return () => window.removeEventListener('storage', handleStorage);
   }, [user]);
 
+  // On mount: either exchange the central Hub's SSO token (?user_token=&crm_user=
+  // in the URL) for a real session, or — if there's no such link — ask the
+  // backend whether the httpOnly cookie from a previous visit is still valid.
+  // The JWT itself is never readable here, so this replaces the old
+  // decode-the-token-from-storage restore logic.
   useEffect(() => {
-    const token =
-      sessionStorage.getItem("token") ||
-      sessionStorage.getItem("authToken") ||
-      localStorage.getItem("authToken");
+    const restoreSession = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const ssoToken = params.get("user_token");
+      const ssoCrmUser = params.get("crm_user");
 
-    if (!token) {
-      setAuthReady(true);
-      return;
-    }
+      if (ssoToken && ssoCrmUser) {
+        try {
+          const res = await axios.post(
+            `${import.meta.env.VITE_API_URL}/api/auth/login`,
+            { isUserTokenLogin: true, user_token: ssoToken, crm_user: ssoCrmUser }
+          );
+          window.history.replaceState(null, "", window.location.pathname);
+          login(res.data.username, res.data.empname);
+        } catch {
+          window.history.replaceState(null, "", window.location.pathname);
+          setAuthReady(true);
+        }
+        return;
+      }
 
-    const payload = decodeToken(token);
-    if (!payload || !payload.exp) {
-      logout("Invalid session");
-      return;
-    }
+      try {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/auth/me`);
+        login(res.data.username, res.data.empname);
+      } catch {
+        sessionStorage.removeItem("username");
+        sessionStorage.removeItem("empname");
+        localStorage.removeItem("username");
+        localStorage.removeItem("empname");
+        setUser(null);
+        setAuthReady(true);
+      }
+    };
 
-    const expiresIn = payload.exp * 1000 - Date.now();
-    if (expiresIn <= 0) {
-      logout("Session expired");
-      return;
-    }
-
-    // username: sessionStorage (current tab) → localStorage (cross-tab fallback) → JWT payload
-    const username =
-      sessionStorage.getItem("username") ||
-      localStorage.getItem("username") ||
-      payload.username || payload.sub || payload.name || payload.employeename;
-
-    if (!username) {
-      setAuthReady(true);
-      return;
-    }
-
-    const empname =
-      sessionStorage.getItem("empname") ||
-      localStorage.getItem("empname") ||
-      username;
-
-    // Restore sessionStorage for this tab so the expiry watcher works
-    if (!sessionStorage.getItem("username")) {
-      sessionStorage.setItem("username", username);
-      sessionStorage.setItem("empname", empname);
-      sessionStorage.setItem("token", token);
-      sessionStorage.setItem("authToken", token);
-    }
-
-    setUser({ username, empname, token });
-    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    setAuthReady(true);
+    restoreSession();
   }, []);
 
   useEffect(() => {
@@ -120,36 +114,25 @@ export const AuthProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [user]);
 
-  const login = (username, empname, token) => {
+  const login = (username, empname) => {
     const resolvedEmpname = empname || username;
+    // Only username/empname are stored client-side (needed by activityLog.js
+    // and cross-tab display) — the JWT itself lives solely in the httpOnly
+    // cookie the backend set on the response, never in JS-readable storage.
     sessionStorage.setItem("username", username);
     sessionStorage.setItem("empname", resolvedEmpname);
-    sessionStorage.setItem("token", token);
-    sessionStorage.setItem("authToken", token);
-    localStorage.setItem("authToken", token);
     localStorage.setItem("username", username);
     localStorage.setItem("empname", resolvedEmpname);
 
-    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    setUser({ username, empname: resolvedEmpname, token });
+    setUser({ username, empname: resolvedEmpname });
     setAuthReady(true);
   };
 
 const logout = async (message = "You have been logged out") => {
-  const token = sessionStorage.getItem("token");
-
   try {
-    if (token) {
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/auth/logout`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-    }
+    // Cookie is sent automatically (withCredentials); the backend reads it,
+    // blacklists the token, and clears the cookie.
+    await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/logout`, {});
   } catch (err) { /* logout API call failed — proceed with local cleanup */ }
 
   const safeMessage = typeof message === "string"
@@ -158,13 +141,9 @@ const logout = async (message = "You have been logged out") => {
 
   sessionStorage.removeItem("username");
   sessionStorage.removeItem("empname");
-  sessionStorage.removeItem("token");
-  sessionStorage.removeItem("authToken");
   sessionStorage.removeItem("themeMode");
-  localStorage.removeItem("authToken");
   localStorage.removeItem("username");
   localStorage.removeItem("empname");
-  delete axios.defaults.headers.common["Authorization"];
 
   setUser(null);
   setAuthReady(true);
